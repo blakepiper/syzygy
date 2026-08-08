@@ -121,6 +121,13 @@ certainly a design violation, not a shortcut.
 6. Check off the task in `TASKS.md` (`- [ ]` → `- [x]`) and leave a short
    note if you deviated from the plan or left something explicitly
    unfinished for the next task.
+7. Commit and push to `main` automatically once the task is complete and
+   the commands in the next section pass — do not wait for the user to
+   ask. Use a normal commit (no `--no-verify`, no force-push); a regular
+   `git push` to `main` is pre-authorized by this file for work done
+   under this workflow. Still stop and ask before anything destructive
+   (`--force`, `reset --hard`, rewriting published history) or before
+   pushing something the verification commands don't pass cleanly.
 
 ## Commands (all verified to work in this repository)
 

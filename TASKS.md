@@ -5,7 +5,7 @@ Ordered, ID'd checklist derived from `IMPLEMENTATION_PLAN.md`. Check off
 you deviated from the plan. Dependencies are noted inline; unless stated
 otherwise, tasks within a milestone are sequential.
 
-**Next recommended task: M2.1.**
+**Next recommended task: M4.5.**
 
 ---
 
@@ -26,27 +26,49 @@ otherwise, tasks within a milestone are sequential.
       two Thoth-specific attribution regression tests)
 - [x] M1.5 `docs/THOTH_INGESTION_MAP.md` (PDF structure, for M6)
 
-## M2 — Astrology — NEXT
+## M2 — Astrology — DONE
 
 - [x] M2.0 `src/syzygy/astrology/base.py` (`AstrologyEngine` protocol)
 - [x] M2.0b `src/syzygy/astrology/policy.py` (`TransitAspectPolicy`, orb
       table, 11 tests in `tests/astrology/test_policy.py`)
-- [ ] M2.1 Interactively inspect `AstrologicalSubjectFactory.from_birth_data(...)
+- [x] M2.1 Interactively inspect `AstrologicalSubjectFactory.from_birth_data(...)
       .model_dump()` output to confirm exact per-point field names
-      (see IMPLEMENTATION_PLAN.md §2.2) — bounded, ~30 minutes, unblocks M2.2
-- [ ] M2.2 `src/syzygy/astrology/kerykeion_backend.py`: `calculate_natal`
-      (IMPLEMENTATION_PLAN.md §2.3) — depends on M2.1
-- [ ] M2.3 `kerykeion_backend.py`: `calculate_transits`
-      (IMPLEMENTATION_PLAN.md §2.4) — depends on M2.2
-- [ ] M2.4 `src/syzygy/astrology/ranking.py`: `TransitRanker`
-      (IMPLEMENTATION_PLAN.md §2.5) — independent of M2.1-2.3, can be done
-      in parallel (only needs `TransitAspect`, already defined)
-- [ ] M2.5 `tests/astrology/test_kerykeion_backend.py` — fixed birth-data
-      fixtures, DST boundary, non-US birthplace, current-location
-      invariance test (DESIGN.md §25.2) — depends on M2.3
-- [ ] M2.6 `tests/astrology/test_ranking.py` — depends on M2.4
-- [ ] M2.7 `syzygy dev astrology` CLI command for manual inspection —
-      depends on M2.3
+      (see IMPLEMENTATION_PLAN.md §2.2)
+- [x] M2.2 `src/syzygy/astrology/kerykeion_backend.py`: `calculate_natal`
+      (IMPLEMENTATION_PLAN.md §2.3)
+- [x] M2.3 `kerykeion_backend.py`: `calculate_transits`
+      (IMPLEMENTATION_PLAN.md §2.4). **Deviation from the plan's literal
+      description**: Kerykeion 5.12.9's `AspectsFactory.dual_chart_aspects`
+      resolves `active_points` as the intersection with *both* subjects'
+      own `active_points`, so the transiting subject must itself request
+      `Ascendant`/`Medium_Coeli` (at the placeholder location) for natal
+      axis targets to survive at all - confirmed interactively, not
+      inferred. Any aspect where the *transiting* side is an axis is
+      discarded before conversion, so no location-dependent value ever
+      reaches a domain object; see the "Deviation" comment in
+      `kerykeion_backend.calculate_transits` and
+      `test_current_location_invariance` /
+      `test_raw_aspects_never_use_an_axis_as_the_transiting_source`.
+      Also: Kerykeion's `Medium_Coeli` is renamed to `Midheaven` on
+      conversion, to match `syzygy.astrology.policy.NATAL_ANGLE_TARGETS`.
+- [x] M2.4 `src/syzygy/astrology/ranking.py`: `TransitRanker`
+      (IMPLEMENTATION_PLAN.md §2.5). Uses
+      `TransitAspectPolicy.max_orb_degrees` (not a flat per-aspect-type
+      table) as `orb_closeness`'s denominator, so the Moon's tighter
+      policy cap makes its ratio harsher at a given absolute orb - this
+      is what actually produces the "slow planet outranks same-orb Moon
+      aspect" behavior the plan's own acceptance criteria call for; a
+      flat table with the plan's suggested weights (Moon body weight tied
+      with Sun at 1.0) cannot produce that ordering on its own.
+- [x] M2.5 `tests/astrology/test_kerykeion_backend.py` — fixed birth-data
+      fixtures, DST boundary (cross-checked against Python's own
+      `zoneinfo`, not just Kerykeion's own output), non-US birthplace,
+      current-location invariance test (DESIGN.md §25.2) via monkeypatching
+      the module's placeholder-location constants
+- [x] M2.6 `tests/astrology/test_ranking.py`
+- [x] M2.7 `syzygy dev astrology` CLI command for manual inspection —
+      takes birth data via flags (no saved-profile lookup yet - that's
+      M4.5/M4.9)
 
 ## M3 — Sortes — DONE
 
