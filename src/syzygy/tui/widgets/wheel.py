@@ -29,6 +29,7 @@ from textual.strip import Strip
 from textual.widget import Widget
 
 from syzygy.sortes.entropy import EntropyCollector
+from syzygy.tui import palette
 from syzygy.tui.widgets.glyph import GlyphSet, default_glyphs
 
 #: Radians/second the rim keeps turning at with no input at all - the
@@ -50,12 +51,12 @@ MIN_IMPULSES = 3
 
 FRAME_INTERVAL = 1 / 24
 
-_RIM_DIM = Style(color="#4a4438")
-_RIM_LIT = Style(color="#cf9b3f")
-_RIM_HOT = Style(color="#ff4d1f", bold=True)
-_HUB = Style(color="#7ea6c9")
-_HUB_RELEASED = Style(color="#ff4d1f", bold=True)
-_POINTER = Style(color="#e6ddc9", bold=True)
+_RIM_DIM = Style(color=palette.DIM)
+_RIM_LIT = Style(color=palette.ACCENT)
+_RIM_HOT = Style(color=palette.EMBER, bold=True)
+_HUB = Style(color=palette.LUNAR)
+_HUB_RELEASED = Style(color=palette.EMBER, bold=True)
+_POINTER = Style(color=palette.BONE, bold=True)
 
 
 class WheelImpulse(Message):

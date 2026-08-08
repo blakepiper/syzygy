@@ -13,14 +13,16 @@ from textual.app import RenderResult
 from textual.reactive import reactive
 from textual.widget import Widget
 
+from syzygy.tui import palette
+
 RESOLVED = "●"
 PENDING = "○"
 
-_LABEL_STYLE = "#8a8272"
-_RESOLVED_STYLE = "#e6ddc9"
-_PENDING_STYLE = "#4a4438"
-_CHANCE_STYLE = "bold #ff4d1f"
-_LINE_STYLE = "#6b6455"
+_LABEL_STYLE = palette.MUTED
+_RESOLVED_STYLE = palette.BONE
+_PENDING_STYLE = palette.DIM
+_CHANCE_STYLE = f"bold {palette.EMBER}"
+_LINE_STYLE = palette.RULE
 
 
 class AlignmentWidget(Widget):

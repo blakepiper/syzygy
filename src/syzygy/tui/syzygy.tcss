@@ -1,9 +1,9 @@
 /* Syzygy's visual identity (DESIGN.md section 18).
  *
- * A near-black field, warm bone text, solar gold for the calculated
+ * A near-black field, warm bone text, bright white for the calculated
  * (astrology, correspondences), lunar blue for the structural, oxidized
  * red for warnings, and one high-energy ember accent reserved for chance
- * and reveal - the accent is never used for anything the machine
+ * and reveal - the ember is never used for anything the machine
  * calculated, only for what it did not.
  *
  * Color is never the sole carrier of meaning: states also change glyph,
@@ -15,7 +15,11 @@ $syz-panel: #131417;
 $syz-bone: #e6ddc9;
 $syz-muted: #8a8272;
 $syz-dim: #4a4438;
-$syz-gold: #cf9b3f;
+/* The calculated-fact accent (M12.1). Was a solar gold (#cf9b3f); now a
+ * true white, which reads as *brighter* than $syz-bone body text rather
+ * than as another warm tone competing with it. Named for its role, not
+ * its colour, so the next change is one line. */
+$syz-accent: #ffffff;
 $syz-lunar: #7ea6c9;
 $syz-oxide: #8f3a2a;
 $syz-ember: #ff4d1f;
@@ -50,7 +54,7 @@ Screen {
 .title-bar {
     width: 1fr;
     padding: 0 2;
-    color: $syz-gold;
+    color: $syz-accent;
     text-style: bold;
     border-bottom: solid $syz-dim;
 }
@@ -82,7 +86,7 @@ Screen {
 }
 
 .section-heading {
-    color: $syz-gold;
+    color: $syz-accent;
     text-style: bold;
     padding: 1 2 0 2;
 }
@@ -113,7 +117,7 @@ Input {
 }
 
 Input:focus {
-    border: tall $syz-gold;
+    border: tall $syz-accent;
 }
 
 ListView {
@@ -128,7 +132,7 @@ ListItem {
 
 ListItem.--highlight {
     background: $syz-panel;
-    color: $syz-gold;
+    color: $syz-accent;
 }
 
 AlignmentWidget {
@@ -142,7 +146,7 @@ AlignmentWidget {
     width: auto;
     height: 1;
     margin: 0 2 0 0;
-    color: $syz-gold;
+    color: $syz-accent;
 }
 
 .transit-badge.applying {
@@ -159,14 +163,14 @@ TarotCardWidget {
     padding: 1 2;
     content-align: center middle;
     text-align: center;
-    border: double $syz-gold;
+    border: double $syz-accent;
     background: $syz-panel;
 }
 
 /* Welcome */
 
 #welcome-banner {
-    color: $syz-gold;
+    color: $syz-accent;
     width: auto;
 }
 
@@ -383,5 +387,5 @@ TarotCardWidget {
 
 #too-small-message {
     text-align: center;
-    color: $syz-gold;
+    color: $syz-accent;
 }

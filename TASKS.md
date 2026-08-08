@@ -680,7 +680,7 @@ finished animations means doing both twice.
 should be switched to white." That is `$syz-gold: #cf9b3f` in
 `src/syzygy/tui/syzygy.tcss` (9 usages).
 
-- [ ] M12.1a Repoint the accent to white/bone in the palette block rather
+- [x] M12.1a Repoint the accent to white/bone in the palette block rather
       than editing the 9 call sites — keep a single named variable so the
       accent stays changeable in one place. Decide whether `$syz-gold`
       becomes pure `#ffffff` or the existing `$syz-bone` (`#e6ddc9`);
@@ -688,13 +688,27 @@ should be switched to white." That is `$syz-gold: #cf9b3f` in
       body text, so the accent still reads as *brighter* than normal text
       rather than merging with it. Rename the variable to something
       non-color-specific (`$syz-accent`) while doing it.
-- [ ] M12.1b Sweep for hardcoded gold/yellow outside the stylesheet —
+      `$syz-accent: #ffffff`, taking the recommendation.
+- [x] M12.1b Sweep for hardcoded gold/yellow outside the stylesheet —
       Rich markup in Python strings (`[gold]`, `[yellow]`, `[#cf9b3f]`)
       in `screens/` and `widgets/` — not just the TCSS file.
-- [ ] M12.1c Check contrast on `$syz-field`/`$syz-panel` backgrounds and
+      Three more golds were hiding in Python (`tarot_card.py`,
+      `reading_panel.py`, `wheel.py`), and in fact the *whole* palette was
+      duplicated as hex literals across four widget modules — TCSS
+      variables are unreachable from a Rich `Style`. Rather than
+      find-and-replace them, added `syzygy.tui.palette` as the single
+      Python source and pointed all four at it. That is why the gold
+      would otherwise have survived being "removed": the stylesheet was
+      never where those widgets got their colour.
+- [x] M12.1c Check contrast on `$syz-field`/`$syz-panel` backgrounds and
       confirm the accent still distinguishes itself from `$syz-bone` body
       text after the change; adjust `$syz-muted`/`$syz-dim` if the
       hierarchy collapses.
+      `tests/tui/test_palette.py` asserts the luminance ordering holds
+      (accent > bone > muted > dim > field), that the two palette copies
+      agree, that no widget hardcodes a colour any more, and that no
+      `$syz-*` variable exists on one side only — so the next colour
+      change cannot half-land the way this one would have.
 
 ### M12.2 — Logo and mascot
 

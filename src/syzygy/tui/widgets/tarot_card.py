@@ -13,6 +13,7 @@ from rich.text import Text
 from textual.widgets import Static
 
 from syzygy.domain.tarot import TarotCard
+from syzygy.tui import palette
 from syzygy.tui.widgets.card_art import art_size_for, render_card_pixels
 from syzygy.tui.widgets.glyph import GlyphSet, default_glyphs
 
@@ -102,14 +103,14 @@ class TarotCardWidget(Static):
     def _text_lines(self, card: TarotCard) -> list[tuple[str, str]]:
         """The card's own words, as (line, style) pairs."""
         lines = [
-            (card.roman_numeral or "", "#7ea6c9"),
+            (card.roman_numeral or "", palette.LUNAR),
             ("", ""),
-            (card.display_name.upper(), "bold #e6ddc9"),
+            (card.display_name.upper(), f"bold {palette.BONE}"),
         ]
         if card.full_name != card.display_name:
-            lines.append((card.full_name, "#8a8272"))
+            lines.append((card.full_name, palette.MUTED))
         lines.append(("", ""))
-        lines.append((correspondence_label(card, self._glyphs), "#cf9b3f"))
+        lines.append((correspondence_label(card, self._glyphs), palette.ACCENT))
         return lines
 
     def _art_box(self, text_rows: int) -> tuple[int, int]:
@@ -126,7 +127,7 @@ class TarotCardWidget(Static):
         if self._card is None:
             back = Text()
             for index in range(5):
-                back.append("╱" * INNER_WIDTH + ("\n" if index < 4 else ""), style="#4a4438")
+                back.append("╱" * INNER_WIDTH + ("\n" if index < 4 else ""), style=palette.DIM)
             return back
 
         card = self._card

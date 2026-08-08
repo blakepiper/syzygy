@@ -20,14 +20,15 @@ from textual.containers import VerticalScroll
 from textual.widgets import Static
 
 from syzygy.domain.reading import Reading, ReadingStatus
+from syzygy.tui import palette
 from syzygy.tui.widgets.glyph import GlyphSet, default_glyphs, format_degrees
 from syzygy.tui.widgets.tarot_card import correspondence_label
 from syzygy.tui.widgets.transit_badge import format_transit
 
-_HEADING = "bold #cf9b3f"
-_BODY = "#e6ddc9"
-_MUTED = "#8a8272"
-_WARNING = "bold #ff4d1f"
+_HEADING = f"bold {palette.ACCENT}"
+_BODY = palette.BONE
+_MUTED = palette.MUTED
+_WARNING = f"bold {palette.EMBER}"
 
 
 class ReadingView(StrEnum):
