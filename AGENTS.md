@@ -211,7 +211,9 @@ knowledge index of citations and vectors (`knowledge/artifact.py`,
 (`syzygy.settings` — add a preference as a *section*, never by writing the
 whole file), the looping theme behind the optional `audio` extra
 (`syzygy.audio`, which degrades to `SilentTheme` on every failure), and
-the layout tiers (M12.5).
+the layout tiers (M12.5), and today's cosmos — the full ranked sky
+against the natal chart, at `tui/screens/cosmos.py`, reached with `[T]`
+from home (M13.1).
 
 **Layout tiers.** `syzygy.tui.screens.base` owns the three thresholds and
 sets `-compact`/`-wide`/`-tall` on every screen; `syzygy.tcss` styles
@@ -224,8 +226,8 @@ grow did.
 
 Not yet implemented (see `TASKS.md` for the ordered list, and don't
 assume a stub exists just because a directory is mentioned in
-`IMPLEMENTATION_PLAN.md`): today's-sky screen and LLM chart summaries
-(M13.1/M13.2), and the whole animation system (M14, specified in
+`IMPLEMENTATION_PLAN.md`): LLM summaries for the chart and the daily
+cosmos (M13.2), and the whole animation system (M14, specified in
 `docs/animation.md`). M12.3 (a Cinzel display treatment) was dropped
 rather than deferred — `TASKS.md` records why.
 

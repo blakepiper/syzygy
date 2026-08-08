@@ -59,6 +59,8 @@ Screen {
 
 .-compact #chart-body,
 .-compact #chart-aspects-body,
+.-compact #cosmos-sky-body,
+.-compact #cosmos-transits-body,
 .-compact #archive-frequency {
     padding: 0 1;
 }
@@ -69,6 +71,7 @@ Screen {
  * padding is whitespace, not content. */
 .-compact .column-heading,
 .-compact #home-chart-hint,
+.-compact #home-sky-hint,
 .-compact #home-transits,
 .-compact #home-anchors {
     padding: 0 1;
@@ -384,7 +387,8 @@ TarotCardWidget {
     padding: 0 2;
 }
 
-#home-chart-hint {
+#home-chart-hint,
+#home-sky-hint {
     padding: 0 2;
 }
 
@@ -426,7 +430,8 @@ TarotCardWidget {
 }
 
 .-wide #home-transits,
-.-wide #home-chart-hint {
+.-wide #home-chart-hint,
+.-wide #home-sky-hint {
     padding: 1 2 0 2;
 }
 
@@ -661,6 +666,49 @@ TarotCardWidget {
 }
 
 .-wide #chart-aspects {
+    border-left: solid $syz-dim;
+}
+
+/* Today's cosmos (M13.1) - COSMOS in full, arranged like the chart's
+ * SELF in full, so the two secondary screens read as a pair. */
+
+#cosmos-columns {
+    layout: vertical;
+    height: 1fr;
+    overflow-y: auto;
+}
+
+#cosmos-sky,
+#cosmos-transits {
+    width: 1fr;
+    height: auto;
+    overflow-y: hidden;
+}
+
+#cosmos-sky-body,
+#cosmos-transits-body {
+    padding: 1 2;
+}
+
+.-wide #cosmos-columns {
+    layout: horizontal;
+    overflow-y: hidden;
+}
+
+.-wide #cosmos-sky,
+.-wide #cosmos-transits {
+    height: 1fr;
+    overflow-y: auto;
+}
+
+/* The ranked transits are the payload; the positions are the reference
+ * beside them. */
+.-wide #cosmos-sky {
+    width: 2fr;
+}
+
+.-wide #cosmos-transits {
+    width: 3fr;
     border-left: solid $syz-dim;
 }
 

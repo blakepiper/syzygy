@@ -35,6 +35,7 @@ class HomeScreen(SyzygyScreen):
     BINDINGS = [
         ("enter", "primary", "continue"),
         ("c", "chart", "chart"),
+        ("t", "today", "today's sky"),
         ("a", "archive", "archive"),
         ("p", "profiles", "profiles"),
         ("m", "model", "model"),
@@ -75,6 +76,9 @@ class HomeScreen(SyzygyScreen):
                 yield Static("", id="home-sky", classes="muted")
                 with Vertical(id="home-transits"):
                     pass
+                yield Static(
+                    "[T] today's sky", id="home-sky-hint", classes="muted", markup=False
+                )
             with Vertical(id="home-chance", classes="home-column"):
                 yield Static("CHANCE", classes="column-heading")
                 yield Static("", id="home-status", classes="muted")
@@ -300,6 +304,9 @@ class HomeScreen(SyzygyScreen):
 
     def action_chart(self) -> None:
         self.app.push_screen("chart")
+
+    def action_today(self) -> None:
+        self.app.push_screen("cosmos")
 
     def action_archive(self) -> None:
         self.app.push_screen("archive")

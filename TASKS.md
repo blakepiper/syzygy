@@ -950,28 +950,40 @@ Reported: "There needs to be a function from the main menu to view
 today's 'cosmos' horoscope, in a similar way that the user can press 'c'
 to view their natal chart."
 
-- [ ] M13.1a New `src/syzygy/tui/screens/cosmos.py`, modelled on
+- [x] M13.1a New `src/syzygy/tui/screens/cosmos.py`, modelled on
       `screens/chart.py`: a full view of today's sky against the natal
       chart. The data already exists — `rank_current_transits`
       (`syzygy.storage.reading_service`) is what `HomeScreen._load_sky`
       calls and then truncates to three badges. This screen shows the full
       ranked set with orbs, applying/separating, and the natal point each
       transit touches.
-- [ ] M13.1b Binding from `HomeScreen` — `[C]` is taken by chart, so use
+- [x] M13.1b Binding from `HomeScreen` — `[C]` is taken by chart, so use
       `[T] Today` or `[S] Sky`; pick one and add it to the visible key
       line. Keep `[Q]` and `[Esc]` behavior consistent with the other
       secondary screens.
-- [ ] M13.1c Respect the invariants: no current-location astrology (no
+- [x] M13.1c Respect the invariants: no current-location astrology (no
       current lat/long, houses, Ascendant, or Midheaven — only the natal
       chart uses birthplace), and ranking stays in
       `syzygy.astrology.ranking`, not in the screen. The screen displays a
       ranking it is handed; it must not compute significance itself.
-- [ ] M13.1d Calculate off the event loop (`@work(thread=True)`, the
+- [x] M13.1d Calculate off the event loop (`@work(thread=True)`, the
       pattern `HomeScreen._load_sky` already uses) and handle failure
       visibly rather than silently.
-- [ ] M13.1e Tests: the screen renders the ranked transits it is given,
+- [x] M13.1e Tests: the screen renders the ranked transits it is given,
       handles the no-profile and calculation-failed states, and does not
       reach for a current location.
+
+**M13.1 notes.** `[T]` was the pick, advertised as `[T] today's sky` in
+the home screen's COSMOS column beside the three badges it expands on.
+The screen is two lists like `ChartScreen` — transiting positions on the
+left, the full ranked set on the right — and it says how many aspects the
+orb policy discarded, so a quiet sky and a filtered one do not look alike.
+One state the spec did not name is covered too: an empty ranking is
+rendered as "nothing is close enough today", distinct from the failure
+text. `tests/tui/test_cosmos.py` pins the invariant directly — it records
+every engine call and asserts each is the saved chart plus an instant,
+that opening the screen recalculates no chart, and that no house, no
+birthplace and no coordinate reaches the rendering.
 
 ### M13.2 — LLM summaries for the chart and the daily cosmos
 

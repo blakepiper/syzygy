@@ -30,6 +30,7 @@ from syzygy.storage import readings as readings_store
 from syzygy.storage.profiles import list_profiles
 from syzygy.tui.screens.archive import ArchiveScreen
 from syzygy.tui.screens.chart import ChartScreen
+from syzygy.tui.screens.cosmos import CosmosScreen
 from syzygy.tui.screens.home import HomeScreen
 from syzygy.tui.screens.model_setup import ModelSetupScreen
 from syzygy.tui.screens.profile_create import ProfileCreateScreen
@@ -118,6 +119,7 @@ class SyzygyApp(App[None]):
         "profile_select": ProfileSelectScreen,
         "home": HomeScreen,
         "chart": ChartScreen,
+        "cosmos": CosmosScreen,
         "archive": ArchiveScreen,
         "model_setup": ModelSetupScreen,
         "too_small": TooSmallScreen,
