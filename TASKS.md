@@ -229,16 +229,17 @@ force-split six ways; see the comment above
 - [x] M7.2 `src/syzygy/interpretation/base.py` (`InterpretationProvider` protocol)
 - [x] M7.3 `src/syzygy/interpretation/providers/fixture.py` (`FixtureProvider`)
 - [x] M7.4 `tests/interpretation/test_fixture_provider.py`
-- [ ] M7.5 `src/syzygy/interpretation/context_builder.py`
+- [x] M7.5 `src/syzygy/interpretation/context_builder.py`
       (IMPLEMENTATION_PLAN.md §7.2) — depends on M2 (natal/transit data)
       and M6 (knowledge chunks); can be stubbed/tested against
-      hand-built fixtures before either is finished
+      hand-built fixtures before either is finished. Decan cards also
+      include the natal placement of their ruling planet.
 - [ ] M7.6 `src/syzygy/interpretation/prompts.py` (`PROMPT_VERSION = "daily-v1"`)
 - [ ] M7.7 `src/syzygy/interpretation/providers/llama_cpp.py` — depends on M7.5, M7.6
 - [ ] M7.8 `src/syzygy/interpretation/providers/openai.py` — depends on M7.5, M7.6
 - [ ] M7.9 `src/syzygy/interpretation/providers/anthropic.py` — depends on M7.5, M7.6
 - [ ] M7.10 `syzygy model status` / `syzygy model configure` CLI
-- [ ] M7.11 Context-builder tests (inclusion/exclusion rules per card
+- [x] M7.11 Context-builder tests (inclusion/exclusion rules per card
       astrology type) — depends on M7.5
 
 ## M8 — Archive
