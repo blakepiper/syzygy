@@ -1,3 +1,5 @@
+<img src="logo.svg" alt="Syzygy" width="100%">
+
 # Syzygy
 
 A local-first terminal application for a daily divination ritual combining:
