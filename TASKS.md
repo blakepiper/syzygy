@@ -312,8 +312,23 @@ force-split six ways; see the comment above
       `tests/interpretation/conftest.py` (`sample_context`/`build_sample_context`)
       so provider tests share one fixture context instead of each
       reimplementing `FixtureProvider`'s test helper.
-- [ ] M7.8 `src/syzygy/interpretation/providers/openai.py` — depends on M7.5, M7.6
-- [ ] M7.9 `src/syzygy/interpretation/providers/anthropic.py` — depends on M7.5, M7.6
+- [x] M7.8 `src/syzygy/interpretation/providers/openai.py` — depends on M7.5, M7.6.
+      Plain `httpx` against `api.openai.com`'s Chat Completions endpoint
+      (same shape `llama_cpp.py` talks to), reusing `structured_output.py`
+      for parse/validate/repair. API key resolved via the new
+      `syzygy.interpretation.providers.api_keys` module (keyring first,
+      `OPENAI_API_KEY` env var fallback, DESIGN.md §13.3) unless passed
+      explicitly.
+- [x] M7.9 `src/syzygy/interpretation/providers/anthropic.py` — depends on M7.5, M7.6.
+      Plain `httpx` against `api.anthropic.com`'s Messages API. Differs from
+      the other two providers in wire shape: system prompt is a top-level
+      field, not a `messages` role, and a reply's text lives in a list of
+      content blocks that this provider concatenates. Key resolution via
+      `api_keys` with `ANTHROPIC_API_KEY` fallback, same as M7.8.
+      **Also added**: `src/syzygy/interpretation/providers/api_keys.py`
+      (`resolve_api_key`/`store_api_key`/`delete_api_key`/
+      `has_stored_api_key`), namespaced per provider in the OS keyring so
+      M7.10's `model configure`/`model status` CLI has something to call.
 - [ ] M7.10 `syzygy model status` / `syzygy model configure` CLI
 - [x] M7.11 Context-builder tests (inclusion/exclusion rules per card
       astrology type) — depends on M7.5
