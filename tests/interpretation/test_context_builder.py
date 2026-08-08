@@ -37,9 +37,12 @@ def _profile() -> Profile:
             NatalPlacement(body="Venus", sign="Aries", longitude=18.0, house=1),
             NatalPlacement(body="Mars", sign="Scorpio", longitude=220.0, house=8),
             NatalPlacement(body="Jupiter", sign="Taurus", longitude=45.0, house=2),
-            NatalPlacement(body="Ascendant", sign="Aries", longitude=15.0, house=1),
-            NatalPlacement(body="Midheaven", sign="Capricorn", longitude=285.0, house=10),
         ],
+        # No Ascendant/Midheaven placements: `KerykeionAstrologyEngine`
+        # returns exactly the ten transit bodies and carries the angles as
+        # `ascendant_longitude`/`midheaven_longitude`. A fixture that
+        # invented angle placements would let the builder depend on a field
+        # the real engine never produces.
         aspects=[],
         ascendant_longitude=15.0,
         midheaven_longitude=285.0,
@@ -136,14 +139,27 @@ def test_sign_attributed_card_includes_every_natal_placement_in_that_sign():
 def test_decan_attributed_card_includes_its_ruling_planet_placement():
     context = _build("two_of_wands")
 
-    assert _bodies(context) == {"Sun", "Moon", "Ascendant", "Mars"}
+    assert _bodies(context) == {"Sun", "Moon", "Mars"}
 
 
 def test_card_without_astrology_has_only_the_base_placement_set():
     context = _build("princess_of_wands")
 
     assert context.card.astrology is None
-    assert _bodies(context) == {"Sun", "Moon", "Ascendant"}
+    assert _bodies(context) == {"Sun", "Moon"}
+
+
+def test_transit_to_a_natal_angle_does_not_fabricate_a_placement():
+    # The angles have no `NatalPlacement` to include; the Ascendant reaches
+    # the model as `ascendant_sign`, and the transit itself names the angle.
+    context = _build("princess_of_wands", [_transit("Ascendant"), _transit("Midheaven")])
+
+    assert _bodies(context) == {"Sun", "Moon"}
+    assert context.ascendant_sign == "Aries"
+    assert [t.aspect.natal_target for t in context.significant_transits] == [
+        "Ascendant",
+        "Midheaven",
+    ]
 
 
 def test_context_builder_signature_is_the_narrow_design_surface():

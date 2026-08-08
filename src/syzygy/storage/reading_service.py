@@ -24,61 +24,40 @@ from syzygy.astrology.base import AstrologyEngine
 from syzygy.astrology.policy import TransitAspectPolicy
 from syzygy.astrology.ranking import TransitRanker
 from syzygy.clock import Clock
-from syzygy.domain.astrology import (
-    NatalPlacement,
-    RankedTransit,
-    TransitSnapshot,
-    sign_for_longitude,
-)
-from syzygy.domain.interpretation import InterpretationContext
+from syzygy.domain.astrology import RankedTransit, TransitSnapshot
+from syzygy.domain.knowledge import KnowledgeChunk, KnowledgeHit
 from syzygy.domain.profile import Profile
 from syzygy.domain.reading import Reading, ReadingStatus
-from syzygy.domain.tarot import TarotCard
 from syzygy.interpretation.base import InterpretationProvider
+from syzygy.interpretation.context_builder import build_context
+from syzygy.interpretation.prompts import PROMPT_VERSION
+from syzygy.knowledge.retrieve import retrieve_for_card
 from syzygy.sortes.deck import get_card
 from syzygy.sortes.draw import draw_card
 from syzygy.sortes.entropy import EntropyCollector
 from syzygy.storage import readings
 
-#: Placeholder pending `syzygy.interpretation.prompts.PROMPT_VERSION`
-#: (Milestone 7, not yet implemented). This module builds a minimal
-#: `InterpretationContext` itself for now rather than depending on
-#: `interpretation.context_builder` (also Milestone 7); once that module
-#: exists, `_build_context` below should be replaced by a call to it.
-_INTERIM_PROMPT_VERSION = "reading-service-interim-v1"
+#: How many chunks of any one ingested source may reach the model. The
+#: structural lookup returns a card's whole section, which for a Major
+#: Arcana card can run to several thousand words per source - more than a
+#: daily reading needs and more than a local model comfortably holds.
+#: Capping per source (rather than overall) keeps DESIGN.md section 12.2's
+#: "include only the top few" without letting Tier 0's own length crowd the
+#: Tier 1 companions out entirely; retrieval order is otherwise preserved,
+#: so Tier 0 still comes first.
+MAX_KNOWLEDGE_CHUNKS_PER_SOURCE = 3
 
 
-def _find_placement(placements: list[NatalPlacement], body: str) -> NatalPlacement:
-    for placement in placements:
-        if placement.body == body:
-            return placement
-    raise ValueError(f"natal chart has no placement for {body!r}")
-
-
-def _build_context(
-    profile: Profile,
-    card: TarotCard,
-    ranked_transits: list[RankedTransit],
-    *,
-    consultation_local_date: str,
-    consultation_local_timestamp: str,
-) -> InterpretationContext:
-    natal = profile.natal_chart
-    sun = _find_placement(natal.placements, "Sun")
-    moon = _find_placement(natal.placements, "Moon")
-    return InterpretationContext(
-        profile_display_name=profile.display_name,
-        consultation_local_date=consultation_local_date,
-        consultation_local_timestamp=consultation_local_timestamp,
-        card=card,
-        significant_transits=ranked_transits,
-        relevant_natal_placements=[sun, moon],
-        sun_placement=sun,
-        moon_placement=moon,
-        ascendant_sign=sign_for_longitude(natal.ascendant_longitude),
-        knowledge_chunks=[],  # Book of Thoth retrieval is Milestone 6, not yet implemented
-        prompt_version=_INTERIM_PROMPT_VERSION,
-    )
+def _select_knowledge_chunks(hits: list[KnowledgeHit]) -> list[KnowledgeChunk]:
+    selected: list[KnowledgeChunk] = []
+    per_source: dict[str, int] = {}
+    for hit in hits:
+        taken = per_source.get(hit.chunk.source_id, 0)
+        if taken >= MAX_KNOWLEDGE_CHUNKS_PER_SOURCE:
+            continue
+        per_source[hit.chunk.source_id] = taken + 1
+        selected.append(hit.chunk)
+    return selected
 
 
 def rank_current_transits(
@@ -134,13 +113,21 @@ def draw_todays_reading(
 
     if reading.status == ReadingStatus.DRAWN:
         assert reading.card_draw is not None
+        card = get_card(reading.card_draw.card_id)
         snapshot, ranked = rank_current_transits(profile, astrology, clock.now_utc())
-        context = _build_context(
-            profile,
-            get_card(reading.card_draw.card_id),
-            ranked,
-            consultation_local_date=reading.consultation_local_date,
+        # An empty knowledge base is not an error: the reading proceeds
+        # without source passages, and the prompt says so explicitly rather
+        # than implying Crowley grounding that was never retrieved
+        # (DESIGN.md section 23).
+        chunks = _select_knowledge_chunks(retrieve_for_card(conn, card.id))
+        context = build_context(
+            profile=profile,
+            card=card,
+            ranked_transits=ranked,
+            knowledge_chunks=chunks,
             consultation_local_timestamp=reading.consultation_local_timestamp,
+            consultation_local_date=reading.consultation_local_date,
+            prompt_version=PROMPT_VERSION,
         )
         reading = readings.commit_context(
             conn,

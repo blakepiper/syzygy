@@ -5,12 +5,15 @@ Ordered, ID'd checklist derived from `IMPLEMENTATION_PLAN.md`. Check off
 you deviated from the plan. Dependencies are noted inline; unless stated
 otherwise, tasks within a milestone are sequential.
 
-**Next recommended task: M7.6** (`interpretation/prompts.py`), then the
-real providers — M6 and M5 are both done, so the remaining gap to a v0.1
-is an actual model behind the interface. Note M7.5's context builder is
-implemented but not yet wired into `reading_service`, which still builds a
-minimal context of its own with no knowledge chunks; wiring those two
-together belongs with M7.6.
+**Next recommended task: M7.7** (`providers/llama_cpp.py`), then the two
+hosted providers — the prompt contract, the context builder, and the
+knowledge base are all wired into `reading_service` now, so the remaining
+gap to a v0.1 is an actual model behind the interface. A provider is
+transport only: take `prompts.SYSTEM_PROMPT` +
+`prompts.build_user_prompt(context)`, constrain output with
+`prompts.RESPONSE_JSON_SCHEMA` where the API allows, validate into
+`InterpretationResult`, and on failure retry exactly once with
+`prompts.build_repair_prompt(...)` before raising.
 
 ---
 
@@ -270,7 +273,30 @@ force-split six ways; see the comment above
       and M6 (knowledge chunks); can be stubbed/tested against
       hand-built fixtures before either is finished. Decan cards also
       include the natal placement of their ruling planet.
-- [ ] M7.6 `src/syzygy/interpretation/prompts.py` (`PROMPT_VERSION = "daily-v1"`)
+- [x] M7.6 `src/syzygy/interpretation/prompts.py` (`PROMPT_VERSION = "daily-v1"`).
+      Holds the whole prompt contract, not just the system prompt:
+      `SYSTEM_PROMPT` (DESIGN.md §13.5), `build_user_prompt` (deterministic
+      rendering of an `InterpretationContext`), `RESPONSE_JSON_SCHEMA`
+      (derived from `InterpretationResult` minus the provenance fields, so
+      the constraint a provider applies cannot drift from the schema that
+      validates the reply), and `build_repair_prompt` for §13.4's single
+      retry — providers stay transport-only per AGENTS.md.
+      **Also wired M7.5 in** (the note the previous session left here):
+      `reading_service` now calls `interpretation.context_builder` with
+      `PROMPT_VERSION` and the drawn card's `knowledge.retrieve_for_card`
+      chunks, capped at `MAX_KNOWLEDGE_CHUNKS_PER_SOURCE = 3` per source
+      (DESIGN.md §12.2 "only the top few"; per-source rather than overall so
+      Tier 0's length cannot crowd out the Tier 1 companions). Its interim
+      `_build_context`/`_INTERIM_PROMPT_VERSION` are gone.
+      **Bug found by that wiring**: `context_builder` unconditionally looked
+      up a natal `Ascendant` *placement*, but `KerykeionAstrologyEngine`
+      returns only the ten transit bodies as placements and carries the
+      angles as `ascendant_longitude`/`midheaven_longitude` — so every real
+      reading would have raised, and a ranked transit onto an angle would
+      have raised too. Angles are now excluded from the placement lookup
+      (the Ascendant already reaches the model as `ascendant_sign`), and
+      `tests/interpretation/test_context_builder.py`'s fixture chart no
+      longer invents angle placements the real engine never produces.
 - [ ] M7.7 `src/syzygy/interpretation/providers/llama_cpp.py` — depends on M7.5, M7.6
 - [ ] M7.8 `src/syzygy/interpretation/providers/openai.py` — depends on M7.5, M7.6
 - [ ] M7.9 `src/syzygy/interpretation/providers/anthropic.py` — depends on M7.5, M7.6

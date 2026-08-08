@@ -7,6 +7,7 @@ survives").
 
 from __future__ import annotations
 
+from collections import Counter
 from datetime import UTC, datetime
 
 import pytest
@@ -21,16 +22,22 @@ from syzygy.domain.astrology import (
     TransitSnapshot,
 )
 from syzygy.domain.interpretation import InterpretationContext, InterpretationResult
+from syzygy.domain.knowledge import KnowledgeChunk, KnowledgeSource
 from syzygy.domain.profile import Profile
 from syzygy.domain.reading import ReadingStatus
+from syzygy.interpretation.prompts import PROMPT_VERSION
 from syzygy.interpretation.providers.fixture import FixtureProvider
+from syzygy.knowledge.store import replace_source
 from syzygy.sortes.draw import draw_card
 from syzygy.sortes.entropy import EntropyCollector
 from syzygy.storage import readings
 from syzygy.storage.database import connect
 from syzygy.storage.migrations import apply_all
 from syzygy.storage.profiles import insert_profile
-from syzygy.storage.reading_service import get_or_create_todays_reading
+from syzygy.storage.reading_service import (
+    MAX_KNOWLEDGE_CHUNKS_PER_SOURCE,
+    get_or_create_todays_reading,
+)
 
 FIXED_NOW = datetime(2026, 8, 7, 12, 0, tzinfo=UTC)
 
@@ -176,6 +183,109 @@ def test_interpretation_failure_can_be_retried_without_a_new_card_id(conn):
     assert retried.status == ReadingStatus.COMPLETE
     assert retried.card_draw is not None
     assert retried.card_draw.card_id == failed.card_draw.card_id
+
+
+def test_context_uses_the_versioned_prompt_and_the_shared_context_builder(conn):
+    profile = _profile()
+    insert_profile(conn, profile)
+
+    reading = _run(conn, profile)
+
+    assert reading.interpretation_context is not None
+    context = reading.interpretation_context
+    assert context.prompt_version == PROMPT_VERSION
+    # The shared builder's output, not the service's own older minimal one:
+    # the luminaries arrive as relevant placements and the Ascendant as a sign.
+    assert {p.body for p in context.relevant_natal_placements} >= {"Sun", "Moon"}
+    assert context.ascendant_sign == "Scorpio"  # ascendant_longitude 210.0
+
+
+def test_the_drawn_cards_source_passages_reach_the_context(conn):
+    profile = _profile()
+    insert_profile(conn, profile)
+    card_id = _todays_card_id()
+    _ingest_chunks(conn, card_id, "book_of_thoth", count=2)
+
+    reading = _run(conn, profile)
+
+    assert reading.interpretation_context is not None
+    chunks = reading.interpretation_context.knowledge_chunks
+    assert [chunk.id for chunk in chunks] == [
+        f"book_of_thoth-{card_id}-0",
+        f"book_of_thoth-{card_id}-1",
+    ]
+
+
+def test_only_the_top_few_chunks_of_each_source_reach_the_context(conn):
+    profile = _profile()
+    insert_profile(conn, profile)
+    card_id = _todays_card_id()
+    _ingest_chunks(conn, card_id, "book_of_thoth", count=MAX_KNOWLEDGE_CHUNKS_PER_SOURCE + 4)
+    _ingest_chunks(conn, card_id, "duquette_companion", count=MAX_KNOWLEDGE_CHUNKS_PER_SOURCE + 4)
+
+    reading = _run(conn, profile)
+
+    assert reading.interpretation_context is not None
+    chunks = reading.interpretation_context.knowledge_chunks
+    per_source = Counter(chunk.source_id for chunk in chunks)
+    assert per_source == {
+        "book_of_thoth": MAX_KNOWLEDGE_CHUNKS_PER_SOURCE,
+        "duquette_companion": MAX_KNOWLEDGE_CHUNKS_PER_SOURCE,
+    }
+    # Tier 0 keeps its precedence, and each source is truncated from the end.
+    assert [chunk.source_id for chunk in chunks[:MAX_KNOWLEDGE_CHUNKS_PER_SOURCE]] == [
+        "book_of_thoth"
+    ] * MAX_KNOWLEDGE_CHUNKS_PER_SOURCE
+    assert [chunk.chunk_index for chunk in chunks[:MAX_KNOWLEDGE_CHUNKS_PER_SOURCE]] == list(
+        range(MAX_KNOWLEDGE_CHUNKS_PER_SOURCE)
+    )
+
+
+def test_an_empty_knowledge_base_still_produces_a_reading(conn):
+    profile = _profile()
+    insert_profile(conn, profile)
+
+    reading = _run(conn, profile)
+
+    assert reading.status == ReadingStatus.COMPLETE
+    assert reading.interpretation_context is not None
+    assert reading.interpretation_context.knowledge_chunks == []
+
+
+def _todays_card_id() -> str:
+    """The card `_run` will draw - same collector inputs, same card."""
+    collector = EntropyCollector(session_nonce=b"x", os_random=_fixed_os_random_factory(7))
+    return draw_card(collector, now=FIXED_NOW).card_id
+
+
+def _ingest_chunks(conn, card_id: str, source_type: str, *, count: int) -> None:
+    replace_source(
+        conn,
+        KnowledgeSource(
+            id=source_type,
+            source_type=source_type,
+            title=source_type,
+            file_hash=f"hash-{source_type}",
+            ingestion_version="test-v1",
+            created_at_utc=FIXED_NOW,
+        ),
+        [
+            KnowledgeChunk(
+                id=f"{source_type}-{card_id}-{index}",
+                source_id=source_type,
+                section_id=card_id,
+                section_type="card",
+                card_id=card_id,
+                title=card_id,
+                page_start=100 + index,
+                page_end=100 + index,
+                chunk_index=index,
+                text=f"{source_type} passage {index} for {card_id}.",
+                text_hash=f"text-hash-{source_type}-{index}",
+            )
+            for index in range(count)
+        ],
+    )
 
 
 def _run(conn, profile, *, engine=None, provider=None):

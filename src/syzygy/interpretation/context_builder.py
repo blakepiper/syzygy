@@ -8,6 +8,14 @@ from syzygy.domain.knowledge import KnowledgeChunk
 from syzygy.domain.profile import Profile
 from syzygy.domain.tarot import TarotCard
 
+#: Natal angles are targets a transit can hit, but they are not bodies and
+#: a `NatalChart` carries no `NatalPlacement` for either of them - the
+#: astrology engine stores them as `ascendant_longitude`/
+#: `midheaven_longitude` instead. The Ascendant still reaches the model, as
+#: `InterpretationContext.ascendant_sign`; a transit to either angle
+#: reaches it by naming the angle in the transit line.
+_NATAL_ANGLES = ("Ascendant", "Midheaven")
+
 
 def _find_placement(placements: list[NatalPlacement], body: str) -> NatalPlacement:
     for placement in placements:
@@ -39,15 +47,15 @@ def build_context(
     included_bodies: set[str] = set()
 
     def include(body: str) -> None:
-        if body in included_bodies:
+        if body in included_bodies or body in _NATAL_ANGLES:
             return
         relevant.append(_find_placement(natal_placements, body))
         included_bodies.add(body)
 
-    # The core context always gives the provider the luminaries and natal
-    # Ascendant, then adds any natal bodies or angles directly touched by the
-    # already-ranked transit list.
-    for body in ("Sun", "Moon", "Ascendant"):
+    # The core context always gives the provider the luminaries (the natal
+    # Ascendant travels as `ascendant_sign`), then adds any natal body
+    # directly touched by the already-ranked transit list.
+    for body in ("Sun", "Moon"):
         include(body)
     for ranked in ranked_transits:
         include(ranked.aspect.natal_target)

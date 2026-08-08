@@ -164,9 +164,11 @@ Implemented and tested: domain schemas, `AstrologyEngine` protocol +
 Kerykeion adapter, transit orb policy + ranking, deck loader + data,
 entropy collection, the unbiased draw, the reading state machine (types
 and the storage-backed service/repositories that drive it), SQLite schema
-+ migrations, `FixtureProvider`, the interpretation context builder, the
-Book of Thoth + companion-source (DuQuette, Ziegler) ingestion pipeline
-and retrieval (`syzygy.knowledge`), the TUI ritual (welcome → profile →
++ migrations, `FixtureProvider`, the interpretation context builder and
+the versioned prompt contract (`syzygy.interpretation.prompts`), both now
+wired into `reading_service`, the Book of Thoth + companion-source
+(DuQuette, Ziegler) ingestion pipeline and retrieval (`syzygy.knowledge`),
+the TUI ritual (welcome → profile →
 home → Wheel → reveal → reading, plus chart and a list-only archive,
 running on `FixtureProvider`), the CLI (`dev deck`/`dev astrology`,
 `profile create`/`list`, `chart`, `knowledge ingest`/`status`, `tui`,
@@ -174,8 +176,7 @@ running on `FixtureProvider`), the CLI (`dev deck`/`dev astrology`,
 
 Not yet implemented (see `TASKS.md` for the ordered list, and don't
 assume a stub exists just because a directory is mentioned in
-`IMPLEMENTATION_PLAN.md`): the prompt module and real LLM providers (the
-reading service still builds a minimal context itself, with no knowledge
-chunks, rather than calling `interpretation.context_builder`), the full
-archive with statistics, the glyph capability detection and "terminal too
-small" state.
+`IMPLEMENTATION_PLAN.md`): the real LLM providers (`FixtureProvider` is
+still the only one, so no prompt built by `interpretation.prompts` has
+ever been sent to a model), the full archive with statistics, the glyph
+capability detection and "terminal too small" state.
