@@ -48,7 +48,7 @@ class WheelScreen(SyzygyScreen):
                 yield Static("", id="wheel-status", classes="muted")
             with Center():
                 yield Static(
-                    "SPACE impulse     ← → disturb     ENTER release",
+                    "SPACE impulse     ← → disturb     ENTER release     Q quit",
                     id="wheel-keys",
                     classes="keys",
                 )

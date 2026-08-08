@@ -18,7 +18,7 @@ from syzygy.tui.widgets.glyph import format_degrees
 
 
 class ChartScreen(SyzygyScreen):
-    BINDINGS = [("escape", "back", "back"), ("q", "quit", "quit")]
+    BINDINGS = [("escape", "back", "back")]
 
     def compose(self) -> ComposeResult:
         yield TitleBar("NATAL CHART")

@@ -21,10 +21,7 @@ class WelcomeScreen(SyzygyScreen):
     """`SELF` is the first point of the alignment; nothing else can
     resolve until a profile exists."""
 
-    BINDINGS = [
-        ("n", "create_profile", "create profile"),
-        ("q", "quit", "quit"),
-    ]
+    BINDINGS = [("n", "create_profile", "create profile")]
 
     def compose(self) -> ComposeResult:
         with Middle():

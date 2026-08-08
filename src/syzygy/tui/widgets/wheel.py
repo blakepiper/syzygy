@@ -190,6 +190,13 @@ class WheelWidget(Widget, can_focus=True):
         elif event.key == "enter":
             event.stop()
             self.release()
+        elif event.key == "q":
+            # Quit (`SyzygyApp.BINDINGS`, M10.2) must keep working here
+            # too - left unstopped so it bubbles to the app's binding
+            # instead of being consumed as entropy. The pool is always
+            # OS-random-primary (DESIGN.md section 7.2), so losing one
+            # key's contribution changes nothing about unbiased selection.
+            return
         elif event.is_printable:
             # DESIGN.md section 7.1: other key presses may contribute
             # entropy. Named keys (escape, tab, ...) are left alone so the

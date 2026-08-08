@@ -140,3 +140,23 @@ async def test_geocoding_failure_leaves_the_form_open_for_manual_entry(
         error = text_of(q(pilot, "#form-error", Static))
         assert "Could not resolve a location for 'Nowhereville'" in error
         assert "enter coordinates manually" in error
+
+
+async def test_focused_input_takes_a_literal_q_keystroke_over_quit(app: SyzygyApp):
+    """M10.2b: `SyzygyApp`'s app-level quit binding must not steal a
+    literal "q" keystroke from a focused form field - Textual gives a
+    focused widget's own key handling first refusal, but this is worth
+    asserting explicitly since M10.2 is specifically about "q" behavior.
+    """
+    async with app.run_test() as pilot:
+        await _open_profile_create(pilot)
+        display_name = q(pilot, "#display-name", Input)
+        display_name.focus()
+        await pilot.pause()
+
+        await pilot.press("q")
+        await pilot.pause()
+
+        assert display_name.value == "q"
+        assert not pilot.app._exit
+        assert isinstance(pilot.app.screen, profile_create_module.ProfileCreateScreen)

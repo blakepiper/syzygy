@@ -36,7 +36,6 @@ class ReadingListItem(ListItem):
 class ArchiveScreen(SyzygyScreen):
     BINDINGS = [
         ("escape", "back", "back"),
-        ("q", "quit", "quit"),
         ("f", "toggle_frequency", "counts"),
     ]
 

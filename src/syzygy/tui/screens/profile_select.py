@@ -26,7 +26,6 @@ class ProfileSelectScreen(SyzygyScreen):
     BINDINGS = [
         ("n", "create_profile", "new profile"),
         ("escape", "back", "back"),
-        ("q", "quit", "quit"),
     ]
 
     def compose(self) -> ComposeResult:

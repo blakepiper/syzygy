@@ -59,6 +59,9 @@ class RevealScreen(SyzygyScreen):
         alignment = self.query_one("#reveal-alignment", AlignmentWidget)
         alignment.self_resolved = True
         alignment.cosmos_resolved = True
+        # Quit is discoverable from the first frame - the rest of the hint
+        # (any key skips the staged reveal) fills in once staging finishes.
+        self.query_one("#reveal-hint", Static).update("[Q] QUIT")
         self.set_timer(STAGE_INTERVAL, self._stage_card)
 
     def _stage_card(self) -> None:
@@ -88,7 +91,7 @@ class RevealScreen(SyzygyScreen):
         self.set_timer(STAGE_INTERVAL, self._stage_done)
 
     def _stage_done(self) -> None:
-        self.query_one("#reveal-hint", Static).update("[ENTER] read the alignment")
+        self.query_one("#reveal-hint", Static).update("[ENTER] read the alignment   [Q] QUIT")
         self.set_timer(STAGE_INTERVAL * 2, self.action_read)
 
     def action_read(self) -> None:

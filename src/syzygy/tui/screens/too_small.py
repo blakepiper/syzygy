@@ -23,11 +23,10 @@ MIN_HEIGHT = 24
 
 
 class TooSmallScreen(SyzygyScreen):
-    """A static, centered notice. No bindings but quit - there is nothing
-    else safe to do at this size.
+    """A static, centered notice. There is nothing safe to do here besides
+    quit, which the app-level binding (`SyzygyApp.BINDINGS`) already
+    provides.
     """
-
-    BINDINGS = [("q", "quit", "quit")]
 
     def compose(self) -> ComposeResult:
         with Middle():

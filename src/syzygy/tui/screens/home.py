@@ -35,7 +35,6 @@ class HomeScreen(SyzygyScreen):
         ("c", "chart", "chart"),
         ("a", "archive", "archive"),
         ("p", "profiles", "profiles"),
-        ("q", "quit", "quit"),
     ]
 
     def __init__(self) -> None:

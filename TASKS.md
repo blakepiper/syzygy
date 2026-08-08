@@ -72,23 +72,32 @@ app-level fallback (`SyzygyApp` in `src/syzygy/tui/app.py` declares no
 `reading.py` is the screen most readings end on, which is almost certainly
 what was actually hit.
 
-- [ ] M10.2a Move the quit binding to `SyzygyApp` itself
+- [x] M10.2a Move the quit binding to `SyzygyApp` itself
       (`src/syzygy/tui/app.py`) as a single `BINDINGS = [("q", "quit",
       "quit")]`, so it applies everywhere by construction instead of being
       copy-pasted per screen. Remove the now-redundant per-screen entries
       in `welcome.py`, `home.py`, `chart.py`, `archive.py`,
       `profile_select.py`, `too_small.py`.
-- [ ] M10.2b Verify (via a test, not just reasoning) that a focused `Input`
+- [x] M10.2b Verify (via a test, not just reasoning) that a focused `Input`
       on `profile_create.py`'s form still accepts a literal `q` keystroke
       as text rather than quitting — Textual gives a focused widget's own
       key handling first refusal, so this should already hold, but assert
       it explicitly since this task is specifically about `q` behavior.
-- [ ] M10.2c Add `[Q] Quit` to the visible hint/footer text on
+- [x] M10.2c Add `[Q] Quit` to the visible hint/footer text on
       `wheel.py`, `reveal.py`, and `reading.py` (currently only some
       screens spell out their keys in a `Static(..., classes="keys")`
       line — `reading.py`'s hint line only lists `1`/`2`/`I`).
-- [ ] M10.2d Regression test: from each of `WheelScreen`, `RevealScreen`,
+      Note: `reading.py`'s hint line was also made state-dependent here
+      (adds `[R] RETRY` when `INTERPRETATION_FAILED`) since M10.3c needed
+      the same edit - see that task's note.
+- [x] M10.2d Regression test: from each of `WheelScreen`, `RevealScreen`,
       and `ReadingScreen`, press `q` via `Pilot` and assert the app exits.
+      Found and fixed a real bug surfaced by this test: `WheelWidget.on_key`
+      (`src/syzygy/tui/widgets/wheel.py`) swallows every printable key as
+      entropy input and calls `event.stop()` - including `q` - so it never
+      reached the new app-level binding. `q` is now special-cased to bubble
+      through unstopped; the entropy pool stays OS-random-primary
+      (`DESIGN.md` 7.2) so this changes nothing about unbiased selection.
 
 ### M10.3 — "r" (retry) — audit and fix
 

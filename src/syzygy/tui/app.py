@@ -101,6 +101,12 @@ class SyzygyApp(App[None]):
     CSS_PATH = "syzygy.tcss"
     TITLE = "SYZYGY"
 
+    #: Declared once here, not per-screen, so quit works identically on
+    #: every screen by construction (M10.2). A focused `Input` still gets
+    #: first refusal at a keystroke, so typing a literal "q" into a form
+    #: field is unaffected.
+    BINDINGS = [("q", "quit", "quit")]
+
     SCREENS = {
         "welcome": WelcomeScreen,
         "profile_create": ProfileCreateScreen,

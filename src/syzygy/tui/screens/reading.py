@@ -55,11 +55,7 @@ class ReadingScreen(SyzygyScreen):
                 with Vertical(id="reading-transits"):
                     pass
         yield ReadingPanel(glyphs=self.syzygy.glyphs, id="reading-panel")
-        yield Static(
-            "[1] ESOTERIC   [2] CONVENTIONAL   [I] INPUTS",
-            classes="keys",
-            markup=False,
-        )
+        yield Static("", id="reading-keys", classes="keys", markup=False)
         yield Footer()
 
     def on_mount(self) -> None:
@@ -93,6 +89,16 @@ class ReadingScreen(SyzygyScreen):
             title.update("THE ALIGNMENT IS FIXED.")
         else:
             title.update("THE ALIGNMENT IS FIXED. INTERPRETING…")
+        self._update_keys_hint()
+
+    def _update_keys_hint(self) -> None:
+        # Retry (and quit) are discoverable the same way in every state,
+        # not just embedded in the failed-state panel body (M10.3c).
+        keys = "[1] ESOTERIC   [2] CONVENTIONAL   [I] INPUTS"
+        if self._may_interpret and self.reading.status == ReadingStatus.INTERPRETATION_FAILED:
+            keys += "   [R] RETRY"
+        keys += "   [Q] QUIT"
+        self.query_one("#reading-keys", Static).update(keys)
 
     def _tick_wait(self) -> None:
         self._wait_frame = (self._wait_frame + 1) % len(_WAIT_FRAMES)
