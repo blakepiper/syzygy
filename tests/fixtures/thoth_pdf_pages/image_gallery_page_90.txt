@@ -1,0 +1,9 @@
+# Source: docs/book_of_thoth.pdf, PDF page 90 (1-indexed), raw
+# `page.get_text("blocks")` block texts, verbatim. Illustrates a
+# card-artwork gallery page: after header/footer stripping, under ~50
+# characters of real content remain, so ingestion skips it entirely
+# rather than trying to segment it (docs/THOTH_INGESTION_MAP.md section
+# 9). See section 13.
+---
+file:///D:/Books/Non-Fiction/Magick+Esoteric/Crowley/The book of Thoth/major00.jpg
+file:///D:/Books/Non-Fiction/Magick+Esoteric/Crowley/The book of Thoth/major00.jpg28.02.2004 22:48:44

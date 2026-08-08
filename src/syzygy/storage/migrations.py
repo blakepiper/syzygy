@@ -117,6 +117,33 @@ _MIGRATIONS: list[tuple[int, str, str]] = [
         ALTER TABLE readings ADD COLUMN card_drawn_at_utc TEXT;
         """,
     ),
+    (
+        3,
+        "knowledge_chunks_fts: FTS5 lexical index over knowledge_chunks.text (M6.4)",
+        """
+        CREATE VIRTUAL TABLE knowledge_chunks_fts USING fts5(
+            text,
+            content='knowledge_chunks',
+            content_rowid='rowid',
+            tokenize='porter unicode61'
+        );
+
+        CREATE TRIGGER knowledge_chunks_ai AFTER INSERT ON knowledge_chunks BEGIN
+            INSERT INTO knowledge_chunks_fts(rowid, text) VALUES (new.rowid, new.text);
+        END;
+
+        CREATE TRIGGER knowledge_chunks_ad AFTER DELETE ON knowledge_chunks BEGIN
+            INSERT INTO knowledge_chunks_fts(knowledge_chunks_fts, rowid, text)
+            VALUES ('delete', old.rowid, old.text);
+        END;
+
+        CREATE TRIGGER knowledge_chunks_au AFTER UPDATE ON knowledge_chunks BEGIN
+            INSERT INTO knowledge_chunks_fts(knowledge_chunks_fts, rowid, text)
+            VALUES ('delete', old.rowid, old.text);
+            INSERT INTO knowledge_chunks_fts(rowid, text) VALUES (new.rowid, new.text);
+        END;
+        """,
+    ),
 ]
 
 

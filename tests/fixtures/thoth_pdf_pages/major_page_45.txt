@@ -1,0 +1,12 @@
+# Source: docs/book_of_thoth.pdf, PDF page 45 (1-indexed), raw
+# `page.get_text("blocks")` block texts, one per line below the marker.
+# Illustrates: repeated section header (line 1, to be stripped), a
+# Major Arcana heading mid-page ("II. THE HIGH PRIESTESS"), and ordinary
+# prose blocks. See docs/THOTH_INGESTION_MAP.md section 13.
+---
+BOOK OF THOTH PART2A
+and the Word. He bears in his right hand the Style, in his left the Papyrus. He is the messenger of the higher powers,
+The present card endeavours to represent all the above conceptions. Yet no true image is possible in so intricate a matter.
+II. THE HIGH PRIESTESS
+This card is referred to the letter Gimel, which means a Camel. (The symbolism of the Camel is explained later.)
+The card refers to the Moon. The Moon (being the general feminine symbol, the symbol of the deepest recesses of consciousness),

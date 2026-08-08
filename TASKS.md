@@ -5,7 +5,9 @@ Ordered, ID'd checklist derived from `IMPLEMENTATION_PLAN.md`. Check off
 you deviated from the plan. Dependencies are noted inline; unless stated
 otherwise, tasks within a milestone are sequential.
 
-**Next recommended task: M5.1.**
+**Next recommended task: M5.1** (M6 was completed out of order, ahead of
+M5/M7, per an explicit request to jump ahead to Book of Thoth + companion
+source ingestion).
 
 ---
 
@@ -143,53 +145,83 @@ otherwise, tasks within a milestone are sequential.
 - [ ] M5.9 `syzygy.tcss`
 - [ ] M5.10 Textual `Pilot`-based tests for key flows, wheel events, resize
 
-## M6 — Book of Thoth ingestion (+ optional companion sources)
+## M6 — Book of Thoth ingestion (+ optional companion sources) — DONE
 
 Full spec: `docs/THOTH_INGESTION_MAP.md` (Tier 0 / Book of Thoth) and
 `docs/KNOWLEDGE_SOURCES.md` (multi-source tier policy + Tier 1 companion
-source structure — DuQuette, Ziegler). Read both before starting M6.1.
-**Ship Tier 0 (M6.1-M6.9) completely before starting Tier 1 (M6.10+)** —
-Tier 1 is optional/additive per `DESIGN.md` §30's acceptance criteria.
+source structure — DuQuette, Ziegler). Tier 1 ingestion was implemented in
+the same pass as Tier 0 (by explicit request), rather than as an optional
+fast-follow.
 
-- [ ] M6.1 `src/syzygy/knowledge/normalize.py` (Tier 0: header/footer
+- [x] M6.1 `src/syzygy/knowledge/normalize.py` (Tier 0: header/footer
       stripping, page-marker extraction — ingestion map §4, §5)
-- [ ] M6.2 `src/syzygy/knowledge/segment.py` (Tier 0: heading detection —
-      ingestion map §8) — depends on M6.1
-- [ ] M6.3 `src/syzygy/knowledge/store.py` (writes to `knowledge_sources`/
-      `knowledge_chunks`, source-agnostic) — depends on M4.3 (done)
-- [ ] M6.4 New migration: `knowledge_chunks_fts` (SQLite FTS5 virtual
-      table) — append to `_MIGRATIONS`, do not edit migration 1
-- [ ] M6.5 `src/syzygy/knowledge/ingest.py` (Tier 0 pipeline orchestration,
-      ingestion map §12; `source_type="book_of_thoth"`) — depends on M6.1-M6.4
-- [ ] M6.6 `src/syzygy/knowledge/retrieve.py` (exact card lookup + FTS5,
-      source-agnostic query shape) — depends on M6.4, M6.5
-- [ ] M6.7 `syzygy knowledge ingest <pdf>` / `syzygy knowledge status` CLI —
-      depends on M6.5
-- [ ] M6.8 Golden tests: correct retrieval for one Major, one numbered
-      Minor, one Court card; alias resolution; no cross-section chunks —
-      depends on M6.6
-- [ ] M6.9 `tests/fixtures/thoth_pdf_pages/*.txt` small fixtures (ingestion
-      map §13)
-- [ ] M6.10 Extend `normalize.py`/`segment.py` with a DuQuette strategy:
-      position/length-based header stripping (exact-string matching won't
-      work — OCR noise, see `docs/KNOWLEDGE_SOURCES.md` §3.1), heading
-      detection for `ATU <roman>` / `<RANK> OF <SUIT>` /
-      `<COURT> OF <SUIT>`, and exclusion or distinct tagging of the
-      ~pages-280+ quick-reference appendix (§3.2) — depends on M6.1-M6.3,
-      independent of M6.10 being done before/after M6.11
-- [ ] M6.11 Extend `normalize.py`/`segment.py` with a Ziegler strategy:
-      first confirm PDF-page-to-printed-page offset and check for embedded
-      page markers (§4.4, not yet verified), then heading detection for
-      the `<CARD TITLE>` / `Key Words: ...` pattern (§4.3) — depends on
-      M6.1-M6.3
-- [ ] M6.12 `ingest.py`: source-type auto-detection from filename or
-      `--source-type` CLI flag, dispatching to the right normalize/segment
-      strategy — depends on M6.10 and/or M6.11
-- [ ] M6.13 `retrieve.py`: tier-aware ordering (Tier 0 chunks before Tier 1
-      chunks for the same `card_id`) — depends on M6.12
-- [ ] M6.14 Tests: Tier 0-only retrieval unaffected by companion sources
-      being uningested; Tier 0 ranks ahead of Tier 1 when both are
-      ingested for the same card — depends on M6.13
+- [x] M6.2 `src/syzygy/knowledge/segment.py` (Tier 0: heading detection —
+      ingestion map §8)
+- [x] M6.3 `src/syzygy/knowledge/store.py` (writes to `knowledge_sources`/
+      `knowledge_chunks`, source-agnostic; `replace_source` deletes and
+      re-inserts a whole source atomically via explicit `BEGIN`/`COMMIT`,
+      matching `migrations.apply_all`'s pattern under this project's
+      `isolation_level=None` connections — a bare `with conn:` does not
+      provide atomicity there)
+- [x] M6.4 New migration (version 3): `knowledge_chunks_fts` (SQLite FTS5
+      external-content virtual table + sync triggers) — appended to
+      `_MIGRATIONS`, migrations 1-2 untouched
+- [x] M6.5 `src/syzygy/knowledge/ingest.py` (pipeline orchestration for
+      all three sources; per-`source_type` `INGESTION_VERSIONS` constant
+      for idempotent re-ingest detection; chunking approximates the
+      600-1200 token target as a 900-word paragraph-boundary budget, no
+      tokenizer dependency)
+- [x] M6.6 `src/syzygy/knowledge/retrieve.py` (exact card lookup,
+      Tier-0-before-Tier-1 ordering via SQL `CASE`; FTS5 `bm25()` search)
+- [x] M6.7 `syzygy knowledge ingest <pdf>` / `syzygy knowledge status` CLI
+- [x] M6.8 Golden tests against the real PDFs (skipped if absent locally -
+      they are gitignored `docs/*.pdf`): Major/Minor/Court retrieval,
+      `book_of_thoth_aliases` resolution (`the_magus` only resolves via
+      its "The Juggler" alias, not its display name), no cross-section
+      bleed, Tier 0-ahead-of-Tier-1 ordering, Tier-0-only unaffected by
+      absent companions
+- [x] M6.9 `tests/fixtures/thoth_pdf_pages/*.txt` (Major/Minor/Court/
+      image-gallery excerpts) + a lightweight always-run sanity test
+- [x] M6.10 DuQuette strategy (`normalize.extract_duquette_blocks` +
+      `segment.segment_duquette`): position-based header stripping;
+      per-line (not whole-block) heading matching, since DuQuette's
+      headings share a text block with an adjacent subtitle line (e.g.
+      `"ATUO\nTHE FOOL"`, `"TWO OF WANDS\nDOMINION"`) rather than
+      standing alone; **the quick-reference appendix's exact boundary was
+      verified as PDF pages 275-290** (via its own running header, not
+      the doc's ~280+ estimate) and is **excluded from ingestion
+      entirely**, not per-card-tagged - KNOWLEDGE_SOURCES.md explicitly
+      allows this if it "adds more noise than value," and its
+      card-name-shaped lines are too compressed/inconsistent to map
+      reliably per card
+- [x] M6.11 Ziegler strategy (`segment.segment_ziegler`): confirmed no
+      embedded page markers and derived the PDF-page-to-printed-page
+      offset (7) *dynamically* by cross-checking the TOC against real
+      in-body Major Arcana headings, rather than trusting §4.4's
+      single-data-point estimate. **Deviation**: that offset formula only
+      holds for the Major Arcana - Court/Minor sections are not evenly
+      offset from their TOC page number, and most numbered-Minor cards
+      have no extractable heading text at all (the title is embedded in a
+      full-page illustration, confirmed e.g. for Three of Cups). Court and
+      Minor sections are instead located via one real anchor heading each
+      (`KNIGHT OF WANDS`, `ACE OF WANDS`) plus a verified fixed 2-PDF-page
+      step per card within each group.
+- [x] M6.12 `ingest.py`: filename-based `source_type` auto-detection
+      (`detect_source_type`) + `--source-type` CLI override, dispatching
+      to the matching segmenter
+- [x] M6.13 `retrieve.py`: tier-aware ordering (Tier 0 before Tier 1 for
+      the same `card_id`)
+- [x] M6.14 Tests: Tier 0-only retrieval unaffected by uningested
+      companions; Tier 0 ranks ahead of Tier 1 when both are ingested for
+      the same card
+
+Not carried over from the plan's original sketch: the six-trump appendix
+(Book of Thoth PDF pages 112-137) does not, in the actual file, carry six
+separate per-card headings - it reads as one continuous essay with only
+one heading-shaped marker (`"The Fool---i. Silence; ..."`). It is captured
+as a single `card_appendix` section anchored to `the_fool` rather than
+force-split six ways; see the comment above
+`segment._BOT_APPENDIX_CARDS` in `src/syzygy/knowledge/segment.py`.
 
 ## M7 — Interpretation
 

@@ -1,0 +1,12 @@
+# Source: docs/book_of_thoth.pdf, PDF page 172 (1-indexed), raw
+# `page.get_text("blocks")` block texts. Illustrates: repeated section
+# header (line 1, to be stripped) and Ace of Wands prose (single-line
+# heading style; the two-line numbered-Minor heading, e.g. "DOMINION" /
+# "TWO OF WANDS", appears on a different page - see
+# docs/THOTH_INGESTION_MAP.md section 8 and section 13.
+---
+BOOK OF THOTH PART FOUR THOTH4.HTM
+This card represents the essence of the element of Fire in its inception. It is a solar-phallic outburst of flame from which spring lightnings.
+These flames are Yods, arranged in the form of the Tree of Life. (For Yod, see Atu IX supra.)
+It is the primordial Energy of the Divine manifesting in Matter, at so early a stage that it is not yet definitely formulated.
+Important: although these "small cards" are sympathetic with their Sephirotic origin, they represent the elemental force in question.

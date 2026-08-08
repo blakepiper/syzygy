@@ -17,6 +17,10 @@ Commands implemented so far:
 - `syzygy profile create` / `syzygy profile list` - save/list profiles
   (Milestone 4). Storage lives at `syzygy.config.default_app_paths()`.
 - `syzygy chart` - print a saved profile's natal chart.
+- `syzygy knowledge ingest <pdf>` / `syzygy knowledge status` - ingest a
+  Book of Thoth / companion-source PDF and inspect what has been ingested
+  (Milestone 6). Source PDFs live outside the repository (`docs/*.pdf` is
+  gitignored) - see docs/KNOWLEDGE_SOURCES.md.
 - `syzygy doctor` - basic environment/health check.
 
 Everything else in DESIGN.md section 20's command list is a later
@@ -221,6 +225,60 @@ def _cmd_chart(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_knowledge_ingest(args: argparse.Namespace) -> int:
+    from pathlib import Path
+
+    from syzygy.clock import SystemClock
+    from syzygy.knowledge.ingest import UnknownSourceTypeError, ingest
+
+    pdf_path = Path(args.pdf_path)
+    if not pdf_path.is_file():
+        print(f"no such file: {pdf_path}", file=sys.stderr)
+        return 1
+
+    conn = _open_profile_db()
+    try:
+        try:
+            result = ingest(
+                conn, pdf_path, now=SystemClock().now_utc(), source_type=args.source_type
+            )
+        except UnknownSourceTypeError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+    finally:
+        conn.close()
+
+    if result.skipped:
+        print(f"{result.source_type}: already ingested at the current version, skipped")
+    else:
+        print(
+            f"{result.source_type}: ingested {result.chunk_count} chunks "
+            f"across {result.card_count} cards"
+        )
+    return 0
+
+
+def _cmd_knowledge_status(_args: argparse.Namespace) -> int:
+    from syzygy.knowledge.ingest import SOURCE_TYPES
+    from syzygy.knowledge.store import count_chunks, get_source_by_type
+
+    conn = _open_profile_db()
+    try:
+        for source_type in SOURCE_TYPES:
+            source = get_source_by_type(conn, source_type)
+            if source is None:
+                print(f"{source_type:26s} not ingested")
+                continue
+            chunk_count = count_chunks(conn, source.id)
+            print(
+                f"{source_type:26s} {chunk_count:4d} chunks  "
+                f"(version {source.ingestion_version}, hash {source.file_hash[:12]})"
+            )
+    finally:
+        conn.close()
+    return 0
+
+
 def _cmd_doctor(_args: argparse.Namespace) -> int:
     ok = True
 
@@ -294,6 +352,28 @@ def build_parser() -> argparse.ArgumentParser:
         "--profile-id", default=None, help="required if more than one profile is saved"
     )
     chart_parser.set_defaults(func=_cmd_chart)
+
+    knowledge_parser = subparsers.add_parser(
+        "knowledge", help="ingest and inspect knowledge sources"
+    )
+    knowledge_subparsers = knowledge_parser.add_subparsers(dest="knowledge_command")
+
+    knowledge_ingest_parser = knowledge_subparsers.add_parser(
+        "ingest", help="ingest a Book of Thoth / companion-source PDF"
+    )
+    knowledge_ingest_parser.add_argument("pdf_path", help="path to the source PDF")
+    knowledge_ingest_parser.add_argument(
+        "--source-type",
+        default=None,
+        choices=("book_of_thoth", "duquette_companion", "ziegler_mirror_of_soul"),
+        help="override auto-detection from the filename",
+    )
+    knowledge_ingest_parser.set_defaults(func=_cmd_knowledge_ingest)
+
+    knowledge_status_parser = knowledge_subparsers.add_parser(
+        "status", help="show what has been ingested"
+    )
+    knowledge_status_parser.set_defaults(func=_cmd_knowledge_status)
 
     doctor_parser = subparsers.add_parser("doctor", help="check the local environment")
     doctor_parser.set_defaults(func=_cmd_doctor)

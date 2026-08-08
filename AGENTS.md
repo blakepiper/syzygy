@@ -100,7 +100,7 @@ certainly a design violation, not a shortcut.
 | `src/syzygy/storage/` | SQLite connection + migrations (append-only, never edit a merged migration) |
 | `src/syzygy/resources/thoth_deck.yaml` | The canonical 78-card deck — single source of truth for card metadata |
 | `src/syzygy/tui/` | Not yet created — Milestone 5 |
-| `src/syzygy/knowledge/` | Not yet created — Milestone 6 |
+| `src/syzygy/knowledge/` | Book of Thoth + companion-source ingestion (`normalize.py`, `segment.py`, `store.py`, `ingest.py`) and retrieval (`retrieve.py`) — Milestone 6 |
 | `tests/` | Mirrors `src/syzygy/` layout |
 
 ## Workflow
@@ -159,14 +159,17 @@ regression as something to fix before moving on, not a pre-existing issue.
 
 ## What's real vs. what's next
 
-Implemented and tested: domain schemas, `AstrologyEngine` protocol,
-transit orb policy, deck loader + data, entropy collection, the unbiased
-draw, the reading state machine (as types), SQLite schema + migrations,
-`FixtureProvider`, the CLI skeleton.
+Implemented and tested: domain schemas, `AstrologyEngine` protocol +
+Kerykeion adapter, transit orb policy + ranking, deck loader + data,
+entropy collection, the unbiased draw, the reading state machine (types
+and the storage-backed service/repositories that drive it), SQLite schema
++ migrations, `FixtureProvider`, the Book of Thoth + companion-source
+(DuQuette, Ziegler) ingestion pipeline and retrieval (`syzygy.knowledge`),
+the CLI skeleton (`dev deck`/`dev astrology`, `profile create`/`list`,
+`chart`, `knowledge ingest`/`status`, `doctor`).
 
 Not yet implemented (see `TASKS.md` for the ordered list, and don't
 assume a stub exists just because a directory is mentioned in
-`IMPLEMENTATION_PLAN.md`): the Kerykeion adapter, transit ranking, the
-reading service/repositories that actually drive the state machine, the
-Wheel and the rest of the TUI, Book of Thoth ingestion, the context
-builder, real LLM providers, the archive.
+`IMPLEMENTATION_PLAN.md`): the Wheel and the rest of the TUI, the
+interpretation context builder and prompt module, real LLM providers, the
+archive.

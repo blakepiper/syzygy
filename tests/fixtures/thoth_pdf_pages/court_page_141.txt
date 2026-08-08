@@ -1,0 +1,13 @@
+# Source: docs/book_of_thoth.pdf, PDF page 141 (1-indexed), raw
+# `page.get_text("blocks")` block texts. Illustrates: repeated section
+# header (line 1, to be stripped) and an in-line `p.NNN` printed-page
+# marker block (THOTH_INGESTION_MAP.md section 5) mid-page. The Knight of
+# Wands heading itself ("KNIGHT OF WANDS") is on the preceding page - this
+# page is its continuation. See docs/THOTH_INGESTION_MAP.md section 13.
+---
+E:\THOTH\THOTH3.HTM
+The Knight of Wands represents the fiery part of Fire; he rules from the 21St degree of Scorpio to the 20th degree of Sagittarius.
+The moral qualities appropriate to this figure are activity, generosity, fierceness, impetuosity, pride, rashness, and sudden generosity.
+In the Yi King, the fiery part of Fire is represented by the 51st
+P.152
+hexagram, Kan. The signification there given is entirely in accordance with the doctrine of this card.

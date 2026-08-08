@@ -436,7 +436,18 @@ demo this milestone.
 
 ---
 
-## Milestone 6 — Book of Thoth ingestion — **PLANNED**
+## Milestone 6 — Book of Thoth ingestion — **DONE**
+
+Implemented out of order (ahead of Milestones 5 and 7, by explicit
+request), with Tier 1 (DuQuette, Ziegler) shipped in the same pass as
+Tier 0 rather than as an optional fast-follow. See `TASKS.md`'s M6
+section for the specific deviations from this plan's sketch (chunking
+uses an approximate word-count budget rather than a real tokenizer; the
+six-trump Book of Thoth appendix is one `card_appendix` section rather
+than six; DuQuette's quick-reference appendix is excluded from ingestion
+rather than per-card-tagged; Ziegler's Court/Minor sections are located
+via anchor-plus-fixed-step rather than the Major Arcana's TOC-offset
+formula).
 
 Full spec for the canonical (Tier 0) source: `docs/THOTH_INGESTION_MAP.md`
 (file hash, page structure, heading-detection rules, header/footer
