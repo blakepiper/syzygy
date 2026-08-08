@@ -167,15 +167,49 @@ TarotCardWidget {
     background: $syz-panel;
 }
 
-/* Welcome */
+/* Welcome (brand assets: M12.2) */
 
 #welcome-banner {
     color: $syz-accent;
     width: auto;
 }
 
-#welcome-body {
+/* Both brand images size themselves to their box and fall back to text
+ * when it is too small, so these are budgets rather than exact frames. */
+#welcome-logo {
+    width: 56;
+    height: 8;
+    content-align: center middle;
+    color: $syz-accent;
+}
+
+#welcome-columns {
     width: auto;
+    height: auto;
+}
+
+#welcome-mascot {
+    width: 22;
+    height: 16;
+    margin: 0 3 0 0;
+}
+
+.-compact #welcome-logo {
+    width: 52;
+    height: 6;
+}
+
+/* At the compact floor the mascot's 22 columns are worth more to the
+ * copy beside it. */
+.-compact #welcome-mascot {
+    display: none;
+}
+
+/* Explicit, not `auto`: an auto-width child of an auto-width Horizontal
+ * has nothing to resolve against and collapses to a few columns. */
+#welcome-body {
+    width: 56;
+    height: auto;
     padding: 1 0;
 }
 

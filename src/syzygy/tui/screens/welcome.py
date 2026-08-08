@@ -4,19 +4,16 @@ from __future__ import annotations
 
 from textual import work
 from textual.app import ComposeResult
-from textual.containers import Center, Middle, Vertical
+from textual.containers import Center, Horizontal, Middle, Vertical
 from textual.widgets import Footer, Static
 
 from syzygy.tui.screens.base import SyzygyScreen
 from syzygy.tui.screens.model_setup import load_status
+from syzygy.tui.widgets.brand import ASCII_WORDMARK, Logo, Mascot
 
-BANNER = r"""
- ███████ ██    ██ ███████ ██    ██  ██████  ██    ██
- ██       ██  ██     ███   ██  ██  ██        ██  ██
- ███████    ██      ███     ████   ██  ███     ██
-      ██    ██     ███       ██    ██   ██     ██
- ███████    ██    ███████    ██     ██████     ██
-"""
+#: Kept for the screens and tests that want the wordmark as plain text.
+#: `Logo` renders the real thing and falls back to this.
+BANNER = ASCII_WORDMARK
 
 #: A first-launch nudge, not a gate (M10.4c/AGENTS.md: "the ritual still
 #: never requires a model configured") - shown only when nothing has ever
@@ -36,21 +33,23 @@ class WelcomeScreen(SyzygyScreen):
     def compose(self) -> ComposeResult:
         with Middle():
             with Center():
-                yield Static(BANNER, id="welcome-banner")
+                yield Logo(id="welcome-logo")
             with Center():
-                with Vertical(id="welcome-body"):
-                    yield Static("No self is configured.", classes="lede")
-                    yield Static(
-                        "A reading needs a natal chart. Nothing is calculated,\n"
-                        "drawn, or interpreted before one exists.",
-                        classes="muted",
-                    )
-                    yield Static("", id="welcome-model-nudge", classes="muted", markup=False)
-                    yield Static(
-                        "[N] Create profile     [M] Model     [Q] Quit",
-                        classes="keys",
-                        markup=False,
-                    )
+                with Horizontal(id="welcome-columns"):
+                    yield Mascot(id="welcome-mascot")
+                    with Vertical(id="welcome-body"):
+                        yield Static("No self is configured.", classes="lede")
+                        yield Static(
+                            "A reading needs a natal chart. Nothing is calculated,\n"
+                            "drawn, or interpreted before one exists.",
+                            classes="muted",
+                        )
+                        yield Static("", id="welcome-model-nudge", classes="muted", markup=False)
+                        yield Static(
+                            "[N] Create profile     [M] Model     [Q] Quit",
+                            classes="keys",
+                            markup=False,
+                        )
         yield Footer()
 
     def on_mount(self) -> None:

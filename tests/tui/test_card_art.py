@@ -18,14 +18,13 @@ import pytest
 from rich.console import Console
 
 from syzygy.sortes.deck import get_card, load_deck
+from syzygy.tui.widgets import pixel_art
 from syzygy.tui.widgets.card_art import (
-    MAX_ART_COLUMNS,
-    MIN_ART_CELL_ROWS,
-    MIN_ART_COLUMNS,
     art_size_for,
     card_aspect_ratio,
     render_card_pixels,
 )
+from syzygy.tui.widgets.pixel_art import MAX_COLUMNS, MIN_CELL_ROWS, MIN_COLUMNS
 
 #: Discrete cells cannot hit a real-valued ratio exactly; a card is
 #: allowed to be off by a cell's worth of rounding, not by a factor of two.
@@ -71,17 +70,17 @@ def test_art_never_exceeds_the_box_it_was_given(columns, cell_rows):
 def test_art_is_declined_rather_than_squashed_when_the_box_is_too_short():
     """A wide but very short box must not produce a letterboxed smear."""
     assert art_size_for("the_fool", 40, 2) is None
-    assert art_size_for("the_fool", 40, MIN_ART_CELL_ROWS - 1) is None
+    assert art_size_for("the_fool", 40, MIN_CELL_ROWS - 1) is None
 
 
 def test_art_is_declined_when_the_box_is_too_narrow():
-    assert art_size_for("the_fool", MIN_ART_COLUMNS - 1, 40) is None
+    assert art_size_for("the_fool", MIN_COLUMNS - 1, 40) is None
 
 
 def test_art_is_capped_however_much_room_there_is():
     size = art_size_for("the_fool", 500, 500)
     assert size is not None
-    assert size[0] <= MAX_ART_COLUMNS
+    assert size[0] <= MAX_COLUMNS
 
 
 def test_unknown_card_ids_have_no_art_and_no_aspect():
@@ -126,11 +125,11 @@ def test_every_card_resolves_to_art_at_a_realistic_box():
 
 
 def test_render_is_cached_per_card_and_size():
-    render_card_pixels.cache_clear()
+    pixel_art.render_pixels.cache_clear()
     size = art_size_for("the_fool", 27, 18)
     render_card_pixels("the_fool", size)
     render_card_pixels("the_fool", size)
-    assert render_card_pixels.cache_info().hits >= 1
+    assert pixel_art.render_pixels.cache_info().hits >= 1
 
 
 def test_widths_are_quantised_so_a_resize_drag_cannot_flood_the_cache():

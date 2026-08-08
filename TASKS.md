@@ -717,12 +717,18 @@ mascot.png that we need to incorporate." The repo root has `logo.svg`,
 `logo-dark.svg`, `logo-light.svg` (tracked) and `mascot.png` (untracked),
 all outside the package.
 
-- [ ] M12.2a Move the assets into the package
+- [x] M12.2a Move the assets into the package
       (`src/syzygy/resources/brand/`) so they ship in the wheel, the same
       way `resources/art/` does, and load them via `importlib.resources` —
       never a repo-relative path. `mascot.png` is untracked today; add it
       to the git index as part of the move.
-- [ ] M12.2b Render the logo in the TUI. A terminal cannot display SVG:
+      The mascot was also keyed to transparency (its opaque black field
+      would render as a near-black rectangle over `$syz-field`) and
+      downscaled 839×1348 → 420×675: `pixel_art.MAX_COLUMNS` means a
+      terminal can never ask for more than ~40×64 pixels of it, and the
+      full-resolution file was 740 KB in every wheel. Regeneration is
+      documented in `docs/BRAND_ASSETS.md`.
+- [x] M12.2b Render the logo in the TUI. A terminal cannot display SVG:
       either pre-rasterize `logo.svg` to a PNG at build/author time and
       render it through the existing `rich_pixels` path (same technique as
       card art, reuse `card_art.py`'s renderer rather than writing a
@@ -732,12 +738,32 @@ all outside the package.
       is too short for pixel art. Pick one per surface and say which.
       Note the light/dark variants exist; choose based on the terminal
       background if detectable, otherwise ship the dark-background one.
-- [ ] M12.2c Place the mascot deliberately rather than decoratively:
+      Took the recommendation: rasterized PNG on the welcome screen,
+      ASCII wordmark kept for one-row contexts and as the too-small
+      fallback. Used `logo-dark.svg` (light-on-transparent) rasterized
+      with `rsvg-convert -b none` — fully transparent pixels render as
+      blank cells with no background, so the terminal's own background
+      shows through and the light/dark question mostly answers itself.
+      "Reuse the renderer" turned into extracting one: the sizing
+      arithmetic and cache moved to `syzygy.tui.widgets.pixel_art`, which
+      `card_art` now delegates to. Two copies of that arithmetic is
+      exactly how one of them ends up wrong (see M11.5).
+- [x] M12.2c Place the mascot deliberately rather than decoratively:
       candidate homes are the welcome/startup screen (M14.2), an idle
       corner on `HomeScreen`, and the "waiting for interpretation" state.
       Do not put it where it competes with the card art.
-- [ ] M12.2d Verify the wheel/sdist actually contains the brand assets
+      Welcome screen only, beside the copy — it is the one screen with
+      nothing else to look at, and it never shares a screen with card
+      art. Hidden at the compact floor, where its 22 columns are worth
+      more to the text. Deliberately *not* on `HomeScreen` or the waiting
+      state: both are about to be redesigned in M12.5/M14, and a mascot
+      placed now would be placed against a layout that is changing.
+- [x] M12.2d Verify the wheel/sdist actually contains the brand assets
       (same check M10.5c did for the 78 PNGs).
+      Built the wheel: 78 card PNGs, both brand PNGs, `thoth_deck.yaml`
+      and `syzygy.tcss` all present. Tests read the assets through
+      `importlib.resources` rather than the filesystem, which is what has
+      to work from a zipped install.
 
 ### M12.3 — Typography: Cinzel
 
