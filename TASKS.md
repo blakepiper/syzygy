@@ -23,7 +23,7 @@ actually calls it. `DESIGN.md` §6.1's own example transcript shows the
 confirm panel displaying *resolved* coordinates/timezone under an
 *entered* place label — that resolution step doesn't exist yet.
 
-- [ ] M10.1a `src/syzygy/geocoding.py` (or similar, mirroring the
+- [x] M10.1a `src/syzygy/geocoding.py` (or similar, mirroring the
       `syzygy.astrology` seam): given a free-text place label, return
       `(latitude, longitude, iana_timezone)`. Timezone is the
       **birthplace's** zone (needed to convert local birth time to UTC for
@@ -33,7 +33,7 @@ confirm panel displaying *resolved* coordinates/timezone under an
       `timezonefinder` for lat/long → IANA name. Import both lazily inside
       the function, not at module load, so the rest of the app still runs
       without the `geocoding` extra installed.
-- [ ] M10.1b Wire it into the form phase: when the user fills in
+- [x] M10.1b Wire it into the form phase: when the user fills in
       `place-label` and presses REVIEW with `latitude`/`longitude`/`timezone`
       still blank, run M10.1a and prefill those three fields *before*
       showing the confirm panel, clearly marked as auto-resolved. The user
@@ -42,18 +42,25 @@ confirm panel displaying *resolved* coordinates/timezone under an
       requirement to type coordinates by hand. Manual entry must keep
       working exactly as today (leave lat/long/timezone as the override
       path) — do not make geocoding mandatory.
-- [ ] M10.1c Handle failure explicitly: extra not installed, no network,
+- [x] M10.1c Handle failure explicitly: extra not installed, no network,
       or no geocoder match — show an inline message on the form ("could
       not resolve a location for <place>; enter coordinates manually") and
       leave the manual fields open, per `DESIGN.md` §23. Never block
       profile creation on a geocoding failure.
-- [ ] M10.1d Run geocoding off the event loop (`@work(thread=True)`, same
+- [x] M10.1d Run geocoding off the event loop (`@work(thread=True)`, same
       pattern `_calculate` already uses) — it's a network call.
-- [ ] M10.1e Tests: fake/mocked geocoder + timezone finder for determinism
+- [x] M10.1e Tests: fake/mocked geocoder + timezone finder for determinism
       (no real network calls in the test suite); cover the prefill path,
       the manual-override path, and the failure path. Update
       `README.md`'s `pip install ".[geocoding]"` note if the UX changes
       what installing the extra actually turns on.
+      Note: `README.md`'s existing wording already matched the shipped UX
+      (prefill on blank coordinates), so no change was needed there.
+      Also added a `[tool.mypy]` override in `pyproject.toml` skipping
+      `numpy.*`/`timezonefinder.*` stub following - numpy's bundled stubs
+      (pulled in transitively by `timezonefinder`) use 3.12+ `type`
+      statement syntax that mypy can't parse under this project's py3.11
+      target.
 
 ### M10.2 — "q" (quit) does not work on every screen
 

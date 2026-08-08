@@ -70,3 +70,11 @@ mypy_path = "src"
 ignore_missing_imports = true
 disallow_untyped_defs = false
 warn_unused_ignores = true
+
+# numpy's bundled stubs (pulled in transitively by timezonefinder, an
+# M10.1 geocoding-extra dependency) use 3.12+ `type` statement syntax that
+# breaks parsing under this project's py3.11 target - skip following them
+# rather than deep-checking a third-party stub file we don't control.
+[[tool.mypy.overrides]]
+module = ["numpy.*", "timezonefinder.*"]
+follow_imports = "skip"

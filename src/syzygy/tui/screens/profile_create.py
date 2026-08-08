@@ -2,9 +2,12 @@
 
 Two phases, because DESIGN.md section 6.1 requires the user to review the
 resolved birthplace values *before* the chart is calculated: the form,
-then a confirmation panel. Entry is manual - geocoding is an optional
-onboarding convenience (the `geocoding` extra), never part of calculation,
-and manual latitude/longitude/timezone entry must work without it.
+then a confirmation panel. Latitude/longitude/timezone can be typed by
+hand, or - if left blank and a place label is given, and the `geocoding`
+extra is installed - resolved automatically from the place label before
+the confirm panel is shown. Either way the user reviews and can still
+EDIT before CONFIRM; manual entry keeps working exactly the same with or
+without the extra installed.
 
 The chart itself is calculated exactly once here and then saved
 (DESIGN.md section 6.2); nothing later recalculates it silently.
@@ -23,6 +26,12 @@ from textual.widgets import Button, Footer, Input, Static
 
 from syzygy.domain.astrology import BirthData
 from syzygy.domain.profile import Profile
+from syzygy.geocoding import (
+    GeocodingFailed,
+    GeocodingUnavailable,
+    ResolvedPlace,
+    resolve_birthplace,
+)
 from syzygy.storage.profiles import insert_profile
 from syzygy.tui.screens.base import SyzygyScreen, TitleBar
 
@@ -44,13 +53,17 @@ class ProfileCreateScreen(SyzygyScreen):
 
     #: Collected and validated in the form phase, used in the confirm phase.
     _pending: tuple[str, BirthData] | None = None
+    #: True if the confirm panel's coordinates/timezone came from geocoding
+    #: rather than manual entry - controls the "(auto-resolved)" marker.
+    _auto_resolved: bool = False
 
     def compose(self) -> ComposeResult:
         yield TitleBar("CREATE PROFILE")
         with VerticalScroll(id="profile-form"):
             yield Static(
-                "Exact birth time matters. Coordinates and timezone are entered\n"
-                "directly - geocoding is optional and never part of the calculation.",
+                "Exact birth time matters. Leave coordinates and timezone blank to\n"
+                "resolve them from the birthplace, or enter them directly - either way,\n"
+                "geocoding is never part of the calculation itself.",
                 classes="muted",
             )
             for field_id, label, placeholder in _FIELDS:
@@ -128,6 +141,53 @@ class ProfileCreateScreen(SyzygyScreen):
             self._confirm()
 
     def _review(self) -> None:
+        error = self.query_one("#form-error", Static)
+        error.update("")
+        place_label = self._value("place-label")
+        coordinates_blank = not (
+            self._value("latitude") or self._value("longitude") or self._value("timezone")
+        )
+        if place_label and coordinates_blank:
+            self._auto_resolved = False
+            self.query_one("#review", Button).disabled = True
+            error.update(f"Resolving {place_label!r}…")
+            self._resolve_birthplace(place_label)
+            return
+        self._auto_resolved = False
+        self._finish_review()
+
+    @work(thread=True, exclusive=True)
+    def _resolve_birthplace(self, place_label: str) -> None:
+        """Geocode off the event loop (network call), same pattern as
+        `_calculate`."""
+        try:
+            resolved = resolve_birthplace(place_label)
+        except (GeocodingUnavailable, GeocodingFailed) as exc:
+            self.app.call_from_thread(self._geocoding_failed, place_label, str(exc))
+            return
+        self.app.call_from_thread(self._geocoding_resolved, resolved)
+
+    def _geocoding_failed(self, place_label: str, message: str) -> None:
+        if not self.is_mounted:
+            return
+        self.query_one("#review", Button).disabled = False
+        self.query_one("#form-error", Static).update(
+            f"Could not resolve a location for {place_label!r} ({message}); "
+            f"enter coordinates manually."
+        )
+
+    def _geocoding_resolved(self, resolved: ResolvedPlace) -> None:
+        if not self.is_mounted:
+            return
+        self.query_one("#latitude", Input).value = f"{resolved.latitude:.4f}"
+        self.query_one("#longitude", Input).value = f"{resolved.longitude:.4f}"
+        self.query_one("#timezone", Input).value = resolved.timezone
+        self.query_one("#review", Button).disabled = False
+        self.query_one("#form-error", Static).update("")
+        self._auto_resolved = True
+        self._finish_review()
+
+    def _finish_review(self) -> None:
         collected = self._collect()
         error = self.query_one("#form-error", Static)
         if isinstance(collected, str):
@@ -138,12 +198,13 @@ class ProfileCreateScreen(SyzygyScreen):
         display_name, birth = collected
         north_south = "N" if birth.latitude >= 0 else "S"
         east_west = "E" if birth.longitude >= 0 else "W"
+        resolved_heading = "Resolved (auto-resolved):" if self._auto_resolved else "Resolved:"
         self.query_one("#confirm-body", Static).update(
             f"Entered:\n"
             f"  {display_name}\n"
             f"  {birth.local_date} {birth.local_time}\n"
             f"  {birth.place_label}\n\n"
-            f"Resolved:\n"
+            f"{resolved_heading}\n"
             f"  {abs(birth.latitude):.4f} {north_south}\n"
             f"  {abs(birth.longitude):.4f} {east_west}\n"
             f"  {birth.timezone}\n"
