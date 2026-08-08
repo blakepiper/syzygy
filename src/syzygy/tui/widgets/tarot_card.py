@@ -7,13 +7,19 @@ invents no correspondence of its own.
 
 from __future__ import annotations
 
+from rich.console import Group, RenderableType
 from rich.text import Text
 from textual.widgets import Static
 
 from syzygy.domain.tarot import TarotCard
+from syzygy.tui.widgets.card_art import render_card_pixels
 from syzygy.tui.widgets.glyph import GlyphSet, default_glyphs
 
 INNER_WIDTH = 27
+#: (columns, rows) passed to `rich_pixels` - chosen to roughly preserve the
+#: source art's portrait aspect ratio at typical terminal cell proportions.
+#: Expected to be revisited once this gets real styling attention.
+ART_SIZE: tuple[int, int] = (22, 17)
 
 
 def correspondence_label(card: TarotCard, glyphs: GlyphSet | None = None) -> str:
@@ -76,7 +82,7 @@ class TarotCardWidget(Static):
         self._card = card
         self.update(self._content())
 
-    def _content(self) -> Text:
+    def _content(self) -> RenderableType:
         if self._card is None:
             back = Text()
             for index in range(5):
@@ -92,4 +98,8 @@ class TarotCardWidget(Static):
             text.append(f"{card.full_name}\n", style="#8a8272")
         text.append("\n")
         text.append(correspondence_label(card, self._glyphs), style="#cf9b3f")
-        return text
+
+        pixels = render_card_pixels(card.id, ART_SIZE)
+        if pixels is None:  # defensive - every card in the deck has art
+            return text
+        return Group(pixels, Text(""), text)

@@ -216,3 +216,14 @@ separate, separately-billed API key. Label this screen "API key," not
       manually click through the finished screen, so verification is
       Pilot-only (`tests/tui/test_model_setup.py`, 9 tests) plus
       `ruff`/`mypy`/`syzygy doctor` - the same limitation noted in M10.3a.
+
+### M10.5 — Display the bundled card artwork
+
+- [x] M10.5a Bundle the 78 supplied PNG illustrations under
+      `src/syzygy/resources/art/` and add Pillow + `rich-pixels` as runtime
+      dependencies.
+- [x] M10.5b Resolve each canonical deck id to its illustration and render
+      it in `TarotCardWidget` on both reveal and reading screens, with the
+      existing text/correspondence retained below the art.
+- [x] M10.5c Verify every card has a real bundled image, the image renderer
+      succeeds, and the built wheel contains all 78 PNGs.

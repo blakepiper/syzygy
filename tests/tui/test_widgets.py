@@ -12,6 +12,7 @@ import pytest
 from syzygy.domain.astrology import RankedTransit, TransitAspect
 from syzygy.sortes.deck import get_card, load_deck
 from syzygy.tui.widgets.alignment import AlignmentWidget
+from syzygy.tui.widgets.card_art import art_relative_path, render_card_pixels
 from syzygy.tui.widgets.glyph import (
     ASCII_GLYPHS,
     UNICODE_GLYPHS,
@@ -26,6 +27,15 @@ def test_every_card_has_a_renderable_correspondence():
     for card in load_deck():
         label = correspondence_label(card, UNICODE_GLYPHS)
         assert label and "\n" not in label
+
+
+def test_every_card_has_bundled_art_that_renders():
+    """The artwork is reference data: every deck card must resolve to it."""
+    for card in load_deck():
+        relative_path = art_relative_path(card.id)
+        assert relative_path is not None
+        assert relative_path.endswith(".png")
+        assert render_card_pixels(card.id, (22, 17)) is not None
 
 
 @pytest.mark.parametrize(

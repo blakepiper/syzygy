@@ -150,7 +150,7 @@ AlignmentWidget {
 
 TarotCardWidget {
     width: 33;
-    height: 11;
+    height: 28;
     padding: 1 2;
     content-align: center middle;
     text-align: center;
