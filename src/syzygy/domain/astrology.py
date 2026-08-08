@@ -29,6 +29,24 @@ MAJOR_ASPECTS: tuple[str, ...] = (
     "conjunction", "opposition", "square", "trine", "sextile",
 )
 
+#: The twelve tropical zodiac signs, in order, each spanning 30 degrees of
+#: absolute ecliptic longitude starting at 0 (Aries).
+ZODIAC_SIGNS: tuple[str, ...] = (
+    "Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
+    "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces",
+)
+
+
+def sign_for_longitude(longitude: float) -> str:
+    """The tropical sign containing an absolute ecliptic longitude.
+
+    Pure degree arithmetic, independent of any astrology engine - safe to
+    use on `NatalChart.ascendant_longitude`/`midheaven_longitude`, which
+    (unlike `NatalPlacement`) store longitude without an accompanying
+    `sign` field.
+    """
+    return ZODIAC_SIGNS[int(longitude // 30) % 12]
+
 
 class BirthData(BaseModel):
     """Exact birth facts required to calculate a natal chart.

@@ -5,7 +5,7 @@ Ordered, ID'd checklist derived from `IMPLEMENTATION_PLAN.md`. Check off
 you deviated from the plan. Dependencies are noted inline; unless stated
 otherwise, tasks within a milestone are sequential.
 
-**Next recommended task: M4.5.**
+**Next recommended task: M5.1.**
 
 ---
 
@@ -77,7 +77,7 @@ otherwise, tasks within a milestone are sequential.
 - [x] M3.3 `tests/sortes/test_entropy.py`, `tests/sortes/test_draw.py`
       (determinism, all-78-reachable, uniformity smoke test)
 
-## M4 — Daily reading state machine and storage
+## M4 — Daily reading state machine and storage — DONE
 
 - [x] M4.1 `src/syzygy/domain/reading.py` (`ReadingStatus`,
       `ALLOWED_TRANSITIONS`, `Reading`)
@@ -85,18 +85,43 @@ otherwise, tasks within a milestone are sequential.
 - [x] M4.3 `src/syzygy/storage/database.py`, `migrations.py` (schema +
       append-only migration framework)
 - [x] M4.4 `tests/storage/test_migrations.py` (incl. `UNIQUE` constraint proof)
-- [ ] M4.5 `src/syzygy/storage/profiles.py` (CRUD) (IMPLEMENTATION_PLAN.md §4.2)
-- [ ] M4.6 `src/syzygy/storage/readings.py` (state-machine-respecting
-      writes; `create_prepared` handles the `IntegrityError` race) —
-      depends on M4.5 for `Profile` round-tripping to be testable end-to-end,
-      but can be implemented against a raw profile_id string first
-- [ ] M4.7 `src/syzygy/storage/reading_service.py`:
+- [x] M4.5 `src/syzygy/storage/profiles.py` (CRUD) (IMPLEMENTATION_PLAN.md §4.2).
+      Added `tests/storage/test_profiles.py` (not separately itemized in the
+      plan, but profiles.py is deterministic CRUD - covered per the
+      workflow's "add tests for any deterministic behavior" rule).
+- [x] M4.6 `src/syzygy/storage/readings.py` (state-machine-respecting
+      writes; `create_prepared` handles the `IntegrityError` race).
+      **Deviations from the plan's literal signatures**: (1) migration 1's
+      `readings` table had no column for `TarotDraw.drawn_at_utc` - added
+      migration 2 (`card_drawn_at_utc`), append-only per the migrations
+      policy, rather than editing migration 1. (2) every write function
+      past `create_prepared` takes an explicit `now: datetime` keyword arg
+      (not in the plan's sketch) so `updated_at` never calls
+      `datetime.now()` internally - callers pass `clock.now_utc()`,
+      consistent with AGENTS.md's single-clock-source rule.
+- [x] M4.7 `src/syzygy/storage/reading_service.py`:
       `get_or_create_todays_reading` orchestration — depends on M4.6,
-      M2.3 (needs a real or fixture `AstrologyEngine`), and M3 (done)
-- [ ] M4.8 `tests/storage/test_readings.py` — same-day idempotency,
-      retry-without-redraw, crash-recovery-after-DRAWN — depends on M4.7
-- [ ] M4.9 `syzygy profile create` / `syzygy profile list` / `syzygy chart`
-      CLI commands — depends on M4.5
+      M2.3 (needs a real or fixture `AstrologyEngine`), and M3 (done).
+      Builds a minimal `InterpretationContext` inline (card, ranked
+      transits, Sun/Moon placements, ascendant sign, empty
+      `knowledge_chunks`) rather than depending on M7.5's
+      `context_builder.py` or M6's knowledge retrieval, neither of which
+      exist yet - `_build_context` is explicitly commented as a
+      placeholder to be replaced once M7.5 lands. Added
+      `syzygy.domain.astrology.sign_for_longitude` (pure degree math, no
+      engine dependency) since `NatalChart` only stores
+      `ascendant_longitude`, not a sign string. On provider failure, marks
+      `INTERPRETATION_FAILED` and returns (no in-process auto-retry) -
+      resolving an internal-doc tension where `interpretation/base.py`
+      says the retry-once policy "lives in the caller" while
+      IMPLEMENTATION_PLAN.md §7.3 describes it as provider-internal
+      (repair-instruction retries against the model, which only a real
+      provider can do, are left to M7.7-7.9).
+- [x] M4.8 `tests/storage/test_readings.py` — same-day idempotency,
+      retry-without-redraw, crash-recovery-after-DRAWN — depends on M4.7.
+- [x] M4.9 `syzygy profile create` / `syzygy profile list` / `syzygy chart`
+      CLI commands — depends on M4.5. `chart` takes an optional
+      `--profile-id`, required only when more than one profile is saved.
 
 ## M5 — TUI ritual
 

@@ -50,7 +50,7 @@ Acceptance (verified): `syzygy dev deck` enumerates all 78 cards.
 
 ---
 
-## Milestone 2 — Astrology — **NEXT**
+## Milestone 2 — Astrology — **DONE**
 
 ### 2.1 Done already
 
@@ -264,7 +264,7 @@ of its own randomness or selection logic (`DESIGN.md` section 7.1,
 
 ---
 
-## Milestone 4 — Daily reading state machine and storage
+## Milestone 4 — Daily reading state machine and storage — **DONE**
 
 ### 4.1 Done already
 
@@ -372,7 +372,7 @@ recovered `Reading.card_draw.card_id` is unchanged.
 
 ---
 
-## Milestone 5 — TUI ritual — **PLANNED**
+## Milestone 5 — TUI ritual — **NEXT**
 
 Not started. Per `ARCHITECTURE_HANDOFF.md` section 34 and `DESIGN.md`
 Milestone 5: **do not integrate a real LLM provider for this milestone —

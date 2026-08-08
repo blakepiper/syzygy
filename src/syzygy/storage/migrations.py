@@ -110,6 +110,13 @@ _MIGRATIONS: list[tuple[int, str, str]] = [
             ON knowledge_chunks (card_id);
         """,
     ),
+    (
+        2,
+        "readings: add card_drawn_at_utc (TarotDraw.drawn_at_utc has no home in migration 1)",
+        """
+        ALTER TABLE readings ADD COLUMN card_drawn_at_utc TEXT;
+        """,
+    ),
 ]
 
 
