@@ -255,7 +255,7 @@ symptom was recorded, and the M10.1 geocoding work (`profile_create.py`
 change to that screen, so treat it as the prime suspect but reproduce
 before assuming.
 
-- [ ] M11.1a Reproduce in a real terminal (`syzygy tui` → create profile),
+- [x] M11.1a Reproduce in a real terminal (`syzygy tui` → create profile),
       not only via `Pilot`, and write the exact symptom into this task
       before fixing anything. Specific things to check, in order: (1) is
       REVIEW reachable at all by keyboard — the form is `Input`s plus
@@ -267,20 +267,59 @@ before assuming.
       `except` in `_resolve_birthplace` and nothing re-enables the REVIEW
       button); (3) does `_collect`'s validation reject plausible input
       with a message the user can't see.
-- [ ] M11.1b Fix the reproduced cause. If it is (1), add an explicit
+      **Reproduced, and the cause was none of the three predicted.** No
+      interactive terminal is available in this environment, so the repro
+      was a keyboard-only `Pilot` probe (the existing tests all assign
+      `Input.value` directly and call `Button.press()`, which is exactly
+      why they never saw it). Symptom: `ProfileCreateScreen` was the only
+      interactive screen with no explicit focus on mount, so Textual's
+      `AUTO_FOCUS = "*"` focused the first focusable node — the
+      `VerticalScroll#profile-form` *container*, which is focusable by
+      default. Everything typed before the user's first Tab went nowhere,
+      and the first Tab then moved focus to `#display-name`, so **every
+      field received the previous field's text**: the name held the birth
+      date, the date held the time, the time held the birthplace, and the
+      birthplace was empty. Validation then rejected it with a message
+      naming the wrong field ("Birth date '14:22' is not an ISO date"),
+      which is what made it look unfixable rather than merely misaligned.
+      Prediction (1) was also true and fixed in M11.1b (ENTER did nothing
+      from a field), but it was the secondary problem, not the cause.
+      Separately: the `.venv` in this checkout had a **non-editable**
+      install, so `pytest` was running against a stale copy in
+      `site-packages` rather than `src/`. Reinstalled with
+      `pip install -e ".[dev]"`; worth checking before trusting a green
+      suite here.
+- [x] M11.1b Fix the reproduced cause. If it is (1), add an explicit
       submit path — `Input.Submitted` on the last field and/or an
       `Enter`/`^S` binding on the screen — and make the focus order and
       the "press Tab / Enter" hint visible in the form's key line.
-- [ ] M11.1c Make the worker failure-proof regardless of which cause was
+      Focus `#display-name` on mount and `can_focus=False` on the form
+      container (it is a layout device, not a control, and it should not
+      be in the tab ring at all). Added `on_input_submitted` so ENTER
+      reviews from any field, a `[TAB] next field  [ENTER] review  [ESC]
+      cancel` key line, and focus that follows the phase change — ENTER
+      on the confirm panel confirms, EDIT returns focus to the first
+      field — so ENTER always means "the primary action of what is on
+      screen."
+- [x] M11.1c Make the worker failure-proof regardless of which cause was
       found: catch `Exception` in `_resolve_birthplace`, always re-enable
       `#review`, and always replace the "Resolving …" text. A geocoding
       bug must never be able to strand the form (`DESIGN.md` §23,
       `AGENTS.md`: never block profile creation on geocoding).
-- [ ] M11.1d Regression test for the actual reproduced failure, plus a
+      Also focuses `#latitude` on failure, putting the cursor where the
+      work now is. ENTER is ignored while a lookup is in flight rather
+      than queueing a second one behind it.
+- [x] M11.1d Regression test for the actual reproduced failure, plus a
       `Pilot` test that walks profile creation end to end using only
       keyboard input (no `pilot.click`) — the existing TUI tests should be
       checked for whether they click their way past the very step a real
       user cannot reach.
+      Six tests in `tests/tui/test_profile_create.py`, all keyboard-only
+      (via `textual.keys._character_to_key`, so text arrives one key event
+      at a time the way a terminal delivers it): initial focus, the
+      field-shift regression, ENTER-reviews, a full empty-form → saved
+      profile walk, ENTER ignored mid-lookup, and the transport-exception
+      recovery from M11.1c.
 
 ### M11.2 — Delete a profile
 

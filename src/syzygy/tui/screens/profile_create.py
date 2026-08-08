@@ -59,7 +59,13 @@ class ProfileCreateScreen(SyzygyScreen):
 
     def compose(self) -> ComposeResult:
         yield TitleBar("CREATE PROFILE")
-        with VerticalScroll(id="profile-form"):
+        # `can_focus=False`: a scrollable container is focusable by default,
+        # and as the first focusable node in the DOM it used to take initial
+        # focus - so every keystroke before the user's first Tab went
+        # nowhere, and each subsequent field received the *previous* field's
+        # text (M11.1). The form's fields are the only thing worth focusing
+        # here; the container is a layout device.
+        with VerticalScroll(id="profile-form", can_focus=False):
             yield Static(
                 "Exact birth time matters. Leave coordinates and timezone blank to\n"
                 "resolve them from the birthplace, or enter them directly - either way,\n"
@@ -70,6 +76,10 @@ class ProfileCreateScreen(SyzygyScreen):
                 yield Static(label, classes="field-label")
                 yield Input(placeholder=placeholder, id=field_id)
             yield Static("", id="form-error", classes="error")
+            yield Static(
+                "[TAB] next field   [ENTER] review   [ESC] cancel",
+                classes="keys",
+            )
             yield Button("REVIEW", id="review", variant="primary")
         with Vertical(id="profile-confirm", classes="hidden"):
             yield Static("BIRTHPLACE", classes="section-heading")
@@ -78,6 +88,9 @@ class ProfileCreateScreen(SyzygyScreen):
                 yield Button("CONFIRM", id="confirm", variant="success")
                 yield Button("EDIT", id="edit")
         yield Footer()
+
+    def on_mount(self) -> None:
+        self.query_one("#display-name", Input).focus()
 
     # -- phase 1: the form ------------------------------------------------
 
@@ -140,6 +153,18 @@ class ProfileCreateScreen(SyzygyScreen):
         elif event.button.id == "confirm":
             self._confirm()
 
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        """ENTER from any field reviews the form (M11.1b).
+
+        Without this there was no keyboard path off the form at all: the
+        REVIEW button had to be reached by Tab, which is not discoverable
+        and not what ENTER does anywhere else in the app.
+        """
+        event.stop()
+        if self.query_one("#review", Button).disabled:
+            return  # a geocoding lookup is already in flight
+        self._review()
+
     def _review(self) -> None:
         error = self.query_one("#form-error", Static)
         error.update("")
@@ -159,11 +184,24 @@ class ProfileCreateScreen(SyzygyScreen):
     @work(thread=True, exclusive=True)
     def _resolve_birthplace(self, place_label: str) -> None:
         """Geocode off the event loop (network call), same pattern as
-        `_calculate`."""
+        `_calculate`.
+
+        Catches `Exception`, not just the two geocoding errors: `geopy`
+        surfaces transport failures (DNS, TLS, timeouts) as its own
+        exception types, and anything that escaped here would leave the
+        form stranded behind a disabled REVIEW button and a "Resolving…"
+        message that never resolves (M11.1c). Geocoding must never be able
+        to block profile creation - `DESIGN.md` section 23.
+        """
         try:
             resolved = resolve_birthplace(place_label)
         except (GeocodingUnavailable, GeocodingFailed) as exc:
             self.app.call_from_thread(self._geocoding_failed, place_label, str(exc))
+            return
+        except Exception as exc:
+            self.app.call_from_thread(
+                self._geocoding_failed, place_label, f"{type(exc).__name__}: {exc}"
+            )
             return
         self.app.call_from_thread(self._geocoding_resolved, resolved)
 
@@ -175,6 +213,9 @@ class ProfileCreateScreen(SyzygyScreen):
             f"Could not resolve a location for {place_label!r} ({message}); "
             f"enter coordinates manually."
         )
+        # Put the user where the work now is, rather than leaving focus on
+        # a field they have already filled in.
+        self.query_one("#latitude", Input).focus()
 
     def _geocoding_resolved(self, resolved: ResolvedPlace) -> None:
         if not self.is_mounted:
@@ -212,10 +253,14 @@ class ProfileCreateScreen(SyzygyScreen):
         )
         self.query_one("#profile-form").add_class("hidden")
         self.query_one("#profile-confirm").remove_class("hidden")
+        # Focus follows the phase change, so ENTER continues to mean
+        # "the primary action of what is on screen" (M11.1b).
+        self.query_one("#confirm", Button).focus()
 
     def _show_form(self) -> None:
         self.query_one("#profile-confirm").add_class("hidden")
         self.query_one("#profile-form").remove_class("hidden")
+        self.query_one("#display-name", Input).focus()
 
     # -- phase 2: calculation --------------------------------------------
 
