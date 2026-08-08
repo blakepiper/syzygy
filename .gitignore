@@ -1,0 +1,31 @@
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+
+# Raw source books for the knowledge base (docs/KNOWLEDGE_SOURCES.md).
+# These are personal reference copies used as ingestion input, not
+# redistributed as part of the package (DESIGN.md section 11.1, 22).
+# What ingestion produces from them (chunks, FTS index, any future
+# embedding index) is derived/processed data and is fine to commit -
+# only the raw PDFs themselves are excluded here.
+docs/*.pdf
+
+# Local application data. All Syzygy user data (profiles, natal charts,
+# readings) lives in one SQLite database under platformdirs's user-data
+# directory (src/syzygy/config.py), which is outside this repository by
+# default. These patterns exist as a backstop in case a future dev/test
+# workflow points the database at a repo-local path - profiles created
+# while testing the prototype must never be committed.
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+/data/
+/.syzygy/

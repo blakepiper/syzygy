@@ -1,0 +1,2010 @@
+# Canonical Crowley-Harris Thoth Tarot deck data for Syzygy.
+#
+# Source-grounded against docs/book_of_thoth.pdf during the initial
+# architecture session (2026-08-07). See docs/THOTH_INGESTION_MAP.md
+# section 11 for citations of the specific Thoth-only attributions
+# (the Tzaddi/Heh swap, the Aeon's Spirit element, the Princesses'
+# lack of zodiacal attribution, and the counter-elemental court-card
+# decan spans) that a generic tarot-astrology reference would get
+# wrong. Do not regenerate this file from model memory; if it needs
+# correction, verify against the PDF or another primary source and
+# update docs/THOTH_INGESTION_MAP.md accordingly.
+#
+# Field notes:
+# - arcana: 'major' | 'minor'
+# - suit: null for majors; one of wands/cups/swords/disks for minors
+# - rank: 1-10 for numbered minors; null for majors and court cards
+# - court: null except knight/queen/prince/princess court cards
+# - astrology.type: 'element' | 'planet' | 'sign' | 'decan' (numbered
+#   minors) | 'court_decan_span' (court cards) | null (Aces; Princesses)
+# - qabalah.path_number uses Golden Dawn numbering (paths 11-32 map
+#   Aleph-Tau in Hebrew alphabetical order onto the Tree of Life)
+# - No card has an 'orientation' field: v0.1 draws upright cards only
+#   (see DESIGN.md section 8.1); do not add reversal support here.
+
+cards:
+- id: the_fool
+  display_name: The Fool
+  full_name: 0. The Fool
+  arcana: major
+  roman_numeral: '0'
+  suit: null
+  rank: null
+  court: null
+  element: air
+  hebrew_letter: Aleph
+  hebrew_letter_type: mother
+  astrology:
+    type: element
+    planet: null
+    sign: null
+    decan: null
+    court_span: null
+  qabalah:
+    sephira: null
+    path_number: 11
+  book_of_thoth_aliases:
+  - The Fool
+- id: the_magus
+  display_name: The Magus
+  full_name: I. The Magus
+  arcana: major
+  roman_numeral: I
+  suit: null
+  rank: null
+  court: null
+  element: null
+  hebrew_letter: Beth
+  hebrew_letter_type: double
+  astrology:
+    type: planet
+    planet: Mercury
+    sign: null
+    decan: null
+    court_span: null
+  qabalah:
+    sephira: null
+    path_number: 12
+  book_of_thoth_aliases:
+  - The Magus
+  - The Juggler
+  - The Magician
+- id: the_high_priestess
+  display_name: The High Priestess
+  full_name: II. The High Priestess
+  arcana: major
+  roman_numeral: II
+  suit: null
+  rank: null
+  court: null
+  element: null
+  hebrew_letter: Gimel
+  hebrew_letter_type: double
+  astrology:
+    type: planet
+    planet: Moon
+    sign: null
+    decan: null
+    court_span: null
+  qabalah:
+    sephira: null
+    path_number: 13
+  book_of_thoth_aliases:
+  - The High Priestess
+- id: the_empress
+  display_name: The Empress
+  full_name: III. The Empress
+  arcana: major
+  roman_numeral: III
+  suit: null
+  rank: null
+  court: null
+  element: null
+  hebrew_letter: Daleth
+  hebrew_letter_type: double
+  astrology:
+    type: planet
+    planet: Venus
+    sign: null
+    decan: null
+    court_span: null
+  qabalah:
+    sephira: null
+    path_number: 14
+  book_of_thoth_aliases:
+  - The Empress
+- id: the_emperor
+  display_name: The Emperor
+  full_name: IV. The Emperor
+  arcana: major
+  roman_numeral: IV
+  suit: null
+  rank: null
+  court: null
+  element: null
+  hebrew_letter: Tzaddi
+  hebrew_letter_type: simple
+  astrology:
+    type: sign
+    planet: null
+    sign: Aries
+    decan: null
+    court_span: null
+  qabalah:
+    sephira: null
+    path_number: 28
+  book_of_thoth_aliases:
+  - The Emperor
+- id: the_hierophant
+  display_name: The Hierophant
+  full_name: V. The Hierophant
+  arcana: major
+  roman_numeral: V
+  suit: null
+  rank: null
+  court: null
+  element: null
+  hebrew_letter: Vau
+  hebrew_letter_type: simple
+  astrology:
+    type: sign
+    planet: null
+    sign: Taurus
+    decan: null
+    court_span: null
+  qabalah:
+    sephira: null
+    path_number: 16
+  book_of_thoth_aliases:
+  - The Hierophant
+- id: the_lovers
+  display_name: The Lovers
+  full_name: VI. The Lovers
+  arcana: major
+  roman_numeral: VI
+  suit: null
+  rank: null
+  court: null
+  element: null
+  hebrew_letter: Zain
+  hebrew_letter_type: simple
+  astrology:
+    type: sign
+    planet: null
+    sign: Gemini
+    decan: null
+    court_span: null
+  qabalah:
+    sephira: null
+    path_number: 17
+  book_of_thoth_aliases:
+  - The Lovers
+  - The Brothers
+- id: the_chariot
+  display_name: The Chariot
+  full_name: VII. The Chariot
+  arcana: major
+  roman_numeral: VII
+  suit: null
+  rank: null
+  court: null
+  element: null
+  hebrew_letter: Cheth
+  hebrew_letter_type: simple
+  astrology:
+    type: sign
+    planet: null
+    sign: Cancer
+    decan: null
+    court_span: null
+  qabalah:
+    sephira: null
+    path_number: 18
+  book_of_thoth_aliases:
+  - The Chariot
+- id: adjustment
+  display_name: Adjustment
+  full_name: VIII. Adjustment
+  arcana: major
+  roman_numeral: VIII
+  suit: null
+  rank: null
+  court: null
+  element: null
+  hebrew_letter: Lamed
+  hebrew_letter_type: simple
+  astrology:
+    type: sign
+    planet: null
+    sign: Libra
+    decan: null
+    court_span: null
+  qabalah:
+    sephira: null
+    path_number: 22
+  book_of_thoth_aliases:
+  - Adjustment
+  - Justice
+- id: the_hermit
+  display_name: The Hermit
+  full_name: IX. The Hermit
+  arcana: major
+  roman_numeral: IX
+  suit: null
+  rank: null
+  court: null
+  element: null
+  hebrew_letter: Yod
+  hebrew_letter_type: simple
+  astrology:
+    type: sign
+    planet: null
+    sign: Virgo
+    decan: null
+    court_span: null
+  qabalah:
+    sephira: null
+    path_number: 20
+  book_of_thoth_aliases:
+  - The Hermit
+- id: fortune
+  display_name: Fortune
+  full_name: X. Fortune
+  arcana: major
+  roman_numeral: X
+  suit: null
+  rank: null
+  court: null
+  element: null
+  hebrew_letter: Kaph
+  hebrew_letter_type: double
+  astrology:
+    type: planet
+    planet: Jupiter
+    sign: null
+    decan: null
+    court_span: null
+  qabalah:
+    sephira: null
+    path_number: 21
+  book_of_thoth_aliases:
+  - Fortune
+  - The Wheel of Fortune
+  - R.O.T.A.
+- id: lust
+  display_name: Lust
+  full_name: XI. Lust
+  arcana: major
+  roman_numeral: XI
+  suit: null
+  rank: null
+  court: null
+  element: null
+  hebrew_letter: Teth
+  hebrew_letter_type: simple
+  astrology:
+    type: sign
+    planet: null
+    sign: Leo
+    decan: null
+    court_span: null
+  qabalah:
+    sephira: null
+    path_number: 19
+  book_of_thoth_aliases:
+  - Lust
+  - Strength
+  - Babalon
+- id: the_hanged_man
+  display_name: The Hanged Man
+  full_name: XII. The Hanged Man
+  arcana: major
+  roman_numeral: XII
+  suit: null
+  rank: null
+  court: null
+  element: water
+  hebrew_letter: Mem
+  hebrew_letter_type: mother
+  astrology:
+    type: element
+    planet: null
+    sign: null
+    decan: null
+    court_span: null
+  qabalah:
+    sephira: null
+    path_number: 23
+  book_of_thoth_aliases:
+  - The Hanged Man
+- id: death
+  display_name: Death
+  full_name: XIII. Death
+  arcana: major
+  roman_numeral: XIII
+  suit: null
+  rank: null
+  court: null
+  element: null
+  hebrew_letter: Nun
+  hebrew_letter_type: simple
+  astrology:
+    type: sign
+    planet: null
+    sign: Scorpio
+    decan: null
+    court_span: null
+  qabalah:
+    sephira: null
+    path_number: 24
+  book_of_thoth_aliases:
+  - Death
+- id: art
+  display_name: Art
+  full_name: XIV. Art
+  arcana: major
+  roman_numeral: XIV
+  suit: null
+  rank: null
+  court: null
+  element: null
+  hebrew_letter: Samekh
+  hebrew_letter_type: simple
+  astrology:
+    type: sign
+    planet: null
+    sign: Sagittarius
+    decan: null
+    court_span: null
+  qabalah:
+    sephira: null
+    path_number: 25
+  book_of_thoth_aliases:
+  - Art
+  - Temperance
+  - The Arrow
+- id: the_devil
+  display_name: The Devil
+  full_name: XV. The Devil
+  arcana: major
+  roman_numeral: XV
+  suit: null
+  rank: null
+  court: null
+  element: null
+  hebrew_letter: Ayin
+  hebrew_letter_type: simple
+  astrology:
+    type: sign
+    planet: null
+    sign: Capricorn
+    decan: null
+    court_span: null
+  qabalah:
+    sephira: null
+    path_number: 26
+  book_of_thoth_aliases:
+  - The Devil
+- id: the_tower
+  display_name: The Tower
+  full_name: XVI. The Tower
+  arcana: major
+  roman_numeral: XVI
+  suit: null
+  rank: null
+  court: null
+  element: null
+  hebrew_letter: Peh
+  hebrew_letter_type: double
+  astrology:
+    type: planet
+    planet: Mars
+    sign: null
+    decan: null
+    court_span: null
+  qabalah:
+    sephira: null
+    path_number: 27
+  book_of_thoth_aliases:
+  - The Tower
+  - War
+- id: the_star
+  display_name: The Star
+  full_name: XVII. The Star
+  arcana: major
+  roman_numeral: XVII
+  suit: null
+  rank: null
+  court: null
+  element: null
+  hebrew_letter: Heh
+  hebrew_letter_type: simple
+  astrology:
+    type: sign
+    planet: null
+    sign: Aquarius
+    decan: null
+    court_span: null
+  qabalah:
+    sephira: null
+    path_number: 15
+  book_of_thoth_aliases:
+  - The Star
+- id: the_moon
+  display_name: The Moon
+  full_name: XVIII. The Moon
+  arcana: major
+  roman_numeral: XVIII
+  suit: null
+  rank: null
+  court: null
+  element: null
+  hebrew_letter: Qoph
+  hebrew_letter_type: simple
+  astrology:
+    type: sign
+    planet: null
+    sign: Pisces
+    decan: null
+    court_span: null
+  qabalah:
+    sephira: null
+    path_number: 29
+  book_of_thoth_aliases:
+  - The Moon
+- id: the_sun
+  display_name: The Sun
+  full_name: XIX. The Sun
+  arcana: major
+  roman_numeral: XIX
+  suit: null
+  rank: null
+  court: null
+  element: null
+  hebrew_letter: Resh
+  hebrew_letter_type: double
+  astrology:
+    type: planet
+    planet: Sun
+    sign: null
+    decan: null
+    court_span: null
+  qabalah:
+    sephira: null
+    path_number: 30
+  book_of_thoth_aliases:
+  - The Sun
+- id: the_aeon
+  display_name: The Aeon
+  full_name: XX. The Aeon
+  arcana: major
+  roman_numeral: XX
+  suit: null
+  rank: null
+  court: null
+  element: spirit
+  hebrew_letter: Shin
+  hebrew_letter_type: mother
+  astrology:
+    type: element
+    planet: null
+    sign: null
+    decan: null
+    court_span: null
+  qabalah:
+    sephira: null
+    path_number: 31
+  book_of_thoth_aliases:
+  - The Aeon
+  - Judgement
+- id: the_universe
+  display_name: The Universe
+  full_name: XXI. The Universe
+  arcana: major
+  roman_numeral: XXI
+  suit: null
+  rank: null
+  court: null
+  element: null
+  hebrew_letter: Tau
+  hebrew_letter_type: double
+  astrology:
+    type: planet
+    planet: Saturn
+    sign: null
+    decan: null
+    court_span: null
+  qabalah:
+    sephira: null
+    path_number: 32
+  book_of_thoth_aliases:
+  - The Universe
+  - The World
+- id: ace_of_wands
+  display_name: Ace of Wands
+  full_name: Ace of Wands
+  arcana: minor
+  roman_numeral: null
+  suit: wands
+  rank: 1
+  court: null
+  element: fire
+  hebrew_letter: null
+  hebrew_letter_type: null
+  astrology: null
+  qabalah:
+    sephira: Kether
+    path_number: null
+  book_of_thoth_aliases:
+  - Ace of Wands
+- id: ace_of_cups
+  display_name: Ace of Cups
+  full_name: Ace of Cups
+  arcana: minor
+  roman_numeral: null
+  suit: cups
+  rank: 1
+  court: null
+  element: water
+  hebrew_letter: null
+  hebrew_letter_type: null
+  astrology: null
+  qabalah:
+    sephira: Kether
+    path_number: null
+  book_of_thoth_aliases:
+  - Ace of Cups
+- id: ace_of_swords
+  display_name: Ace of Swords
+  full_name: Ace of Swords
+  arcana: minor
+  roman_numeral: null
+  suit: swords
+  rank: 1
+  court: null
+  element: air
+  hebrew_letter: null
+  hebrew_letter_type: null
+  astrology: null
+  qabalah:
+    sephira: Kether
+    path_number: null
+  book_of_thoth_aliases:
+  - Ace of Swords
+- id: ace_of_disks
+  display_name: Ace of Disks
+  full_name: Ace of Disks
+  arcana: minor
+  roman_numeral: null
+  suit: disks
+  rank: 1
+  court: null
+  element: earth
+  hebrew_letter: null
+  hebrew_letter_type: null
+  astrology: null
+  qabalah:
+    sephira: Kether
+    path_number: null
+  book_of_thoth_aliases:
+  - Ace of Disks
+- id: two_of_wands
+  display_name: Dominion
+  full_name: Two of Wands - Dominion
+  arcana: minor
+  roman_numeral: null
+  suit: wands
+  rank: 2
+  court: null
+  element: fire
+  hebrew_letter: null
+  hebrew_letter_type: null
+  astrology:
+    type: decan
+    planet: Mars
+    sign: Aries
+    decan:
+      sign: Aries
+      index: 1
+      start_degree: 0
+      end_degree: 10
+    court_span: null
+  qabalah:
+    sephira: Chokmah
+    path_number: null
+  book_of_thoth_aliases:
+  - Two of Wands
+  - Dominion
+  - Dominion-Two of Wands
+- id: three_of_wands
+  display_name: Virtue
+  full_name: Three of Wands - Virtue
+  arcana: minor
+  roman_numeral: null
+  suit: wands
+  rank: 3
+  court: null
+  element: fire
+  hebrew_letter: null
+  hebrew_letter_type: null
+  astrology:
+    type: decan
+    planet: Sun
+    sign: Aries
+    decan:
+      sign: Aries
+      index: 2
+      start_degree: 10
+      end_degree: 20
+    court_span: null
+  qabalah:
+    sephira: Binah
+    path_number: null
+  book_of_thoth_aliases:
+  - Three of Wands
+  - Virtue
+  - Virtue-Three of Wands
+- id: four_of_wands
+  display_name: Completion
+  full_name: Four of Wands - Completion
+  arcana: minor
+  roman_numeral: null
+  suit: wands
+  rank: 4
+  court: null
+  element: fire
+  hebrew_letter: null
+  hebrew_letter_type: null
+  astrology:
+    type: decan
+    planet: Venus
+    sign: Aries
+    decan:
+      sign: Aries
+      index: 3
+      start_degree: 20
+      end_degree: 30
+    court_span: null
+  qabalah:
+    sephira: Chesed
+    path_number: null
+  book_of_thoth_aliases:
+  - Four of Wands
+  - Completion
+  - Completion-Four of Wands
+- id: five_of_wands
+  display_name: Strife
+  full_name: Five of Wands - Strife
+  arcana: minor
+  roman_numeral: null
+  suit: wands
+  rank: 5
+  court: null
+  element: fire
+  hebrew_letter: null
+  hebrew_letter_type: null
+  astrology:
+    type: decan
+    planet: Saturn
+    sign: Leo
+    decan:
+      sign: Leo
+      index: 1
+      start_degree: 0
+      end_degree: 10
+    court_span: null
+  qabalah:
+    sephira: Geburah
+    path_number: null
+  book_of_thoth_aliases:
+  - Five of Wands
+  - Strife
+  - Strife-Five of Wands
+- id: six_of_wands
+  display_name: Victory
+  full_name: Six of Wands - Victory
+  arcana: minor
+  roman_numeral: null
+  suit: wands
+  rank: 6
+  court: null
+  element: fire
+  hebrew_letter: null
+  hebrew_letter_type: null
+  astrology:
+    type: decan
+    planet: Jupiter
+    sign: Leo
+    decan:
+      sign: Leo
+      index: 2
+      start_degree: 10
+      end_degree: 20
+    court_span: null
+  qabalah:
+    sephira: Tiphareth
+    path_number: null
+  book_of_thoth_aliases:
+  - Six of Wands
+  - Victory
+  - Victory-Six of Wands
+- id: seven_of_wands
+  display_name: Valour
+  full_name: Seven of Wands - Valour
+  arcana: minor
+  roman_numeral: null
+  suit: wands
+  rank: 7
+  court: null
+  element: fire
+  hebrew_letter: null
+  hebrew_letter_type: null
+  astrology:
+    type: decan
+    planet: Mars
+    sign: Leo
+    decan:
+      sign: Leo
+      index: 3
+      start_degree: 20
+      end_degree: 30
+    court_span: null
+  qabalah:
+    sephira: Netzach
+    path_number: null
+  book_of_thoth_aliases:
+  - Seven of Wands
+  - Valour
+  - Valour-Seven of Wands
+- id: eight_of_wands
+  display_name: Swiftness
+  full_name: Eight of Wands - Swiftness
+  arcana: minor
+  roman_numeral: null
+  suit: wands
+  rank: 8
+  court: null
+  element: fire
+  hebrew_letter: null
+  hebrew_letter_type: null
+  astrology:
+    type: decan
+    planet: Mercury
+    sign: Sagittarius
+    decan:
+      sign: Sagittarius
+      index: 1
+      start_degree: 0
+      end_degree: 10
+    court_span: null
+  qabalah:
+    sephira: Hod
+    path_number: null
+  book_of_thoth_aliases:
+  - Eight of Wands
+  - Swiftness
+  - Swiftness-Eight of Wands
+- id: nine_of_wands
+  display_name: Strength
+  full_name: Nine of Wands - Strength
+  arcana: minor
+  roman_numeral: null
+  suit: wands
+  rank: 9
+  court: null
+  element: fire
+  hebrew_letter: null
+  hebrew_letter_type: null
+  astrology:
+    type: decan
+    planet: Moon
+    sign: Sagittarius
+    decan:
+      sign: Sagittarius
+      index: 2
+      start_degree: 10
+      end_degree: 20
+    court_span: null
+  qabalah:
+    sephira: Yesod
+    path_number: null
+  book_of_thoth_aliases:
+  - Nine of Wands
+  - Strength
+  - Strength-Nine of Wands
+- id: ten_of_wands
+  display_name: Oppression
+  full_name: Ten of Wands - Oppression
+  arcana: minor
+  roman_numeral: null
+  suit: wands
+  rank: 10
+  court: null
+  element: fire
+  hebrew_letter: null
+  hebrew_letter_type: null
+  astrology:
+    type: decan
+    planet: Saturn
+    sign: Sagittarius
+    decan:
+      sign: Sagittarius
+      index: 3
+      start_degree: 20
+      end_degree: 30
+    court_span: null
+  qabalah:
+    sephira: Malkuth
+    path_number: null
+  book_of_thoth_aliases:
+  - Ten of Wands
+  - Oppression
+  - Oppression-Ten of Wands
+- id: two_of_cups
+  display_name: Love
+  full_name: Two of Cups - Love
+  arcana: minor
+  roman_numeral: null
+  suit: cups
+  rank: 2
+  court: null
+  element: water
+  hebrew_letter: null
+  hebrew_letter_type: null
+  astrology:
+    type: decan
+    planet: Venus
+    sign: Cancer
+    decan:
+      sign: Cancer
+      index: 1
+      start_degree: 0
+      end_degree: 10
+    court_span: null
+  qabalah:
+    sephira: Chokmah
+    path_number: null
+  book_of_thoth_aliases:
+  - Two of Cups
+  - Love
+  - Love-Two of Cups
+- id: three_of_cups
+  display_name: Abundance
+  full_name: Three of Cups - Abundance
+  arcana: minor
+  roman_numeral: null
+  suit: cups
+  rank: 3
+  court: null
+  element: water
+  hebrew_letter: null
+  hebrew_letter_type: null
+  astrology:
+    type: decan
+    planet: Mercury
+    sign: Cancer
+    decan:
+      sign: Cancer
+      index: 2
+      start_degree: 10
+      end_degree: 20
+    court_span: null
+  qabalah:
+    sephira: Binah
+    path_number: null
+  book_of_thoth_aliases:
+  - Three of Cups
+  - Abundance
+  - Abundance-Three of Cups
+- id: four_of_cups
+  display_name: Luxury
+  full_name: Four of Cups - Luxury
+  arcana: minor
+  roman_numeral: null
+  suit: cups
+  rank: 4
+  court: null
+  element: water
+  hebrew_letter: null
+  hebrew_letter_type: null
+  astrology:
+    type: decan
+    planet: Moon
+    sign: Cancer
+    decan:
+      sign: Cancer
+      index: 3
+      start_degree: 20
+      end_degree: 30
+    court_span: null
+  qabalah:
+    sephira: Chesed
+    path_number: null
+  book_of_thoth_aliases:
+  - Four of Cups
+  - Luxury
+  - Luxury-Four of Cups
+- id: five_of_cups
+  display_name: Disappointment
+  full_name: Five of Cups - Disappointment
+  arcana: minor
+  roman_numeral: null
+  suit: cups
+  rank: 5
+  court: null
+  element: water
+  hebrew_letter: null
+  hebrew_letter_type: null
+  astrology:
+    type: decan
+    planet: Mars
+    sign: Scorpio
+    decan:
+      sign: Scorpio
+      index: 1
+      start_degree: 0
+      end_degree: 10
+    court_span: null
+  qabalah:
+    sephira: Geburah
+    path_number: null
+  book_of_thoth_aliases:
+  - Five of Cups
+  - Disappointment
+  - Disappointment-Five of Cups
+- id: six_of_cups
+  display_name: Pleasure
+  full_name: Six of Cups - Pleasure
+  arcana: minor
+  roman_numeral: null
+  suit: cups
+  rank: 6
+  court: null
+  element: water
+  hebrew_letter: null
+  hebrew_letter_type: null
+  astrology:
+    type: decan
+    planet: Sun
+    sign: Scorpio
+    decan:
+      sign: Scorpio
+      index: 2
+      start_degree: 10
+      end_degree: 20
+    court_span: null
+  qabalah:
+    sephira: Tiphareth
+    path_number: null
+  book_of_thoth_aliases:
+  - Six of Cups
+  - Pleasure
+  - Pleasure-Six of Cups
+- id: seven_of_cups
+  display_name: Debauch
+  full_name: Seven of Cups - Debauch
+  arcana: minor
+  roman_numeral: null
+  suit: cups
+  rank: 7
+  court: null
+  element: water
+  hebrew_letter: null
+  hebrew_letter_type: null
+  astrology:
+    type: decan
+    planet: Venus
+    sign: Scorpio
+    decan:
+      sign: Scorpio
+      index: 3
+      start_degree: 20
+      end_degree: 30
+    court_span: null
+  qabalah:
+    sephira: Netzach
+    path_number: null
+  book_of_thoth_aliases:
+  - Seven of Cups
+  - Debauch
+  - Debauch-Seven of Cups
+- id: eight_of_cups
+  display_name: Indolence
+  full_name: Eight of Cups - Indolence
+  arcana: minor
+  roman_numeral: null
+  suit: cups
+  rank: 8
+  court: null
+  element: water
+  hebrew_letter: null
+  hebrew_letter_type: null
+  astrology:
+    type: decan
+    planet: Saturn
+    sign: Pisces
+    decan:
+      sign: Pisces
+      index: 1
+      start_degree: 0
+      end_degree: 10
+    court_span: null
+  qabalah:
+    sephira: Hod
+    path_number: null
+  book_of_thoth_aliases:
+  - Eight of Cups
+  - Indolence
+  - Indolence-Eight of Cups
+- id: nine_of_cups
+  display_name: Happiness
+  full_name: Nine of Cups - Happiness
+  arcana: minor
+  roman_numeral: null
+  suit: cups
+  rank: 9
+  court: null
+  element: water
+  hebrew_letter: null
+  hebrew_letter_type: null
+  astrology:
+    type: decan
+    planet: Jupiter
+    sign: Pisces
+    decan:
+      sign: Pisces
+      index: 2
+      start_degree: 10
+      end_degree: 20
+    court_span: null
+  qabalah:
+    sephira: Yesod
+    path_number: null
+  book_of_thoth_aliases:
+  - Nine of Cups
+  - Happiness
+  - Happiness-Nine of Cups
+- id: ten_of_cups
+  display_name: Satiety
+  full_name: Ten of Cups - Satiety
+  arcana: minor
+  roman_numeral: null
+  suit: cups
+  rank: 10
+  court: null
+  element: water
+  hebrew_letter: null
+  hebrew_letter_type: null
+  astrology:
+    type: decan
+    planet: Mars
+    sign: Pisces
+    decan:
+      sign: Pisces
+      index: 3
+      start_degree: 20
+      end_degree: 30
+    court_span: null
+  qabalah:
+    sephira: Malkuth
+    path_number: null
+  book_of_thoth_aliases:
+  - Ten of Cups
+  - Satiety
+  - Satiety-Ten of Cups
+- id: two_of_swords
+  display_name: Peace
+  full_name: Two of Swords - Peace
+  arcana: minor
+  roman_numeral: null
+  suit: swords
+  rank: 2
+  court: null
+  element: air
+  hebrew_letter: null
+  hebrew_letter_type: null
+  astrology:
+    type: decan
+    planet: Moon
+    sign: Libra
+    decan:
+      sign: Libra
+      index: 1
+      start_degree: 0
+      end_degree: 10
+    court_span: null
+  qabalah:
+    sephira: Chokmah
+    path_number: null
+  book_of_thoth_aliases:
+  - Two of Swords
+  - Peace
+  - Peace-Two of Swords
+- id: three_of_swords
+  display_name: Sorrow
+  full_name: Three of Swords - Sorrow
+  arcana: minor
+  roman_numeral: null
+  suit: swords
+  rank: 3
+  court: null
+  element: air
+  hebrew_letter: null
+  hebrew_letter_type: null
+  astrology:
+    type: decan
+    planet: Saturn
+    sign: Libra
+    decan:
+      sign: Libra
+      index: 2
+      start_degree: 10
+      end_degree: 20
+    court_span: null
+  qabalah:
+    sephira: Binah
+    path_number: null
+  book_of_thoth_aliases:
+  - Three of Swords
+  - Sorrow
+  - Sorrow-Three of Swords
+- id: four_of_swords
+  display_name: Truce
+  full_name: Four of Swords - Truce
+  arcana: minor
+  roman_numeral: null
+  suit: swords
+  rank: 4
+  court: null
+  element: air
+  hebrew_letter: null
+  hebrew_letter_type: null
+  astrology:
+    type: decan
+    planet: Jupiter
+    sign: Libra
+    decan:
+      sign: Libra
+      index: 3
+      start_degree: 20
+      end_degree: 30
+    court_span: null
+  qabalah:
+    sephira: Chesed
+    path_number: null
+  book_of_thoth_aliases:
+  - Four of Swords
+  - Truce
+  - Truce-Four of Swords
+- id: five_of_swords
+  display_name: Defeat
+  full_name: Five of Swords - Defeat
+  arcana: minor
+  roman_numeral: null
+  suit: swords
+  rank: 5
+  court: null
+  element: air
+  hebrew_letter: null
+  hebrew_letter_type: null
+  astrology:
+    type: decan
+    planet: Venus
+    sign: Aquarius
+    decan:
+      sign: Aquarius
+      index: 1
+      start_degree: 0
+      end_degree: 10
+    court_span: null
+  qabalah:
+    sephira: Geburah
+    path_number: null
+  book_of_thoth_aliases:
+  - Five of Swords
+  - Defeat
+  - Defeat-Five of Swords
+- id: six_of_swords
+  display_name: Science
+  full_name: Six of Swords - Science
+  arcana: minor
+  roman_numeral: null
+  suit: swords
+  rank: 6
+  court: null
+  element: air
+  hebrew_letter: null
+  hebrew_letter_type: null
+  astrology:
+    type: decan
+    planet: Mercury
+    sign: Aquarius
+    decan:
+      sign: Aquarius
+      index: 2
+      start_degree: 10
+      end_degree: 20
+    court_span: null
+  qabalah:
+    sephira: Tiphareth
+    path_number: null
+  book_of_thoth_aliases:
+  - Six of Swords
+  - Science
+  - Science-Six of Swords
+- id: seven_of_swords
+  display_name: Futility
+  full_name: Seven of Swords - Futility
+  arcana: minor
+  roman_numeral: null
+  suit: swords
+  rank: 7
+  court: null
+  element: air
+  hebrew_letter: null
+  hebrew_letter_type: null
+  astrology:
+    type: decan
+    planet: Moon
+    sign: Aquarius
+    decan:
+      sign: Aquarius
+      index: 3
+      start_degree: 20
+      end_degree: 30
+    court_span: null
+  qabalah:
+    sephira: Netzach
+    path_number: null
+  book_of_thoth_aliases:
+  - Seven of Swords
+  - Futility
+  - Futility-Seven of Swords
+- id: eight_of_swords
+  display_name: Interference
+  full_name: Eight of Swords - Interference
+  arcana: minor
+  roman_numeral: null
+  suit: swords
+  rank: 8
+  court: null
+  element: air
+  hebrew_letter: null
+  hebrew_letter_type: null
+  astrology:
+    type: decan
+    planet: Jupiter
+    sign: Gemini
+    decan:
+      sign: Gemini
+      index: 1
+      start_degree: 0
+      end_degree: 10
+    court_span: null
+  qabalah:
+    sephira: Hod
+    path_number: null
+  book_of_thoth_aliases:
+  - Eight of Swords
+  - Interference
+  - Interference-Eight of Swords
+- id: nine_of_swords
+  display_name: Cruelty
+  full_name: Nine of Swords - Cruelty
+  arcana: minor
+  roman_numeral: null
+  suit: swords
+  rank: 9
+  court: null
+  element: air
+  hebrew_letter: null
+  hebrew_letter_type: null
+  astrology:
+    type: decan
+    planet: Mars
+    sign: Gemini
+    decan:
+      sign: Gemini
+      index: 2
+      start_degree: 10
+      end_degree: 20
+    court_span: null
+  qabalah:
+    sephira: Yesod
+    path_number: null
+  book_of_thoth_aliases:
+  - Nine of Swords
+  - Cruelty
+  - Cruelty-Nine of Swords
+- id: ten_of_swords
+  display_name: Ruin
+  full_name: Ten of Swords - Ruin
+  arcana: minor
+  roman_numeral: null
+  suit: swords
+  rank: 10
+  court: null
+  element: air
+  hebrew_letter: null
+  hebrew_letter_type: null
+  astrology:
+    type: decan
+    planet: Sun
+    sign: Gemini
+    decan:
+      sign: Gemini
+      index: 3
+      start_degree: 20
+      end_degree: 30
+    court_span: null
+  qabalah:
+    sephira: Malkuth
+    path_number: null
+  book_of_thoth_aliases:
+  - Ten of Swords
+  - Ruin
+  - Ruin-Ten of Swords
+- id: two_of_disks
+  display_name: Change
+  full_name: Two of Disks - Change
+  arcana: minor
+  roman_numeral: null
+  suit: disks
+  rank: 2
+  court: null
+  element: earth
+  hebrew_letter: null
+  hebrew_letter_type: null
+  astrology:
+    type: decan
+    planet: Jupiter
+    sign: Capricorn
+    decan:
+      sign: Capricorn
+      index: 1
+      start_degree: 0
+      end_degree: 10
+    court_span: null
+  qabalah:
+    sephira: Chokmah
+    path_number: null
+  book_of_thoth_aliases:
+  - Two of Disks
+  - Change
+  - Change-Two of Disks
+- id: three_of_disks
+  display_name: Work
+  full_name: Three of Disks - Work
+  arcana: minor
+  roman_numeral: null
+  suit: disks
+  rank: 3
+  court: null
+  element: earth
+  hebrew_letter: null
+  hebrew_letter_type: null
+  astrology:
+    type: decan
+    planet: Mars
+    sign: Capricorn
+    decan:
+      sign: Capricorn
+      index: 2
+      start_degree: 10
+      end_degree: 20
+    court_span: null
+  qabalah:
+    sephira: Binah
+    path_number: null
+  book_of_thoth_aliases:
+  - Three of Disks
+  - Work
+  - Work-Three of Disks
+- id: four_of_disks
+  display_name: Power
+  full_name: Four of Disks - Power
+  arcana: minor
+  roman_numeral: null
+  suit: disks
+  rank: 4
+  court: null
+  element: earth
+  hebrew_letter: null
+  hebrew_letter_type: null
+  astrology:
+    type: decan
+    planet: Sun
+    sign: Capricorn
+    decan:
+      sign: Capricorn
+      index: 3
+      start_degree: 20
+      end_degree: 30
+    court_span: null
+  qabalah:
+    sephira: Chesed
+    path_number: null
+  book_of_thoth_aliases:
+  - Four of Disks
+  - Power
+  - Power-Four of Disks
+- id: five_of_disks
+  display_name: Worry
+  full_name: Five of Disks - Worry
+  arcana: minor
+  roman_numeral: null
+  suit: disks
+  rank: 5
+  court: null
+  element: earth
+  hebrew_letter: null
+  hebrew_letter_type: null
+  astrology:
+    type: decan
+    planet: Mercury
+    sign: Taurus
+    decan:
+      sign: Taurus
+      index: 1
+      start_degree: 0
+      end_degree: 10
+    court_span: null
+  qabalah:
+    sephira: Geburah
+    path_number: null
+  book_of_thoth_aliases:
+  - Five of Disks
+  - Worry
+  - Worry-Five of Disks
+- id: six_of_disks
+  display_name: Success
+  full_name: Six of Disks - Success
+  arcana: minor
+  roman_numeral: null
+  suit: disks
+  rank: 6
+  court: null
+  element: earth
+  hebrew_letter: null
+  hebrew_letter_type: null
+  astrology:
+    type: decan
+    planet: Moon
+    sign: Taurus
+    decan:
+      sign: Taurus
+      index: 2
+      start_degree: 10
+      end_degree: 20
+    court_span: null
+  qabalah:
+    sephira: Tiphareth
+    path_number: null
+  book_of_thoth_aliases:
+  - Six of Disks
+  - Success
+  - Success-Six of Disks
+- id: seven_of_disks
+  display_name: Failure
+  full_name: Seven of Disks - Failure
+  arcana: minor
+  roman_numeral: null
+  suit: disks
+  rank: 7
+  court: null
+  element: earth
+  hebrew_letter: null
+  hebrew_letter_type: null
+  astrology:
+    type: decan
+    planet: Saturn
+    sign: Taurus
+    decan:
+      sign: Taurus
+      index: 3
+      start_degree: 20
+      end_degree: 30
+    court_span: null
+  qabalah:
+    sephira: Netzach
+    path_number: null
+  book_of_thoth_aliases:
+  - Seven of Disks
+  - Failure
+  - Failure-Seven of Disks
+- id: eight_of_disks
+  display_name: Prudence
+  full_name: Eight of Disks - Prudence
+  arcana: minor
+  roman_numeral: null
+  suit: disks
+  rank: 8
+  court: null
+  element: earth
+  hebrew_letter: null
+  hebrew_letter_type: null
+  astrology:
+    type: decan
+    planet: Sun
+    sign: Virgo
+    decan:
+      sign: Virgo
+      index: 1
+      start_degree: 0
+      end_degree: 10
+    court_span: null
+  qabalah:
+    sephira: Hod
+    path_number: null
+  book_of_thoth_aliases:
+  - Eight of Disks
+  - Prudence
+  - Prudence-Eight of Disks
+- id: nine_of_disks
+  display_name: Gain
+  full_name: Nine of Disks - Gain
+  arcana: minor
+  roman_numeral: null
+  suit: disks
+  rank: 9
+  court: null
+  element: earth
+  hebrew_letter: null
+  hebrew_letter_type: null
+  astrology:
+    type: decan
+    planet: Venus
+    sign: Virgo
+    decan:
+      sign: Virgo
+      index: 2
+      start_degree: 10
+      end_degree: 20
+    court_span: null
+  qabalah:
+    sephira: Yesod
+    path_number: null
+  book_of_thoth_aliases:
+  - Nine of Disks
+  - Gain
+  - Gain-Nine of Disks
+- id: ten_of_disks
+  display_name: Wealth
+  full_name: Ten of Disks - Wealth
+  arcana: minor
+  roman_numeral: null
+  suit: disks
+  rank: 10
+  court: null
+  element: earth
+  hebrew_letter: null
+  hebrew_letter_type: null
+  astrology:
+    type: decan
+    planet: Mercury
+    sign: Virgo
+    decan:
+      sign: Virgo
+      index: 3
+      start_degree: 20
+      end_degree: 30
+    court_span: null
+  qabalah:
+    sephira: Malkuth
+    path_number: null
+  book_of_thoth_aliases:
+  - Ten of Disks
+  - Wealth
+  - Wealth-Ten of Disks
+- id: knight_of_wands
+  display_name: Knight of Wands
+  full_name: Knight of Wands
+  arcana: minor
+  roman_numeral: null
+  suit: wands
+  rank: null
+  court: knight
+  element: fire
+  sub_element: fire
+  hebrew_letter: null
+  hebrew_letter_type: null
+  tetragrammaton_letter: Yod
+  astrology:
+    type: court_decan_span
+    planet: null
+    sign: null
+    decan: null
+    court_span:
+      start_sign: Scorpio
+      start_degree: 21
+      end_sign: Sagittarius
+      end_degree: 20
+  qabalah:
+    sephira: null
+    path_number: null
+  book_of_thoth_aliases:
+  - Knight of Wands
+- id: queen_of_wands
+  display_name: Queen of Wands
+  full_name: Queen of Wands
+  arcana: minor
+  roman_numeral: null
+  suit: wands
+  rank: null
+  court: queen
+  element: fire
+  sub_element: water
+  hebrew_letter: null
+  hebrew_letter_type: null
+  tetragrammaton_letter: Heh
+  astrology:
+    type: court_decan_span
+    planet: null
+    sign: null
+    decan: null
+    court_span:
+      start_sign: Pisces
+      start_degree: 21
+      end_sign: Aries
+      end_degree: 20
+  qabalah:
+    sephira: null
+    path_number: null
+  book_of_thoth_aliases:
+  - Queen of Wands
+- id: prince_of_wands
+  display_name: Prince of Wands
+  full_name: Prince of Wands
+  arcana: minor
+  roman_numeral: null
+  suit: wands
+  rank: null
+  court: prince
+  element: fire
+  sub_element: air
+  hebrew_letter: null
+  hebrew_letter_type: null
+  tetragrammaton_letter: Vau
+  astrology:
+    type: court_decan_span
+    planet: null
+    sign: null
+    decan: null
+    court_span:
+      start_sign: Cancer
+      start_degree: 21
+      end_sign: Leo
+      end_degree: 20
+  qabalah:
+    sephira: null
+    path_number: null
+  book_of_thoth_aliases:
+  - Prince of Wands
+- id: princess_of_wands
+  display_name: Princess of Wands
+  full_name: Princess of Wands
+  arcana: minor
+  roman_numeral: null
+  suit: wands
+  rank: null
+  court: princess
+  element: fire
+  sub_element: earth
+  hebrew_letter: null
+  hebrew_letter_type: null
+  tetragrammaton_letter: Heh_final
+  astrology: null
+  qabalah:
+    sephira: null
+    path_number: null
+  book_of_thoth_aliases:
+  - Princess of Wands
+- id: knight_of_cups
+  display_name: Knight of Cups
+  full_name: Knight of Cups
+  arcana: minor
+  roman_numeral: null
+  suit: cups
+  rank: null
+  court: knight
+  element: water
+  sub_element: fire
+  hebrew_letter: null
+  hebrew_letter_type: null
+  tetragrammaton_letter: Yod
+  astrology:
+    type: court_decan_span
+    planet: null
+    sign: null
+    decan: null
+    court_span:
+      start_sign: Aquarius
+      start_degree: 21
+      end_sign: Pisces
+      end_degree: 20
+  qabalah:
+    sephira: null
+    path_number: null
+  book_of_thoth_aliases:
+  - Knight of Cups
+- id: queen_of_cups
+  display_name: Queen of Cups
+  full_name: Queen of Cups
+  arcana: minor
+  roman_numeral: null
+  suit: cups
+  rank: null
+  court: queen
+  element: water
+  sub_element: water
+  hebrew_letter: null
+  hebrew_letter_type: null
+  tetragrammaton_letter: Heh
+  astrology:
+    type: court_decan_span
+    planet: null
+    sign: null
+    decan: null
+    court_span:
+      start_sign: Gemini
+      start_degree: 21
+      end_sign: Cancer
+      end_degree: 20
+  qabalah:
+    sephira: null
+    path_number: null
+  book_of_thoth_aliases:
+  - Queen of Cups
+- id: prince_of_cups
+  display_name: Prince of Cups
+  full_name: Prince of Cups
+  arcana: minor
+  roman_numeral: null
+  suit: cups
+  rank: null
+  court: prince
+  element: water
+  sub_element: air
+  hebrew_letter: null
+  hebrew_letter_type: null
+  tetragrammaton_letter: Vau
+  astrology:
+    type: court_decan_span
+    planet: null
+    sign: null
+    decan: null
+    court_span:
+      start_sign: Libra
+      start_degree: 21
+      end_sign: Scorpio
+      end_degree: 20
+  qabalah:
+    sephira: null
+    path_number: null
+  book_of_thoth_aliases:
+  - Prince of Cups
+- id: princess_of_cups
+  display_name: Princess of Cups
+  full_name: Princess of Cups
+  arcana: minor
+  roman_numeral: null
+  suit: cups
+  rank: null
+  court: princess
+  element: water
+  sub_element: earth
+  hebrew_letter: null
+  hebrew_letter_type: null
+  tetragrammaton_letter: Heh_final
+  astrology: null
+  qabalah:
+    sephira: null
+    path_number: null
+  book_of_thoth_aliases:
+  - Princess of Cups
+- id: knight_of_swords
+  display_name: Knight of Swords
+  full_name: Knight of Swords
+  arcana: minor
+  roman_numeral: null
+  suit: swords
+  rank: null
+  court: knight
+  element: air
+  sub_element: fire
+  hebrew_letter: null
+  hebrew_letter_type: null
+  tetragrammaton_letter: Yod
+  astrology:
+    type: court_decan_span
+    planet: null
+    sign: null
+    decan: null
+    court_span:
+      start_sign: Taurus
+      start_degree: 21
+      end_sign: Gemini
+      end_degree: 20
+  qabalah:
+    sephira: null
+    path_number: null
+  book_of_thoth_aliases:
+  - Knight of Swords
+- id: queen_of_swords
+  display_name: Queen of Swords
+  full_name: Queen of Swords
+  arcana: minor
+  roman_numeral: null
+  suit: swords
+  rank: null
+  court: queen
+  element: air
+  sub_element: water
+  hebrew_letter: null
+  hebrew_letter_type: null
+  tetragrammaton_letter: Heh
+  astrology:
+    type: court_decan_span
+    planet: null
+    sign: null
+    decan: null
+    court_span:
+      start_sign: Virgo
+      start_degree: 21
+      end_sign: Libra
+      end_degree: 20
+  qabalah:
+    sephira: null
+    path_number: null
+  book_of_thoth_aliases:
+  - Queen of Swords
+- id: prince_of_swords
+  display_name: Prince of Swords
+  full_name: Prince of Swords
+  arcana: minor
+  roman_numeral: null
+  suit: swords
+  rank: null
+  court: prince
+  element: air
+  sub_element: air
+  hebrew_letter: null
+  hebrew_letter_type: null
+  tetragrammaton_letter: Vau
+  astrology:
+    type: court_decan_span
+    planet: null
+    sign: null
+    decan: null
+    court_span:
+      start_sign: Capricorn
+      start_degree: 21
+      end_sign: Aquarius
+      end_degree: 20
+  qabalah:
+    sephira: null
+    path_number: null
+  book_of_thoth_aliases:
+  - Prince of Swords
+- id: princess_of_swords
+  display_name: Princess of Swords
+  full_name: Princess of Swords
+  arcana: minor
+  roman_numeral: null
+  suit: swords
+  rank: null
+  court: princess
+  element: air
+  sub_element: earth
+  hebrew_letter: null
+  hebrew_letter_type: null
+  tetragrammaton_letter: Heh_final
+  astrology: null
+  qabalah:
+    sephira: null
+    path_number: null
+  book_of_thoth_aliases:
+  - Princess of Swords
+- id: knight_of_disks
+  display_name: Knight of Disks
+  full_name: Knight of Disks
+  arcana: minor
+  roman_numeral: null
+  suit: disks
+  rank: null
+  court: knight
+  element: earth
+  sub_element: fire
+  hebrew_letter: null
+  hebrew_letter_type: null
+  tetragrammaton_letter: Yod
+  astrology:
+    type: court_decan_span
+    planet: null
+    sign: null
+    decan: null
+    court_span:
+      start_sign: Leo
+      start_degree: 21
+      end_sign: Virgo
+      end_degree: 20
+  qabalah:
+    sephira: null
+    path_number: null
+  book_of_thoth_aliases:
+  - Knight of Disks
+- id: queen_of_disks
+  display_name: Queen of Disks
+  full_name: Queen of Disks
+  arcana: minor
+  roman_numeral: null
+  suit: disks
+  rank: null
+  court: queen
+  element: earth
+  sub_element: water
+  hebrew_letter: null
+  hebrew_letter_type: null
+  tetragrammaton_letter: Heh
+  astrology:
+    type: court_decan_span
+    planet: null
+    sign: null
+    decan: null
+    court_span:
+      start_sign: Sagittarius
+      start_degree: 21
+      end_sign: Capricorn
+      end_degree: 20
+  qabalah:
+    sephira: null
+    path_number: null
+  book_of_thoth_aliases:
+  - Queen of Disks
+- id: prince_of_disks
+  display_name: Prince of Disks
+  full_name: Prince of Disks
+  arcana: minor
+  roman_numeral: null
+  suit: disks
+  rank: null
+  court: prince
+  element: earth
+  sub_element: air
+  hebrew_letter: null
+  hebrew_letter_type: null
+  tetragrammaton_letter: Vau
+  astrology:
+    type: court_decan_span
+    planet: null
+    sign: null
+    decan: null
+    court_span:
+      start_sign: Aries
+      start_degree: 21
+      end_sign: Taurus
+      end_degree: 20
+  qabalah:
+    sephira: null
+    path_number: null
+  book_of_thoth_aliases:
+  - Prince of Disks
+- id: princess_of_disks
+  display_name: Princess of Disks
+  full_name: Princess of Disks
+  arcana: minor
+  roman_numeral: null
+  suit: disks
+  rank: null
+  court: princess
+  element: earth
+  sub_element: earth
+  hebrew_letter: null
+  hebrew_letter_type: null
+  tetragrammaton_letter: Heh_final
+  astrology: null
+  qabalah:
+    sephira: null
+    path_number: null
+  book_of_thoth_aliases:
+  - Princess of Disks

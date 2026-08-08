@@ -1,0 +1,72 @@
+[project]
+name = "syzygy"
+version = "0.1.0"
+description = "A local-first TUI for a daily divination ritual combining a natal chart, current astrological transits, and a random Thoth Tarot draw, interpreted by an LLM."
+readme = "README.md"
+license = "AGPL-3.0-or-later"
+requires-python = ">=3.11,<3.14"
+authors = [{ name = "Blake Piper" }]
+
+# Python-version note: Kerykeion 5.x declares support for 3.10-3.13 only
+# (no 3.14 classifier). Textual is nominally >=3.9,<4.0 but has a known
+# asyncio event-loop-policy regression on 3.14 (see AGENTS.md). The upper
+# bound here is deliberate, not a placeholder - do not raise it without
+# re-checking both projects' current Python support.
+
+dependencies = [
+    "textual>=8.2.8",
+    "pydantic>=2.5",
+    "kerykeion>=5.12.0",
+    "platformdirs>=4.0",
+    "pymupdf>=1.24",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+# Onboarding-only: birthplace geocoding/timezone resolution (DESIGN.md 6.1,
+# 46). Never imported by the astrology/reading/oracle path itself.
+geocoding = [
+    "geopy>=2.4",
+    "timezonefinder>=6.5",
+]
+# Remote LLM providers (DESIGN.md 13.3) - not needed for the fixture
+# provider or local-inference path.
+providers = [
+    "httpx>=0.27",
+    "keyring>=25.0",
+]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.6",
+    "mypy>=1.11",
+]
+
+[project.scripts]
+syzygy = "syzygy.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/syzygy"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.11"
+packages = ["syzygy"]
+mypy_path = "src"
+ignore_missing_imports = true
+disallow_untyped_defs = false
+warn_unused_ignores = true
