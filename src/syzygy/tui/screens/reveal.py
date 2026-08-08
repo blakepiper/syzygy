@@ -43,16 +43,23 @@ class RevealScreen(SyzygyScreen):
 
     def compose(self) -> ComposeResult:
         yield TitleBar("THE ALIGNMENT")
+        # Directly under the title, the same place `HomeScreen` puts it -
+        # the axis is one motif across the app, not per-screen furniture.
+        yield AlignmentWidget(id="reveal-alignment")
+        # The slack belongs to `#reveal-stage`, not to the card: a `1fr`
+        # card with a `max-height` had Textual reserve the full remainder
+        # for it and then place the caption and the key hint past the
+        # bottom edge on a tall terminal. The wrapper takes the slack and
+        # the card fills the wrapper, which also gets the card centred -
+        # a `Static` sibling is full-width, so `align-horizontal` on the
+        # body had nothing to centre the card against.
         with Vertical(id="reveal-body"):
-            with Center():
+            with Center(id="reveal-stage"):
                 yield TarotCardWidget(glyphs=self.syzygy.glyphs, id="reveal-card")
-            with Center():
-                yield Static("", id="reveal-caption", classes="muted")
+            yield Static("", id="reveal-caption", classes="muted")
             with Horizontal(id="reveal-transits"):
                 pass
-            yield AlignmentWidget(id="reveal-alignment")
-            with Center():
-                yield Static("", id="reveal-hint", classes="keys", markup=False)
+            yield Static("", id="reveal-hint", classes="keys", markup=False)
         yield Footer()
 
     def on_mount(self) -> None:

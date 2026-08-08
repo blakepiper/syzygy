@@ -9,7 +9,7 @@ it.
 from __future__ import annotations
 
 from textual.app import ComposeResult
-from textual.containers import VerticalScroll
+from textual.containers import Horizontal, VerticalScroll
 from textual.widgets import Footer, Static
 
 from syzygy.domain.astrology import sign_for_longitude
@@ -21,15 +21,27 @@ class ChartScreen(SyzygyScreen):
     BINDINGS = [("escape", "back", "back")]
 
     def compose(self) -> ComposeResult:
+        """Placements and aspects as two lists, side by side when there is
+        room (M12.5).
+
+        They are two lists at every size - stacking them in one scroller
+        was what left a wide terminal three-quarters empty with the aspects
+        below the fold. `syzygy.tcss` puts them in columns at `-wide` and
+        back in one scroller below it.
+        """
         yield TitleBar("NATAL CHART")
-        yield VerticalScroll(Static("", id="chart-body"))
+        with Horizontal(id="chart-columns"):
+            yield VerticalScroll(Static("", id="chart-body"), id="chart-placements")
+            yield VerticalScroll(Static("", id="chart-aspects-body"), id="chart-aspects")
         yield Footer()
 
     def on_mount(self) -> None:
         profile = self.syzygy.profile
         body = self.query_one("#chart-body", Static)
+        aspects_body = self.query_one("#chart-aspects-body", Static)
         if profile is None:
             body.update("No profile is selected.")
+            aspects_body.update("")
             return
 
         glyphs = self.syzygy.glyphs
@@ -60,14 +72,16 @@ class ChartScreen(SyzygyScreen):
                 f"{format_degrees(longitude):>8}"
             )
 
-        lines.extend(["", f"{len(natal.aspects)} natal aspects", ""])
+        body.update("\n".join(lines))
+
+        aspect_lines = [f"{len(natal.aspects)} natal aspects", ""]
         for aspect in natal.aspects:
-            lines.append(
+            aspect_lines.append(
                 f"  {glyphs.body(aspect.body_a):<3} {glyphs.aspect(aspect.aspect):<3} "
                 f"{glyphs.body(aspect.body_b):<3} {aspect.body_a} {aspect.aspect} "
                 f"{aspect.body_b} ({aspect.orb_degrees:.2f}°)"
             )
-        body.update("\n".join(lines))
+        aspects_body.update("\n".join(aspect_lines))
 
     def action_back(self) -> None:
         if len(self.app.screen_stack) > 1:

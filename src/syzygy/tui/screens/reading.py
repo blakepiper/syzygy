@@ -56,14 +56,25 @@ class ReadingScreen(SyzygyScreen):
         self._interpreting = False
 
     def compose(self) -> ComposeResult:
+        """The alignment on one side, what was made of it on the other
+        (M12.5c).
+
+        Stacked, the card sat above the interpretation and took most of
+        the screen with it - at 120x40 the reading itself was left about
+        four rows to scroll in, which is backwards: the card is the fixed
+        input, the interpretation is what the user came for. At `-wide`
+        they become columns and both get their full height; below that
+        they stack as before. `syzygy.tcss` owns the switch.
+        """
         yield TitleBar(self.reading.consultation_local_date)
-        with Vertical(id="reading-header"):
-            yield Static("", id="reading-title", classes="lede")
-            with Horizontal(id="reading-summary"):
+        with Horizontal(id="reading-columns"):
+            with Vertical(id="reading-aside"):
                 yield TarotCardWidget(glyphs=self.syzygy.glyphs, id="reading-card")
                 with Vertical(id="reading-transits"):
                     pass
-        yield ReadingPanel(glyphs=self.syzygy.glyphs, id="reading-panel")
+            with Vertical(id="reading-main"):
+                yield Static("", id="reading-title", classes="lede")
+                yield ReadingPanel(glyphs=self.syzygy.glyphs, id="reading-panel")
         yield Static("", id="reading-keys", classes="keys", markup=False)
         yield Footer()
 

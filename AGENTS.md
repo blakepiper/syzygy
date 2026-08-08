@@ -209,15 +209,25 @@ dev-only reroll gated on `SYZYGY_DEV` (`syzygy.dev`), the shipped
 knowledge index of citations and vectors (`knowledge/artifact.py`,
 `knowledge/embedding.py`, ADR 0003), the namespaced settings document
 (`syzygy.settings` — add a preference as a *section*, never by writing the
-whole file), and the looping theme behind the optional `audio` extra
-(`syzygy.audio`, which degrades to `SilentTheme` on every failure).
+whole file), the looping theme behind the optional `audio` extra
+(`syzygy.audio`, which degrades to `SilentTheme` on every failure), and
+the layout tiers (M12.5).
+
+**Layout tiers.** `syzygy.tui.screens.base` owns the three thresholds and
+sets `-compact`/`-wide`/`-tall` on every screen; `syzygy.tcss` styles
+those classes. Do not measure `self.size` in a screen to decide a layout,
+and do not introduce a fourth threshold without changing it there — the
+too-small gate, the layout blocks, and M14's animations all read the same
+numbers. `tests/tui/test_layout.py` checks each screen at the tier sizes,
+in both directions: nothing that matters is off-screen, and what should
+grow did.
 
 Not yet implemented (see `TASKS.md` for the ordered list, and don't
 assume a stub exists just because a directory is mentioned in
-`IMPLEMENTATION_PLAN.md`): the layout/density pass (M12.5), the Cinzel
-display treatment (M12.3), today's-sky screen and LLM chart summaries
+`IMPLEMENTATION_PLAN.md`): today's-sky screen and LLM chart summaries
 (M13.1/M13.2), and the whole animation system (M14, specified in
-`docs/animation.md`).
+`docs/animation.md`). M12.3 (a Cinzel display treatment) was dropped
+rather than deferred — `TASKS.md` records why.
 
 **Where the current work is written down.** `IMPLEMENTATION_PLAN.md`
 covers M0–M9 and is history now; anything from M10 onward is specified in

@@ -146,7 +146,7 @@ def test_the_card_widget_fits_its_box_for_every_card():
     let the illustration push those words out of the box."""
     import asyncio
 
-    from textual.containers import Center
+    from textual.containers import Center, Vertical
     from textual.screen import Screen
 
     from syzygy.tui.widgets.tarot_card import TarotCardWidget
@@ -155,8 +155,14 @@ def test_the_card_widget_fits_its_box_for_every_card():
 
     class _CardScreen(Screen):
         def compose(self):
-            with Center():
-                yield TarotCardWidget(id="reveal-card")
+            # Mirrors `RevealScreen`'s structure, not just its ids: the
+            # card's height comes from `#reveal-stage` (M12.5c), so a bare
+            # auto-height `Center` would give it a zero-row box and the
+            # "does the content fit" question would have no box to ask
+            # about.
+            with Vertical(id="reveal-body"):
+                with Center(id="reveal-stage"):
+                    yield TarotCardWidget(id="reveal-card")
 
     async def check() -> list[tuple[str, int, int]]:
         from syzygy.clock import FixedClock

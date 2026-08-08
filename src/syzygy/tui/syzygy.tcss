@@ -34,10 +34,21 @@ Screen {
     display: none;
 }
 
-/* Compact mode (DESIGN.md section 18.6): below the ideal 100x32 but at
- * or above the 80x24 floor, `SyzygyScreen` sets `-compact` on itself.
- * Padding shrinks; layout and content do not change shape, so nothing
- * here can hide information, only the whitespace around it.
+/* Layout tiers (M12.5d).
+ *
+ * `syzygy.tui.screens.base` owns the thresholds - it is the one place
+ * they are written down - and sets the classes styled here:
+ *
+ *   -compact   below 100x32, at or above the 80x24 floor. Padding
+ *              shrinks; layout and content do not change shape, so
+ *              nothing here can hide information, only the whitespace
+ *              around it (DESIGN.md section 18.6).
+ *   (none)     100x32 to 119 columns. One column, full height.
+ *   -wide      120 columns and up. Screens go multi-column.
+ *
+ * The rule for every `-wide` block below: it rearranges widgets that
+ * already exist at the narrow tier. A wide layout never adds content a
+ * narrow terminal cannot reach, and never removes any.
  */
 
 .-compact .title-bar,
@@ -47,8 +58,56 @@ Screen {
 }
 
 .-compact #chart-body,
+.-compact #chart-aspects-body,
 .-compact #archive-frequency {
     padding: 0 1;
+}
+
+/* At the floor every row counts: the stacked home regions plus their
+ * headings are taller than 80x24 has to spare, and the rows lost here are
+ * blank ones. Nothing is hidden - `#home-columns` scrolls, and the
+ * padding is whitespace, not content. */
+.-compact .column-heading,
+.-compact #home-chart-hint,
+.-compact #home-transits,
+.-compact #home-anchors {
+    padding: 0 1;
+}
+
+.-compact #primary-action {
+    margin: 0;
+}
+
+/* At the floor the reading screen's three key rows and their padding cost
+ * more than the interpretation they sit under is given. */
+.-compact #reading-keys {
+    padding: 0 1;
+}
+
+/* Two content rows and no frame around them. The axis says exactly as
+ * much as it does at any other size; only its breathing room goes. */
+.-compact AlignmentWidget {
+    padding: 0 1;
+    height: 2;
+}
+
+/* The heading over each stacked region. At `-wide` the regions sit under
+ * the alignment axis's own SELF/COSMOS/CHANCE labels, which name them
+ * from one row up; repeating the same three words directly underneath is
+ * noise, so the axis does the labelling there and this does it when the
+ * regions are stacked and the axis no longer points at anything.
+ *
+ * No vertical padding: stacked is the tier that is short of rows, and
+ * three headings' worth of breathing room is what pushed the primary
+ * action off the bottom at 100x32. */
+.column-heading {
+    color: $syz-accent;
+    text-style: bold;
+    padding: 0 2;
+}
+
+.-wide .column-heading {
+    display: none;
 }
 
 .title-bar {
@@ -280,11 +339,26 @@ TarotCardWidget {
     color: $syz-bone;
 }
 
-/* Home */
+/* Home (M12.5b).
+ *
+ * Three regions, one per point of the alignment axis above them. Stacked
+ * below `WIDE_WIDTH` and in columns at or above it - the same widgets
+ * either way, so `HomeScreen.compose` never asks how big the terminal is.
+ */
 
-#home-body {
+/* Scrollable when stacked. At the 80x24 floor the three regions are
+ * taller than the rows left over, and the one thing that must never be
+ * unreachable is the primary action at the bottom of CHANCE. */
+#home-columns {
+    layout: vertical;
+    height: 1fr;
+    padding: 1 0 0 0;
+    overflow-y: auto;
+}
+
+.home-column {
+    width: 1fr;
     height: auto;
-    padding: 1 0;
 }
 
 #home-anchors {
@@ -292,15 +366,31 @@ TarotCardWidget {
     padding: 0 2;
 }
 
+/* One anchor per row, at every size. Side by side, the three ran to ~100
+ * cells and the Ascendant fell off the right edge at the 80-column
+ * floor. */
 #home-anchors Glyph {
-    width: auto;
-    margin: 0 3 0 0;
+    width: 1fr;
+    height: 1;
     color: $syz-lunar;
 }
 
+/* Tight by default, roomier at `-wide`. Stacked, all three regions share
+ * one screen's rows and the padding between them is what runs the primary
+ * action off the bottom; in columns each region has a column to itself
+ * and the space is there to spend. */
 #home-transits {
     height: auto;
-    padding: 1 2 0 2;
+    padding: 0 2;
+}
+
+#home-chart-hint {
+    padding: 0 2;
+}
+
+#home-action {
+    height: auto;
+    padding: 0;
 }
 
 #primary-action {
@@ -314,6 +404,38 @@ TarotCardWidget {
 #primary-action:hover {
     background: $syz-oxide;
     color: $syz-bone;
+}
+
+.-wide #home-columns {
+    layout: horizontal;
+    overflow-y: hidden;
+}
+
+/* Full-height columns with a rule between them. The regions share a top
+ * baseline (centring each one independently made three ragged blocks at
+ * three different heights), and the rules give the empty lower half a
+ * structure - the space reads as three regions rather than as a screen
+ * that ran out of things to say. */
+.-wide .home-column {
+    height: 1fr;
+}
+
+.-wide #home-cosmos,
+.-wide #home-chance {
+    border-left: solid $syz-dim;
+}
+
+.-wide #home-transits,
+.-wide #home-chart-hint {
+    padding: 1 2 0 2;
+}
+
+/* The wheel is what the screen is for: it takes what is left of the
+ * CHANCE column and sits at the centre of it. */
+.-wide #home-action {
+    width: 1fr;
+    height: 1fr;
+    align: center middle;
 }
 
 /* The Wheel */
@@ -343,35 +465,84 @@ TarotCardWidget {
  * ratio, and falls back to the text card when the box gets too small.
  */
 
+/* The reveal's card takes what is left after the caption, the transits
+ * and the key hint, between a floor and a ceiling. A fixed height fit
+ * none of the sizes it actually runs at: 28 rows overflowed the bottom
+ * off both 100x32 and 120x40 while leaving a 55-row terminal two-thirds
+ * empty. `1fr` between bounds is the whole fix - it can neither clip nor
+ * leave a gap, at any size, without a per-size rule. */
 #reveal-card {
-    height: 28;
+    height: 100%;
 }
 
+/* Widened only when there are rows to spend on it: the art keeps the
+ * illustration's aspect ratio, so beyond about 24 rows a 33-column frame
+ * stops growing and just gains empty space. Bounded by rows, so `-tall`
+ * rather than `-wide`. */
+.-tall #reveal-card {
+    width: 43;
+}
+
+.-compact #reveal-body {
+    padding: 0;
+}
+
+.-compact #reveal-transits,
+.-compact #reveal-hint {
+    padding: 0 1;
+}
+
+/* Reading is not a card screen: the card is a fixed left column at
+ * `-wide` and a header above the prose below it, and the interpretation
+ * gets the slack. Stacked at the ideal 100x32, a 24-row card left the
+ * reading itself two rows to scroll in. */
+/* 22 is a measured floor, not a guess: the frame spends 4 rows on border
+ * and padding and up to 8 on the card's own words (a long correspondence
+ * label wraps), and `art_size_for` gives up below 9 rows of art. At 16
+ * the reading screen showed a text-only card at every size below
+ * `-wide`. */
 #reading-card {
-    height: 24;
-}
-
-/* Below the ideal 100x32 the full-height card would push the rest of the
- * screen off the bottom. The art shrinks with the box and drops out
- * entirely (leaving the text card) once it would be illegible. */
-.-compact #reveal-card {
-    height: 20;
+    height: 22;
 }
 
 .-compact #reading-card {
-    height: 18;
+    height: 12;
 }
 
-/* Reveal */
+.-wide #reading-card {
+    height: 24;
+}
+
+/* Reveal.
+ *
+ * A ceremony, not a document: the card and its caption are centred in
+ * whatever the screen has rather than stacked from the top edge, which
+ * is what left two-thirds of a tall terminal blank below them.
+ */
 
 #reveal-body {
     height: 1fr;
     padding: 1 0;
 }
 
+#reveal-stage {
+    height: 1fr;
+    min-height: 8;
+}
+
 #reveal-transits {
+    width: 1fr;
     height: auto;
     padding: 1 2;
+    align-horizontal: center;
+}
+
+/* `Center` cannot centre a `Static`: it fills the width it is given, so
+ * the box is already centred and the text inside it sits at the left. The
+ * text has to be told directly. */
+#reveal-caption,
+#reveal-hint {
+    text-align: center;
 }
 
 #reveal-hint {
@@ -379,38 +550,118 @@ TarotCardWidget {
     text-style: bold;
 }
 
-/* Reading */
+/* Reading (M12.5c).
+ *
+ * Two columns from the ideal size upward, stacked only at `-compact`.
+ * The threshold is lower than `-wide` on purpose: what needs 120 columns
+ * is *three* regions side by side on the home screen, and applying that
+ * number here too would have cost the reading its card art at 100x32 for
+ * no reason. The tiers are shared; which one a given screen changes shape
+ * at is a question about that screen's content.
+ *
+ * Stacked, the card took the screen and left the interpretation - the
+ * thing the user came for - about two rows to scroll in.
+ */
 
-#reading-header {
-    height: auto;
-    padding: 0 0 1 0;
+#reading-columns {
+    layout: horizontal;
+    height: 1fr;
 }
 
-#reading-summary {
-    height: auto;
+/* Wide enough for `TarotCardWidget`'s 33 columns plus the padding around
+ * it: the card is a fixed object, so it gets a fixed column and the
+ * reading gets everything else. */
+#reading-aside {
+    layout: vertical;
+    width: 37;
+    height: 1fr;
     padding: 1 2 0 2;
 }
 
 #reading-transits {
     width: 1fr;
     height: auto;
-    padding: 1 0 0 3;
+    padding: 1 0 0 2;
+}
+
+#reading-main {
+    width: 1fr;
+    height: 1fr;
+}
+
+.-compact #reading-columns {
+    layout: vertical;
+}
+
+.-compact #reading-aside {
+    layout: horizontal;
+    width: 1fr;
+    height: auto;
+    padding: 0 1;
+}
+
+.-compact #reading-transits {
+    padding: 0 0 0 2;
 }
 
 #reading-panel {
     height: 1fr;
     padding: 0 2;
-    border-top: solid $syz-dim;
 }
 
+/* Prose has a comfortable measure whatever the terminal is. Without this
+ * the interpretation ran the full width of a 200-column terminal, which
+ * is one long line per paragraph and unreadable. */
 #reading-body {
     width: 1fr;
+    max-width: 88;
+}
+
+#reading-panel {
+    border-top: none;
+    border-left: solid $syz-dim;
+}
+
+.-compact #reading-panel {
+    border-left: none;
+    border-top: solid $syz-dim;
 }
 
 /* Chart / archive */
 
-#chart-body {
+#chart-columns {
+    layout: vertical;
+    height: 1fr;
+    overflow-y: auto;
+}
+
+#chart-placements,
+#chart-aspects {
+    width: 1fr;
+    height: auto;
+    overflow-y: hidden;
+}
+
+#chart-body,
+#chart-aspects-body {
     padding: 1 2;
+}
+
+/* Two lists side by side, each scrolling on its own - stacked, the
+ * aspects sat below the fold on a screen that was three-quarters empty. */
+.-wide #chart-columns {
+    layout: horizontal;
+    overflow-y: hidden;
+}
+
+.-wide #chart-placements,
+.-wide #chart-aspects {
+    height: 1fr;
+    overflow-y: auto;
+}
+
+.-wide #chart-aspects {
+    border-left: solid $syz-dim;
 }
 
 #archive-frequency {

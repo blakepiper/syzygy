@@ -775,7 +775,21 @@ font — the font is the terminal emulator's, and no escape sequence lets
 an application change it. So this task cannot be "switch the app to
 Cinzel"; it can be the three things that are actually achievable.
 
-- [ ] M12.3a Bundle a Cinzel-derived display treatment for the places
+**Dropped (2026-08-08), by the user's decision — not deferred, not
+blocked.** The achievable version was prototyped far enough to price it:
+real Cinzel rasterized through the existing `pixel_art` half-block path
+is legible down to about 4 cell rows, and the font is SIL OFL 1.1, so
+bundling it was fine on the licence rule. What killed it was reach. Pixel
+art needs roughly 8 columns per capital, so a title fits about 12
+characters at 100 columns — and the app's only large typographic surface
+is the welcome screen, which already carries `logo.png`. Every screen
+title lives in the one-row `TitleBar`, where pixel art cannot go at all.
+So the treatment would have cost a bundled font and a new rendering path
+to change one screen that already has a wordmark. If a later milestone
+gives a screen a real display title (M12.5 or M14.2 might), reopen this
+then — the constraint above is what to re-read first.
+
+- [x] M12.3a Bundle a Cinzel-derived display treatment for the places
       where letterforms carry the brand — the wordmark, screen titles,
       the welcome screen — as pre-rendered pixel art (rasterize Cinzel
       text to PNG at author time, render via the `rich_pixels` path) or as
@@ -784,11 +798,11 @@ Cinzel"; it can be the three things that are actually achievable.
       Cinzel is SIL Open Font License 1.1 — permissive, so AGPL-compatible
       per `AGENTS.md`'s dependency rule; record that in the task and, if
       the font file itself is bundled, include its license file.
-- [ ] M12.3b Everything else stays in the terminal's own monospace font —
+- [x] M12.3b Everything else stays in the terminal's own monospace font —
       body copy, chart tables, and card correspondences must stay
       column-aligned, and Cinzel is proportional. Do not attempt pixel-art
       body text.
-- [ ] M12.3c Document the recommendation for users who want more: a
+- [x] M12.3c Document the recommendation for users who want more: a
       `README.md` note that the intended look pairs Syzygy with a terminal
       configured for a specific font, since that is the user's setting to
       make, not the app's.
@@ -842,28 +856,85 @@ space — the display feels largely empty. When thinking about the
 animations … factor that in." This is the layout half of the same
 problem M14 solves in motion, and it must come first.
 
-- [ ] M12.5a Audit each screen at a few real terminal sizes (80×24,
+- [x] M12.5a Audit each screen at a few real terminal sizes (80×24,
       120×40, and a full-screen modern terminal) and record where the dead
       space actually is. `HomeScreen` is the priority — it is a title, a
       name, three anchor glyphs, a sky line, three badges, two status
       lines, and a button, stacked in a column down the middle.
-- [ ] M12.5b Redesign `HomeScreen` around the space: a multi-column layout
+      Done by rendering every screen at 80×24 / 100×32 / 120×40 / 200×55
+      through `Pilot` + `App.export_screenshot()` and looking at the
+      result. What the audit actually found, in the order it mattered:
+      **the emptiness was the smaller half of the problem.** Three screens
+      were *overflowing* — the reveal's card was a fixed 28 rows, which
+      fits neither 100×32 nor 120×40, so the caption, the transits and the
+      key hint were being drawn past the bottom edge at the ideal size and
+      at the common one; the reading screen gave the interpretation about
+      two rows to scroll in at 100×32 and four at 120×40, because a 24-row
+      card sat above it in the same column; and the home screen's three
+      anchor glyphs ran to ~100 cells side by side, so the Ascendant fell
+      off the right edge at the 80-column floor. The dead space was real
+      too (home used the top fifth of a 200×55 terminal and the chart
+      about a quarter), but nothing here was only a matter of filling
+      space — the same fixed sizes caused both.
+- [x] M12.5b Redesign `HomeScreen` around the space: a multi-column layout
       (SELF / COSMOS / CHANCE as parallel regions rather than a stack)
       that fills width, with the chart anchors and today's transits given
       room to breathe, and the primary action anchored where it reads as
       the focal point. Keep the SELF+COSMOS+CHANCE triad legible — it is
       the product's mental model, not decoration.
-- [ ] M12.5c Do the same pass on `ReadingScreen` and `RevealScreen`, where
+      Three regions in the axis's own left-to-right order, so at `-wide`
+      each column sits under the point of the alignment axis it belongs
+      to and the axis labels double as the column headings — the separate
+      `.column-heading` statics are hidden there and shown when the
+      regions stack, because the same three words one row under the axis
+      labels is noise. Full-height columns with a rule between them:
+      centring each region in its own column was tried first and produced
+      three ragged blocks at three different heights. The anchors now
+      stack one per row at every size, which is also what fixes the
+      clipped Ascendant at 80 columns.
+- [x] M12.5c Do the same pass on `ReadingScreen` and `RevealScreen`, where
       card art (M11.5) now competes with body text: give the art a real
       column and let the interpretation flow beside it at wide sizes,
       stacking only when narrow.
-- [ ] M12.5d Define responsive breakpoints once, in `syzygy.tcss`, and
+      Reading goes two-column from the ideal size upward rather than at
+      `-wide`: what needs 120 columns is *three* regions on the home
+      screen, and reusing that number here would have cost the card its
+      art at 100×32 for no reason. `#reading-body` also gained
+      `max-width: 88` — unbounded, a paragraph ran the full 200 columns as
+      one line. The reveal is the opposite shape of problem: its card now
+      takes the screen's slack (`height: 1fr` on a wrapper) instead of a
+      fixed height, so it can neither clip nor leave a gap at any size,
+      and widens at `-tall` because the art keeps its aspect ratio and a
+      33-column frame stops growing past ~24 rows. Two Textual details
+      cost time and are commented in place: `1fr` with a `max-height`
+      makes the layout reserve the full remainder and place the following
+      siblings past the bottom edge, and `align: center middle` collapses
+      full-width `Center` children to their content width.
+- [x] M12.5d Define responsive breakpoints once, in `syzygy.tcss`, and
       apply them consistently rather than per-screen ad hoc sizing. Note
       the widths chosen so M14 and the future "terminal too small" state
       use the same thresholds.
-- [ ] M12.5e Snapshot-style tests at the chosen breakpoints (Textual's
+      The numbers live in `syzygy.tui.screens.base` — `IDEAL_WIDTH`/
+      `IDEAL_HEIGHT` (100×32, already there), `WIDE_WIDTH` (120) and
+      `TALL_HEIGHT` (48) — and `SyzygyScreen` sets `-compact`/`-wide`/
+      `-tall` from them; `syzygy.tcss` only styles the classes. Python
+      rather than the stylesheet is the source because the classes are set
+      in Python and `too_small.py` needs the floor as a value, not a
+      selector. `-wide` and `-tall` are independent on purpose: a 200×30
+      terminal is one and not the other. Which tier a given screen changes
+      shape at is a question about that screen's content, and is stated in
+      the stylesheet next to each block.
+- [x] M12.5e Snapshot-style tests at the chosen breakpoints (Textual's
       `Pilot` with an explicit terminal size) so a later layout change
       cannot silently re-empty the screen.
+      `tests/tui/test_layout.py`, 37 cases. Geometry rather than snapshots
+      of cells: a cell snapshot fails on every wording change and tells
+      nobody why. Each screen is checked in both directions at the tier
+      sizes — that the parts which must be visible are wholly inside the
+      screen (the wheel button, the reveal's caption and key hint), and
+      that the parts which should grow did (the reading panel is the
+      largest thing on its screen above the floor, the columns run the
+      full height, the reveal's card grows with the rows available).
 
 ---
 

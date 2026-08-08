@@ -45,22 +45,43 @@ class HomeScreen(SyzygyScreen):
         self._reading: Reading | None = None
 
     def compose(self) -> ComposeResult:
+        """Three parallel regions under the alignment axis, one per point
+        of it (M12.5b).
+
+        The order is the axis's own order - SELF, COSMOS, CHANCE, left to
+        right - so at `-wide` each column sits under the point it belongs
+        to and the triad reads as the mental model it is, rather than as a
+        stack of unrelated status lines. Below `WIDE_WIDTH` the same three
+        regions stack; `syzygy.tcss` switches `#home-columns` between the
+        two layouts, and nothing here changes with size.
+        """
         yield TitleBar(id="home-title")
         yield AlignmentWidget(id="home-alignment")
-        with Vertical(id="home-body"):
-            yield Static("", id="home-name", classes="lede")
-            with Horizontal(id="home-anchors"):
-                yield Glyph("☉", "Sun", id="anchor-sun")
-                yield Glyph("☽", "Moon", id="anchor-moon")
-                yield Glyph("↑", "Ascendant", id="anchor-asc")
-            yield Static("", id="home-sky", classes="muted")
-            with Horizontal(id="home-transits"):
-                pass
-            yield Static("", id="home-status", classes="muted")
-            yield Static("", id="home-model-status", classes="muted", markup=False)
-            yield Static("", id="home-dev", classes="error", markup=False)
-        with Center():
-            yield Button(TURN_THE_WHEEL, id="primary-action", variant="primary")
+        with Horizontal(id="home-columns"):
+            with Vertical(id="home-self", classes="home-column"):
+                yield Static("SELF", classes="column-heading")
+                yield Static("", id="home-name", classes="lede")
+                with Vertical(id="home-anchors"):
+                    yield Glyph("☉", "Sun", id="anchor-sun")
+                    yield Glyph("☽", "Moon", id="anchor-moon")
+                    yield Glyph("↑", "Ascendant", id="anchor-asc")
+                # `markup=False`: "[C]" is a key hint, and Rich would read
+                # it as a style tag and render nothing at all.
+                yield Static(
+                    "[C] full natal chart", id="home-chart-hint", classes="muted", markup=False
+                )
+            with Vertical(id="home-cosmos", classes="home-column"):
+                yield Static("COSMOS", classes="column-heading")
+                yield Static("", id="home-sky", classes="muted")
+                with Vertical(id="home-transits"):
+                    pass
+            with Vertical(id="home-chance", classes="home-column"):
+                yield Static("CHANCE", classes="column-heading")
+                yield Static("", id="home-status", classes="muted")
+                yield Static("", id="home-model-status", classes="muted", markup=False)
+                yield Static("", id="home-dev", classes="error", markup=False)
+                with Center(id="home-action"):
+                    yield Button(TURN_THE_WHEEL, id="primary-action", variant="primary")
         with Vertical(id="home-reroll-confirm", classes="hidden"):
             yield Static("", id="reroll-body", classes="error", markup=False)
             with Horizontal(classes="button-row"):
@@ -195,7 +216,7 @@ class HomeScreen(SyzygyScreen):
             return
         self.query_one("#home-alignment", AlignmentWidget).cosmos_resolved = True
         self.query_one("#home-sky", Static).update("Current sky resolved.")
-        container = self.query_one("#home-transits", Horizontal)
+        container = self.query_one("#home-transits", Vertical)
         container.remove_children()
         for transit in ranked[:3]:
             container.mount(TransitBadge(transit, glyphs=self.syzygy.glyphs))
