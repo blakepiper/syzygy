@@ -164,19 +164,28 @@ Implemented and tested: domain schemas, `AstrologyEngine` protocol +
 Kerykeion adapter, transit orb policy + ranking, deck loader + data,
 entropy collection, the unbiased draw, the reading state machine (types
 and the storage-backed service/repositories that drive it), SQLite schema
-+ migrations, `FixtureProvider`, the interpretation context builder and
-the versioned prompt contract (`syzygy.interpretation.prompts`), both now
-wired into `reading_service`, the Book of Thoth + companion-source
-(DuQuette, Ziegler) ingestion pipeline and retrieval (`syzygy.knowledge`),
-the TUI ritual (welcome → profile →
-home → Wheel → reveal → reading, plus chart and a list-only archive,
-running on `FixtureProvider`), the CLI (`dev deck`/`dev astrology`,
-`profile create`/`list`, `chart`, `knowledge ingest`/`status`, `tui`,
-`doctor`; bare `syzygy` launches the TUI).
++ migrations, the interpretation context builder and the versioned prompt
+contract (`syzygy.interpretation.prompts`), both wired into
+`reading_service`, all four `InterpretationProvider`s (`FixtureProvider`
+plus the three real ones - `llama_cpp`, `openai`, `anthropic`, all
+transport-only over `httpx` and sharing one parse/validate/repair-retry
+path in `interpretation.providers.structured_output`), OS-keyring-backed
+API key storage (`interpretation.providers.api_keys`), the Book of Thoth +
+companion-source (DuQuette, Ziegler) ingestion pipeline and retrieval
+(`syzygy.knowledge`), the TUI ritual (welcome → profile → home → Wheel →
+reveal → reading, plus chart and a list-only archive, running on
+`FixtureProvider`), the CLI (`dev deck`/`dev astrology`,
+`profile create`/`list`, `chart`, `knowledge ingest`/`status`,
+`model status`/`configure`, `tui`, `doctor`; bare `syzygy` launches the
+TUI).
+
+Real providers exist and are unit-tested (mocked transport, no network in
+tests) and configurable from the CLI, but nothing yet lets a user select
+one for an actual reading - the TUI and `reading_service` still default to
+`FixtureProvider`; wiring provider selection through is not yet scheduled
+in `TASKS.md`.
 
 Not yet implemented (see `TASKS.md` for the ordered list, and don't
 assume a stub exists just because a directory is mentioned in
-`IMPLEMENTATION_PLAN.md`): the real LLM providers (`FixtureProvider` is
-still the only one, so no prompt built by `interpretation.prompts` has
-ever been sent to a model), the full archive with statistics, the glyph
+`IMPLEMENTATION_PLAN.md`): the full archive with statistics, the glyph
 capability detection and "terminal too small" state.

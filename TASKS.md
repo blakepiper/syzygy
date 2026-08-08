@@ -329,7 +329,17 @@ force-split six ways; see the comment above
       (`resolve_api_key`/`store_api_key`/`delete_api_key`/
       `has_stored_api_key`), namespaced per provider in the OS keyring so
       M7.10's `model configure`/`model status` CLI has something to call.
-- [ ] M7.10 `syzygy model status` / `syzygy model configure` CLI
+- [x] M7.10 `syzygy model status` / `syzygy model configure` CLI.
+      `status` reports all three providers: a real (short-timeout) probe of
+      the local `llama-server` endpoint via the new
+      `providers.llama_cpp.probe`, and for `openai`/`anthropic` whether a
+      key is resolvable (keyring, then the env var) without ever printing
+      it. `configure <provider>` (openai/anthropic only - llama_cpp needs no
+      credential) prompts for the key with `getpass` rather than accepting
+      it as an argument, so it never lands in shell history or the process
+      list (DESIGN.md §28); `--delete` removes a stored key. Neither
+      command touches the readings database - keys live only in the OS
+      keyring via `providers.api_keys`.
 - [x] M7.11 Context-builder tests (inclusion/exclusion rules per card
       astrology type) — depends on M7.5
 

@@ -22,6 +22,11 @@ Commands implemented so far:
   Book of Thoth / companion-source PDF and inspect what has been ingested
   (Milestone 6). Source PDFs live outside the repository (`docs/*.pdf` is
   gitignored) - see docs/KNOWLEDGE_SOURCES.md.
+- `syzygy model status` / `syzygy model configure <provider>` - inspect and
+  set up the three `InterpretationProvider`s (Milestone 7.10). Nothing
+  reachable here writes to the readings database: hosted-provider API keys
+  live in the OS keyring (`syzygy.interpretation.providers.api_keys`,
+  DESIGN.md section 13.3), never on disk in this application's own storage.
 - `syzygy doctor` - basic environment/health check.
 
 Everything else in DESIGN.md section 20's command list is a later
@@ -287,6 +292,61 @@ def _cmd_knowledge_status(_args: argparse.Namespace) -> int:
     return 0
 
 
+#: The two hosted providers that need a stored credential; `llama_cpp`
+#: needs none (DESIGN.md section 13.2) so it is reported separately in
+#: `_cmd_model_status` and left out of `model configure`'s choices.
+_HOSTED_PROVIDERS = ("openai", "anthropic")
+_HOSTED_PROVIDER_ENV_VARS = {"openai": "OPENAI_API_KEY", "anthropic": "ANTHROPIC_API_KEY"}
+
+
+def _cmd_model_status(_args: argparse.Namespace) -> int:
+    import asyncio
+    import os
+
+    from syzygy.interpretation.providers import llama_cpp
+    from syzygy.interpretation.providers.api_keys import has_stored_api_key
+
+    reachable = asyncio.run(llama_cpp.probe())
+    state = "reachable" if reachable else "not reachable"
+    print(f"llama_cpp    {state} at {llama_cpp.DEFAULT_BASE_URL} (no API key needed)")
+
+    for provider_id in _HOSTED_PROVIDERS:
+        env_var = _HOSTED_PROVIDER_ENV_VARS[provider_id]
+        if has_stored_api_key(provider_id):
+            print(f"{provider_id:12s} key stored in keyring")
+        elif os.environ.get(env_var):
+            print(f"{provider_id:12s} key set via {env_var}")
+        else:
+            print(
+                f"{provider_id:12s} no key configured "
+                f"(`syzygy model configure {provider_id}`, or set {env_var})"
+            )
+    return 0
+
+
+def _cmd_model_configure(args: argparse.Namespace) -> int:
+    from syzygy.interpretation.providers.api_keys import delete_api_key, store_api_key
+
+    if args.delete:
+        delete_api_key(args.provider)
+        print(f"Removed any stored key for {args.provider}.")
+        return 0
+
+    import getpass
+
+    # Never accepted as a positional/flag argument - that would land it in
+    # shell history and in the process list (DESIGN.md section 28: do not
+    # expose API keys in diagnostics).
+    api_key = getpass.getpass(f"{args.provider} API key (input hidden): ")
+    if not api_key:
+        print("No key entered, nothing stored.", file=sys.stderr)
+        return 1
+
+    store_api_key(args.provider, api_key)
+    print(f"Stored a key for {args.provider} in the OS keyring.")
+    return 0
+
+
 def _cmd_doctor(_args: argparse.Namespace) -> int:
     ok = True
 
@@ -385,6 +445,25 @@ def build_parser() -> argparse.ArgumentParser:
         "status", help="show what has been ingested"
     )
     knowledge_status_parser.set_defaults(func=_cmd_knowledge_status)
+
+    model_parser = subparsers.add_parser(
+        "model", help="inspect and configure interpretation providers"
+    )
+    model_subparsers = model_parser.add_subparsers(dest="model_command")
+
+    model_status_parser = model_subparsers.add_parser(
+        "status", help="show which providers are configured"
+    )
+    model_status_parser.set_defaults(func=_cmd_model_status)
+
+    model_configure_parser = model_subparsers.add_parser(
+        "configure", help="store or remove a hosted provider's API key"
+    )
+    model_configure_parser.add_argument("provider", choices=_HOSTED_PROVIDERS)
+    model_configure_parser.add_argument(
+        "--delete", action="store_true", help="remove the stored key instead of setting one"
+    )
+    model_configure_parser.set_defaults(func=_cmd_model_configure)
 
     doctor_parser = subparsers.add_parser("doctor", help="check the local environment")
     doctor_parser.set_defaults(func=_cmd_doctor)

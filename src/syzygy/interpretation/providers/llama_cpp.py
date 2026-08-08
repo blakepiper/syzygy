@@ -94,3 +94,22 @@ class LlamaCppProvider:
         data = response.json()
         content: str = data["choices"][0]["message"]["content"]
         return content
+
+
+async def probe(
+    base_url: str = DEFAULT_BASE_URL,
+    timeout: float = 2.0,
+    transport: httpx.AsyncBaseTransport | None = None,
+) -> bool:
+    """Is a `llama-server` actually listening at `base_url`?
+
+    For `syzygy model status` (IMPLEMENTATION_PLAN.md §7.3, M7.10) - unlike
+    the hosted providers, there is no API key to check, only "is anything
+    there". Any failure (connection refused, timeout, non-2xx) means no.
+    """
+    try:
+        async with httpx.AsyncClient(timeout=timeout, transport=transport) as client:
+            response = await client.get(f"{base_url.rstrip('/')}/models")
+        return response.status_code < 300
+    except httpx.HTTPError:
+        return False
