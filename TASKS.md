@@ -624,24 +624,47 @@ for development, but it must be built as an explicit *destructive dev
 tool*, not as a ritual action, and it must not weaken the state machine
 or the `UNIQUE` constraint.
 
-- [ ] M11.6a Implement reroll as *delete today's reading row, then draw a
+- [x] M11.6a Implement reroll as *delete today's reading row, then draw a
       fresh one through the normal path* — never as an in-place card
       mutation, and never by relaxing `ALLOWED_TRANSITIONS` or the
       `UNIQUE` constraint. The existing draw path stays the only way a
       card is ever chosen.
-- [ ] M11.6b Gate it behind an explicit dev switch (an env var such as
+      `syzygy.dev.discard_todays_reading` deletes the row and nothing
+      else; callers then run the ordinary `draw_todays_reading`. No
+      storage, state-machine, or schema change was needed. The module
+      docstring states the invariants and why this keeps them, so the
+      next reader doesn't have to re-derive it.
+- [x] M11.6b Gate it behind an explicit dev switch (an env var such as
       `SYZYGY_DEV=1`, and/or a `syzygy dev reroll` CLI subcommand
       alongside `dev deck`/`dev astrology`). With the switch off, the
       binding must not exist and the key must do nothing — a normal user
       must not be able to reach it by accident.
-- [ ] M11.6c TUI binding on `HomeScreen` (dev mode only), visibly labelled
+      Both: `SYZYGY_DEV` (read at call time, not import time) plus
+      `syzygy dev reroll --profile-id --yes`. Three independent gates —
+      the TUI never binds the key, the CLI refuses before touching the
+      database, and `discard_todays_reading` itself raises — so no single
+      oversight exposes it.
+- [x] M11.6c TUI binding on `HomeScreen` (dev mode only), visibly labelled
       as a dev action (e.g. `[X] DEV: reroll today`) and confirming before
       it destroys the existing reading, since it discards a real
       interpretation.
-- [ ] M11.6d Tests: reroll produces a new draw and leaves exactly one row
+      Bound at runtime in `on_mount` rather than declared in `BINDINGS`,
+      so with the switch off the binding genuinely does not exist and the
+      footer never advertises it. Confirmation names the card being
+      destroyed and says it is a development affordance; CANCEL holds
+      focus. Interactive CLI confirmation requires typing `reroll`.
+- [x] M11.6d Tests: reroll produces a new draw and leaves exactly one row
       for that `(profile_id, date)`; reroll is absent/inert with the dev
       switch off; the state machine and constraint are untouched (assert
       the `UNIQUE` constraint still rejects a duplicate insert).
+      21 tests in `tests/test_dev.py` (switch parsing, the refusal, the
+      delete, exactly-one-row across four rerolls, the `UNIQUE` constraint
+      still rejecting a duplicate insert, other days/profiles untouched),
+      5 TUI tests in `tests/tui/test_navigation.py`, 3 CLI tests. The
+      "new card" assertion checks a fresh entropy digest rather than a
+      different card id — two draws may legitimately land on the same
+      card, and asserting otherwise would be pinning the RNG — with a
+      separate test over 11 rerolls for the outcome the user cares about.
 
 ---
 

@@ -15,6 +15,10 @@ Commands implemented so far:
   manually-supplied birth data (Milestone 2 acceptance criterion,
   DESIGN.md section 20). Takes birth data directly via flags rather than
   a saved profile - it does not touch storage at all.
+- `syzygy dev reroll` - discard today's reading so the ritual can be
+  walked again (M11.6). Destructive, and refuses to run unless
+  `SYZYGY_DEV` is set; see `syzygy.dev` for why this is a delete rather
+  than anything that touches a committed card.
 - `syzygy profile create` / `syzygy profile list` / `syzygy profile
   delete` - save/list/delete profiles (Milestone 4; delete is M11.2 and
   takes the profile's readings with it). Storage lives at
@@ -147,6 +151,64 @@ def _cmd_dev_astrology(args: argparse.Namespace) -> int:
             f"  #{r.rank} {a.transiting_body:8s} {a.aspect:11s} {a.natal_target:10s} "
             f"orb {a.orb_degrees:4.2f} ({a.movement}) score {r.score:.3f}"
         )
+    return 0
+
+
+def _cmd_dev_reroll(args: argparse.Namespace) -> int:
+    """Discard today's reading so the ritual can be walked again (M11.6).
+
+    Destructive and development-only. See `syzygy.dev` for why this is a
+    delete-then-redraw rather than anything that touches a committed card.
+    """
+    from syzygy.clock import SystemClock
+    from syzygy.dev import DEV_MODE_ENV_VAR, dev_mode_enabled, discard_todays_reading
+    from syzygy.storage.profiles import get_profile, list_profiles
+
+    if not dev_mode_enabled():
+        print(
+            f"`dev reroll` is a development affordance and is disabled. "
+            f"Set {DEV_MODE_ENV_VAR}=1 to enable it.",
+            file=sys.stderr,
+        )
+        return 1
+
+    conn = _open_profile_db()
+    try:
+        if args.profile_id:
+            profile = get_profile(conn, args.profile_id)
+            if profile is None:
+                print(f"no profile with id {args.profile_id!r}", file=sys.stderr)
+                return 1
+        else:
+            profiles = list_profiles(conn)
+            if not profiles:
+                print("No profiles yet.", file=sys.stderr)
+                return 1
+            if len(profiles) > 1:
+                print("Multiple profiles exist - specify one with --profile-id:", file=sys.stderr)
+                for candidate in profiles:
+                    print(f"  {candidate.id}  {candidate.display_name}", file=sys.stderr)
+                return 1
+            profile = profiles[0]
+
+        local_date = SystemClock().now_utc().astimezone().date().isoformat()
+        if not args.yes:
+            print(
+                f"This discards {profile.display_name}'s reading for {local_date} - "
+                f"its card and interpretation are destroyed."
+            )
+            if input("Type 'reroll' to confirm: ").strip() != "reroll":
+                print("Not discarded.", file=sys.stderr)
+                return 1
+
+        discarded = discard_todays_reading(conn, profile.id, local_date)
+    finally:
+        conn.close()
+
+    if not discarded:
+        print(f"No reading for {local_date} to discard.")
+        return 0
+    print(f"Discarded {profile.display_name}'s reading for {local_date}. Draw again with `syzygy`.")
     return 0
 
 
@@ -568,6 +630,18 @@ def build_parser() -> argparse.ArgumentParser:
         "--at", default=None, help="ISO instant for transits (default: now, UTC)"
     )
     dev_astrology_parser.set_defaults(func=_cmd_dev_astrology)
+
+    dev_reroll_parser = dev_subparsers.add_parser(
+        "reroll",
+        help="discard today's reading so the ritual can be walked again (SYZYGY_DEV only)",
+    )
+    dev_reroll_parser.add_argument(
+        "--profile-id", default=None, help="required if more than one profile is saved"
+    )
+    dev_reroll_parser.add_argument(
+        "--yes", action="store_true", help="skip the interactive confirmation"
+    )
+    dev_reroll_parser.set_defaults(func=_cmd_dev_reroll)
 
     profile_parser = subparsers.add_parser("profile", help="manage saved profiles")
     profile_subparsers = profile_parser.add_subparsers(dest="profile_command")

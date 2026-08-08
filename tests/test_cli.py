@@ -290,3 +290,45 @@ def test_profile_delete_reports_an_unknown_id(isolated_app_paths, capsys):
 
     assert exit_code == 1
     assert "no profile with id" in capsys.readouterr().err
+
+
+# -- `syzygy dev reroll` (M11.6) -----------------------------------------
+
+
+def test_dev_reroll_refuses_without_the_dev_switch(isolated_app_paths, capsys, monkeypatch):
+    from syzygy.dev import DEV_MODE_ENV_VAR
+
+    monkeypatch.delenv(DEV_MODE_ENV_VAR, raising=False)
+    _seed_profile(isolated_app_paths)
+
+    exit_code = main(["dev", "reroll", "--yes"])
+
+    assert exit_code == 1
+    assert "SYZYGY_DEV" in capsys.readouterr().err
+
+
+def test_dev_reroll_reports_when_there_is_nothing_to_discard(
+    isolated_app_paths, capsys, monkeypatch
+):
+    from syzygy.dev import DEV_MODE_ENV_VAR
+
+    monkeypatch.setenv(DEV_MODE_ENV_VAR, "1")
+    _seed_profile(isolated_app_paths)
+
+    exit_code = main(["dev", "reroll", "--yes"])
+
+    assert exit_code == 0
+    assert "No reading" in capsys.readouterr().out
+
+
+def test_dev_reroll_aborts_on_a_wrong_confirmation(isolated_app_paths, capsys, monkeypatch):
+    from syzygy.dev import DEV_MODE_ENV_VAR
+
+    monkeypatch.setenv(DEV_MODE_ENV_VAR, "1")
+    monkeypatch.setattr("builtins.input", lambda *a, **k: "yes")
+    _seed_profile(isolated_app_paths)
+
+    exit_code = main(["dev", "reroll"])
+
+    assert exit_code == 1
+    assert "Not discarded." in capsys.readouterr().err

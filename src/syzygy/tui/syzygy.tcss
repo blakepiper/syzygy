@@ -191,6 +191,21 @@ TarotCardWidget {
     color: $syz-bone;
 }
 
+/* Dev-only reroll (M11.6) - only ever visible with SYZYGY_DEV set. */
+
+#home-dev {
+    padding: 1 2 0 2;
+}
+
+#home-reroll-confirm {
+    height: auto;
+    padding: 1 0;
+}
+
+#reroll-body {
+    padding: 0 2;
+}
+
 /* Local-model setup (M11.3) */
 
 #model-body {

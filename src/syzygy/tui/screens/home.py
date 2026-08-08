@@ -17,6 +17,7 @@ from textual.app import ComposeResult
 from textual.containers import Center, Horizontal, Vertical
 from textual.widgets import Button, Footer, Static
 
+from syzygy.dev import DEV_MODE_ENV_VAR, dev_mode_enabled, discard_todays_reading
 from syzygy.domain.astrology import RankedTransit, sign_for_longitude
 from syzygy.domain.reading import Reading, ReadingStatus
 from syzygy.storage.reading_service import rank_current_transits
@@ -57,8 +58,14 @@ class HomeScreen(SyzygyScreen):
                 pass
             yield Static("", id="home-status", classes="muted")
             yield Static("", id="home-model-status", classes="muted", markup=False)
+            yield Static("", id="home-dev", classes="error", markup=False)
         with Center():
             yield Button(TURN_THE_WHEEL, id="primary-action", variant="primary")
+        with Vertical(id="home-reroll-confirm", classes="hidden"):
+            yield Static("", id="reroll-body", classes="error", markup=False)
+            with Horizontal(classes="button-row"):
+                yield Button("DISCARD & REDRAW", id="reroll-confirm", variant="error")
+                yield Button("CANCEL", id="reroll-cancel")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -66,6 +73,60 @@ class HomeScreen(SyzygyScreen):
         self._refresh_reading_state()
         self._load_sky()
         self._load_model_status()
+        self._enable_dev_affordances()
+
+    # -- dev-only reroll (M11.6) -------------------------------------------
+
+    def _enable_dev_affordances(self) -> None:
+        """Bind the reroll key only when `SYZYGY_DEV` is set.
+
+        Bound at runtime rather than declared in `BINDINGS` so that with
+        the switch off the binding genuinely does not exist: the key does
+        nothing and the footer never advertises it. A normal user cannot
+        reach a destructive action by accident.
+        """
+        if not dev_mode_enabled():
+            return
+        self._bindings.bind("x", "dev_reroll", "DEV: reroll")
+        self.query_one("#home-dev", Static).update(
+            f"DEV MODE ({DEV_MODE_ENV_VAR} is set)  ·  [X] discard today's reading and redraw"
+        )
+
+    def action_dev_reroll(self) -> None:
+        if not dev_mode_enabled() or self.syzygy.profile is None:
+            return
+        if self._reading is None:
+            self.query_one("#home-status", Static).update(
+                "Nothing to reroll - today's card has not been drawn yet."
+            )
+            self.app.bell()
+            return
+        card = self._reading.card_draw.card_id if self._reading.card_draw else "no card"
+        self.query_one("#reroll-body", Static).update(
+            f"DEV: discard today's reading ({card}) and draw a new one?\n"
+            f"The existing card and its interpretation are destroyed. "
+            f"This is a development affordance, not part of the ritual."
+        )
+        self.query_one("#home-reroll-confirm").remove_class("hidden")
+        # CANCEL holds focus - this throws away a real reading.
+        self.query_one("#reroll-cancel", Button).focus()
+
+    def _close_reroll_confirm(self) -> None:
+        self.query_one("#home-reroll-confirm").add_class("hidden")
+        self.query_one("#primary-action", Button).focus()
+
+    def _do_reroll(self) -> None:
+        profile = self.syzygy.profile
+        if profile is None or not dev_mode_enabled():
+            return
+        services = self.syzygy.services
+        local_date = services.clock.now_utc().astimezone().date().isoformat()
+        discard_todays_reading(services.conn, profile.id, local_date)
+        self._close_reroll_confirm()
+        self._refresh_reading_state()
+        self.query_one("#home-status", Static).update(
+            "DEV: today's reading was discarded. Turn the wheel for a new card."
+        )
 
     def on_screen_resume(self) -> None:
         # Coming back from the wheel/reveal/reading flow: today's reading
@@ -197,6 +258,10 @@ class HomeScreen(SyzygyScreen):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "primary-action":
             self.action_primary()
+        elif event.button.id == "reroll-cancel":
+            self._close_reroll_confirm()
+        elif event.button.id == "reroll-confirm":
+            self._do_reroll()
 
     def action_primary(self) -> None:
         if self.syzygy.profile is None:
