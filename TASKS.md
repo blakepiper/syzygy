@@ -9,6 +9,15 @@ sequential.
 history; it is not repeated here. This file now tracks a fresh batch of
 bugs and gaps found in day-to-day use of v0.1, filed 2026-08-08.
 
+**M10 is complete.** M11–M15 come from a second hands-on review of the
+running app (`feedback.md`, filed 2026-08-08) plus the animation design
+spec at `animation.md`. They are ordered so that each milestone unblocks
+the next: fix what makes the app untestable (M11), settle the visual
+language and screen layout (M12), fill the missing content surfaces
+(M13), then animate a UI whose look and layout have stopped moving (M14),
+and finally sound (M15). Do not start M14 before M12 lands — animating a
+layout that is about to be redesigned is wasted work.
+
 ---
 
 ## M10 — Onboarding and ritual-key fixes
@@ -227,3 +236,642 @@ separate, separately-billed API key. Label this screen "API key," not
       existing text/correspondence retained below the art.
 - [x] M10.5c Verify every card has a real bundled image, the image renderer
       succeeds, and the built wheel contains all 78 PNGs.
+
+---
+
+## M11 — Unblock the app: bugs that prevent testing anything else
+
+Everything in `feedback.md` downstream of this milestone is hard to
+evaluate while profile creation, the model-setup screen, retry, and card
+art are broken, and while there is no way to see a second card without
+waiting a day. Do M11 first, in order.
+
+### M11.1 — Profile creation is broken (blocks onboarding testing)
+
+`feedback.md`: "I can't test the onboarding flow of setting up a local
+model or OpenAI/Claude API key because profile creation is bugged." No
+symptom was recorded, and the M10.1 geocoding work (`profile_create.py`
+`_review` → `_resolve_birthplace` → `_finish_review`) is the most recent
+change to that screen, so treat it as the prime suspect but reproduce
+before assuming.
+
+- [ ] M11.1a Reproduce in a real terminal (`syzygy tui` → create profile),
+      not only via `Pilot`, and write the exact symptom into this task
+      before fixing anything. Specific things to check, in order: (1) is
+      REVIEW reachable at all by keyboard — the form is `Input`s plus
+      `Button`s with no `Enter`-submits-the-form handler and no key
+      binding, so a user who never presses Tab has no way forward; (2)
+      does `_review` hang with "Resolving …" forever when the `geocoding`
+      extra is absent or the network is down (worker raising something
+      other than `GeocodingUnavailable`/`GeocodingFailed` escapes the
+      `except` in `_resolve_birthplace` and nothing re-enables the REVIEW
+      button); (3) does `_collect`'s validation reject plausible input
+      with a message the user can't see.
+- [ ] M11.1b Fix the reproduced cause. If it is (1), add an explicit
+      submit path — `Input.Submitted` on the last field and/or an
+      `Enter`/`^S` binding on the screen — and make the focus order and
+      the "press Tab / Enter" hint visible in the form's key line.
+- [ ] M11.1c Make the worker failure-proof regardless of which cause was
+      found: catch `Exception` in `_resolve_birthplace`, always re-enable
+      `#review`, and always replace the "Resolving …" text. A geocoding
+      bug must never be able to strand the form (`DESIGN.md` §23,
+      `AGENTS.md`: never block profile creation on geocoding).
+- [ ] M11.1d Regression test for the actual reproduced failure, plus a
+      `Pilot` test that walks profile creation end to end using only
+      keyboard input (no `pilot.click`) — the existing TUI tests should be
+      checked for whether they click their way past the very step a real
+      user cannot reach.
+
+### M11.2 — Delete a profile
+
+`feedback.md`: "There is no way to delete a profile."
+`syzygy.storage.profiles` has `insert_profile`/`get_profile`/
+`list_profiles` and no delete; `ProfileSelectScreen` is list-and-pick
+only.
+
+- [ ] M11.2a `delete_profile(conn, profile_id)` in
+      `src/syzygy/storage/profiles.py`. Decide and document the fate of
+      that profile's readings: readings are keyed by `profile_id`, so
+      either cascade-delete them in the same transaction or refuse to
+      delete a profile that has readings. Recommendation: cascade, inside
+      one transaction, since a profile's readings are meaningless without
+      its chart — but say so explicitly in the docstring, and check
+      whether the `readings` foreign key in
+      `src/syzygy/storage/migrations.py` already declares `ON DELETE
+      CASCADE` (and whether `PRAGMA foreign_keys` is actually on in
+      `database.py`) rather than assuming.
+- [ ] M11.2b TUI: `[D] Delete` on `ProfileSelectScreen` with a
+      confirmation step that names the profile and the number of readings
+      that will go with it. Deletion is destructive and irreversible —
+      require an explicit confirm, never a single keypress.
+- [ ] M11.2c Handle deleting the *active* profile: clear
+      `SyzygyServices`/app state and route back to profile selection (or
+      the welcome screen if no profiles remain) rather than leaving a
+      dangling `self.syzygy.profile`.
+- [ ] M11.2d CLI parity: `syzygy profile delete <id>` alongside the
+      existing `profile create`/`list`, with a `--yes` flag for the
+      non-interactive path.
+- [ ] M11.2e Tests: storage-level delete (with and without readings), the
+      confirm-then-delete `Pilot` walk, and the active-profile-deleted
+      state transition.
+
+### M11.3 — `[M]` model setup: selecting llama.cpp does nothing
+
+`feedback.md`: "User should be able to set up llama.cpp by pressing 'm'
+… Right now it just says 'not reachable, no API key needed' so when you
+select it nothing happens." Two distinct problems in
+`src/syzygy/tui/screens/model_setup.py`: the row is *informational* about
+a failed probe but offers no way to act on it, and selecting an
+unreachable provider appears to silently do nothing.
+
+- [ ] M11.3a Make the llama.cpp row actionable: show the base URL being
+      probed, let the user edit it (an `Input`, same shape as the API-key
+      form), re-probe on demand (`[P] Probe again`), and persist the
+      chosen base URL wherever `interpretation.providers.llama_cpp` reads
+      it from — check whether that is currently hardcoded and, if so, add
+      it to the settings file (`AppPaths.settings_path`, never the
+      readings database, per the existing selection module's rule).
+- [ ] M11.3b Make selection produce visible feedback in every outcome:
+      selected-and-reachable, selected-but-unreachable (allowed — the
+      server may start later; say so), and build failure. `_select_local_provider`
+      must never return without changing something on screen.
+- [ ] M11.3c Add actionable copy for the unreachable case: the exact
+      command to start a llama.cpp server and the URL Syzygy expects, so
+      "not reachable" tells the user what to do rather than only what is
+      wrong.
+- [ ] M11.3d Tests: `Pilot` walk selecting `llama_cpp` with the probe
+      mocked both reachable and unreachable, asserting `save_selection`
+      was called and that the screen says something different in each
+      case; plus a test for a persisted custom base URL round-tripping
+      through settings.
+
+### M11.4 — `[R]` retry still does not work
+
+`feedback.md`: "'r' to retry still seems to not work" — M10.3 fixed a
+case-sensitivity gap (`"r,R"`) and added `tests/tui/test_retry.py`, and
+those tests pass, so the remaining failure is something the M10.3 probe
+did not model. M10.3a was closed without a real-terminal repro (no
+interactive terminal was available); that gap is the thing to close here.
+
+- [ ] M11.4a Reproduce in a real terminal with a provider forced to fail
+      (`syzygy model configure` with a deliberately wrong API key), and
+      record the observed behavior precisely: does the key do nothing at
+      all, does the panel flash and revert, or does retry run and fail
+      again with the same error (which would be *correct* behavior with a
+      still-wrong key, and a copy problem rather than a binding bug)?
+- [ ] M11.4b Check the states `action_retry` refuses. It no-ops unless
+      `status == INTERPRETATION_FAILED`; confirm the reading actually
+      reaches that status on a provider error rather than staying in
+      `INTERPRETING` (e.g. a worker exception that never writes the failed
+      state through `reading_service`), which would make retry
+      permanently unavailable while the panel shows a failure.
+- [ ] M11.4c Verify the retry path re-runs interpretation *without*
+      redrawing the card — the `ALLOWED_TRANSITIONS` invariant in
+      `syzygy.domain.reading` — and that a second failure leaves the
+      reading retryable again rather than in a terminal state.
+- [ ] M11.4d Show retry progress: while a retry is in flight the panel
+      must say so (this pairs with M14's `processing-start`/`stop`
+      events), and a completed retry must visibly replace the error.
+- [ ] M11.4e Regression test for whatever M11.4a–b actually turns up. As
+      in M10.3d, do not close this on "the existing tests pass."
+
+### M11.5 — Card art does not display correctly
+
+`feedback.md`: "Tarot card art in the terminal does not display
+correctly." `src/syzygy/tui/widgets/card_art.py` renders via
+`rich_pixels.Pixels.from_image(image, resize=size)` half-blocks, and its
+own docstring says the on-screen size was left to be revisited "once
+styling work starts" — this is that task.
+
+- [ ] M11.5a Record the actual defect first (screenshot or description):
+      wrong aspect ratio, art squashed into too few rows, colors washed
+      out, art overlapping the text below it, or nothing rendering at all.
+      Terminal cells are roughly 1:2, and `resize=size` takes (columns,
+      rows) — a naive square resize will look stretched.
+- [ ] M11.5b Fix sizing: compute the render size from the widget's actual
+      cell dimensions and the source image's aspect ratio, accounting for
+      the 1:2 cell ratio and for `HalfcellRenderer` packing two image rows
+      per cell row. Re-render on resize rather than caching one fixed size
+      (`render_card_pixels`'s `@cache` is keyed on size, so this is a call
+      -site change, but check the cache cannot grow unbounded across many
+      resize steps).
+- [ ] M11.5c Give the art a stable frame: a fixed aspect-ratio box so the
+      card does not reflow the surrounding text as the terminal resizes,
+      and a graceful degradation path when the pane is too small to show
+      art at all (fall back to the existing text card — this connects to
+      the not-yet-implemented "terminal too small" state).
+- [ ] M11.5d Check the art renders correctly on both `RevealScreen` and
+      `ReadingScreen`, in truecolor and 256-color terminals, and note in
+      the task which terminals were actually checked.
+- [ ] M11.5e Tests: assert the computed render size preserves the source
+      aspect ratio within a cell of tolerance across several widget sizes,
+      and that a too-small widget falls back to text instead of raising.
+
+### M11.6 — Dev-only reroll (testing affordance)
+
+`feedback.md`: "let's create a 'reroll' function in the main display that
+allows the user to reroll today's card and recalculate the reading. So
+that I can test the animation over and over again."
+
+**This is in direct tension with a core invariant** — `AGENTS.md`: "the
+card is committed to storage immediately after the draw, before any LLM
+call. A failed or retried interpretation must never redraw the card," and
+"one canonical reading per `(profile_id, consultation_local_date)`,
+enforced by the database." The requested capability is still worth having
+for development, but it must be built as an explicit *destructive dev
+tool*, not as a ritual action, and it must not weaken the state machine
+or the `UNIQUE` constraint.
+
+- [ ] M11.6a Implement reroll as *delete today's reading row, then draw a
+      fresh one through the normal path* — never as an in-place card
+      mutation, and never by relaxing `ALLOWED_TRANSITIONS` or the
+      `UNIQUE` constraint. The existing draw path stays the only way a
+      card is ever chosen.
+- [ ] M11.6b Gate it behind an explicit dev switch (an env var such as
+      `SYZYGY_DEV=1`, and/or a `syzygy dev reroll` CLI subcommand
+      alongside `dev deck`/`dev astrology`). With the switch off, the
+      binding must not exist and the key must do nothing — a normal user
+      must not be able to reach it by accident.
+- [ ] M11.6c TUI binding on `HomeScreen` (dev mode only), visibly labelled
+      as a dev action (e.g. `[X] DEV: reroll today`) and confirming before
+      it destroys the existing reading, since it discards a real
+      interpretation.
+- [ ] M11.6d Tests: reroll produces a new draw and leaves exactly one row
+      for that `(profile_id, date)`; reroll is absent/inert with the dev
+      switch off; the state machine and constraint are untouched (assert
+      the `UNIQUE` constraint still rejects a duplicate insert).
+
+---
+
+## M12 — Visual identity and use of space
+
+`feedback.md` items 5, 6, 10, 11, 18, 20. Land this before M14: the
+animation work in M14 targets these layouts, and redesigning under
+finished animations means doing both twice.
+
+### M12.1 — Retire the gold accent for white
+
+`feedback.md`: "Everywhere that is currently piss yellow in the TUI
+should be switched to white." That is `$syz-gold: #cf9b3f` in
+`src/syzygy/tui/syzygy.tcss` (9 usages).
+
+- [ ] M12.1a Repoint the accent to white/bone in the palette block rather
+      than editing the 9 call sites — keep a single named variable so the
+      accent stays changeable in one place. Decide whether `$syz-gold`
+      becomes pure `#ffffff` or the existing `$syz-bone` (`#e6ddc9`);
+      recommendation is a true white for the accent and `$syz-bone` for
+      body text, so the accent still reads as *brighter* than normal text
+      rather than merging with it. Rename the variable to something
+      non-color-specific (`$syz-accent`) while doing it.
+- [ ] M12.1b Sweep for hardcoded gold/yellow outside the stylesheet —
+      Rich markup in Python strings (`[gold]`, `[yellow]`, `[#cf9b3f]`)
+      in `screens/` and `widgets/` — not just the TCSS file.
+- [ ] M12.1c Check contrast on `$syz-field`/`$syz-panel` backgrounds and
+      confirm the accent still distinguishes itself from `$syz-bone` body
+      text after the change; adjust `$syz-muted`/`$syz-dim` if the
+      hierarchy collapses.
+
+### M12.2 — Logo and mascot
+
+`feedback.md`: "Use our logo.svg in the app" and "We now have a
+mascot.png that we need to incorporate." The repo root has `logo.svg`,
+`logo-dark.svg`, `logo-light.svg` (tracked) and `mascot.png` (untracked),
+all outside the package.
+
+- [ ] M12.2a Move the assets into the package
+      (`src/syzygy/resources/brand/`) so they ship in the wheel, the same
+      way `resources/art/` does, and load them via `importlib.resources` —
+      never a repo-relative path. `mascot.png` is untracked today; add it
+      to the git index as part of the move.
+- [ ] M12.2b Render the logo in the TUI. A terminal cannot display SVG:
+      either pre-rasterize `logo.svg` to a PNG at build/author time and
+      render it through the existing `rich_pixels` path (same technique as
+      card art, reuse `card_art.py`'s renderer rather than writing a
+      second one), or hand-author an ASCII/Unicode wordmark derived from
+      the logo. Recommendation: rasterized PNG for the welcome/startup
+      screen, ASCII wordmark for the persistent title bar — the title bar
+      is too short for pixel art. Pick one per surface and say which.
+      Note the light/dark variants exist; choose based on the terminal
+      background if detectable, otherwise ship the dark-background one.
+- [ ] M12.2c Place the mascot deliberately rather than decoratively:
+      candidate homes are the welcome/startup screen (M14.2), an idle
+      corner on `HomeScreen`, and the "waiting for interpretation" state.
+      Do not put it where it competes with the card art.
+- [ ] M12.2d Verify the wheel/sdist actually contains the brand assets
+      (same check M10.5c did for the 78 PNGs).
+
+### M12.3 — Typography: Cinzel
+
+`feedback.md`: "Change the font to Cinzel."
+
+**Constraint worth stating up front:** a TUI cannot set the terminal's
+font — the font is the terminal emulator's, and no escape sequence lets
+an application change it. So this task cannot be "switch the app to
+Cinzel"; it can be the three things that are actually achievable.
+
+- [ ] M12.3a Bundle a Cinzel-derived display treatment for the places
+      where letterforms carry the brand — the wordmark, screen titles,
+      the welcome screen — as pre-rendered pixel art (rasterize Cinzel
+      text to PNG at author time, render via the `rich_pixels` path) or as
+      a hand-tuned ASCII display face. This gets the *look* of Cinzel
+      where it matters without pretending to change the terminal font.
+      Cinzel is SIL Open Font License 1.1 — permissive, so AGPL-compatible
+      per `AGENTS.md`'s dependency rule; record that in the task and, if
+      the font file itself is bundled, include its license file.
+- [ ] M12.3b Everything else stays in the terminal's own monospace font —
+      body copy, chart tables, and card correspondences must stay
+      column-aligned, and Cinzel is proportional. Do not attempt pixel-art
+      body text.
+- [ ] M12.3c Document the recommendation for users who want more: a
+      `README.md` note that the intended look pairs Syzygy with a terminal
+      configured for a specific font, since that is the user's setting to
+      make, not the app's.
+
+### M12.4 — Bigger wheel glyphs
+
+`feedback.md`: "The astrological symbols that rotate around in the wheel
+animation are too small — make them larger."
+
+- [ ] M12.4a In `src/syzygy/tui/widgets/wheel.py`, the rim glyphs are
+      single characters placed one per cell (`place(glyph_x, glyph, lit)`
+      around a radius derived from the widget size). Make each rim symbol
+      occupy a multi-cell block instead: either a small hand-authored
+      2×2/3×3 Unicode block per zodiac sign, or the same `rich_pixels`
+      technique used for card art if per-sign artwork exists. Keep the
+      2:1 horizontal stretch already applied (`2 * radius * cos`) so the
+      rim stays circular.
+- [ ] M12.4b Scale with the widget: at small terminal sizes fall back to
+      the current single-cell glyphs rather than overlapping neighbours.
+      Compute how many cells of arc each symbol has available and pick the
+      largest representation that fits.
+- [ ] M12.4c Give the wheel more of the screen while doing this — see
+      M12.5; it is the main animated object on its screen and should be
+      sized like it.
+- [ ] M12.4d Tests: rim symbols never overlap at any widget size ≥ the
+      minimum, and the small-size fallback engages instead of clipping.
+
+### M12.5 — Make the layout use the space
+
+`feedback.md`: "The current TUI does not make intelligent use of the
+space — the display feels largely empty. When thinking about the
+animations … factor that in." This is the layout half of the same
+problem M14 solves in motion, and it must come first.
+
+- [ ] M12.5a Audit each screen at a few real terminal sizes (80×24,
+      120×40, and a full-screen modern terminal) and record where the dead
+      space actually is. `HomeScreen` is the priority — it is a title, a
+      name, three anchor glyphs, a sky line, three badges, two status
+      lines, and a button, stacked in a column down the middle.
+- [ ] M12.5b Redesign `HomeScreen` around the space: a multi-column layout
+      (SELF / COSMOS / CHANCE as parallel regions rather than a stack)
+      that fills width, with the chart anchors and today's transits given
+      room to breathe, and the primary action anchored where it reads as
+      the focal point. Keep the SELF+COSMOS+CHANCE triad legible — it is
+      the product's mental model, not decoration.
+- [ ] M12.5c Do the same pass on `ReadingScreen` and `RevealScreen`, where
+      card art (M11.5) now competes with body text: give the art a real
+      column and let the interpretation flow beside it at wide sizes,
+      stacking only when narrow.
+- [ ] M12.5d Define responsive breakpoints once, in `syzygy.tcss`, and
+      apply them consistently rather than per-screen ad hoc sizing. Note
+      the widths chosen so M14 and the future "terminal too small" state
+      use the same thresholds.
+- [ ] M12.5e Snapshot-style tests at the chosen breakpoints (Textual's
+      `Pilot` with an explicit terminal size) so a later layout change
+      cannot silently re-empty the screen.
+
+---
+
+## M13 — Missing content surfaces
+
+`feedback.md` items 8, 9, 17. All three add things the user can *read*;
+they depend on M12's layout only loosely, but the new screens should be
+built to the M12.5 breakpoints rather than the old stacked layout.
+
+### M13.1 — Today's cosmos (daily horoscope) screen
+
+`feedback.md`: "There needs to be a function from the main menu to view
+today's 'cosmos' horoscope, in a similar way that the user can press 'c'
+to view their natal chart."
+
+- [ ] M13.1a New `src/syzygy/tui/screens/cosmos.py`, modelled on
+      `screens/chart.py`: a full view of today's sky against the natal
+      chart. The data already exists — `rank_current_transits`
+      (`syzygy.storage.reading_service`) is what `HomeScreen._load_sky`
+      calls and then truncates to three badges. This screen shows the full
+      ranked set with orbs, applying/separating, and the natal point each
+      transit touches.
+- [ ] M13.1b Binding from `HomeScreen` — `[C]` is taken by chart, so use
+      `[T] Today` or `[S] Sky`; pick one and add it to the visible key
+      line. Keep `[Q]` and `[Esc]` behavior consistent with the other
+      secondary screens.
+- [ ] M13.1c Respect the invariants: no current-location astrology (no
+      current lat/long, houses, Ascendant, or Midheaven — only the natal
+      chart uses birthplace), and ranking stays in
+      `syzygy.astrology.ranking`, not in the screen. The screen displays a
+      ranking it is handed; it must not compute significance itself.
+- [ ] M13.1d Calculate off the event loop (`@work(thread=True)`, the
+      pattern `HomeScreen._load_sky` already uses) and handle failure
+      visibly rather than silently.
+- [ ] M13.1e Tests: the screen renders the ranked transits it is given,
+      handles the no-profile and calculation-failed states, and does not
+      reach for a current location.
+
+### M13.2 — LLM summaries for the chart and the daily cosmos
+
+`feedback.md`: "Both natal chart and the daily horoscope should have an
+LLM summary that the user can read."
+
+- [ ] M13.2a Decide and write down the storage model before coding: a
+      natal-chart summary is stable for the life of a profile (generate
+      once, cache on the profile), while a cosmos summary is per-day
+      (cache per `(profile_id, local_date)`). Neither is a *reading* —
+      they must not create rows in `readings`, must not consume or affect
+      the daily card, and must never be able to trigger a draw. Add
+      whatever storage they need as a new append-only migration in
+      `syzygy.storage.migrations` (never edit a merged migration).
+- [ ] M13.2b Extend the interpretation layer properly rather than calling
+      a provider ad hoc: these are new prompt kinds in
+      `syzygy.interpretation.prompts` with their own versioned contract,
+      fed by the existing context builder. `InterpretationContext` is the
+      entire input surface a provider sees (`AGENTS.md`) — if a summary
+      needs a fact, add it to the context builder's output; a provider
+      must not reach into the database or the astrology engine.
+- [ ] M13.2c Both summaries must degrade the same way readings do: with no
+      model configured, `FixtureProvider` supplies canned copy and the
+      screens still work. Nothing here may become a hard model dependency.
+- [ ] M13.2d UI: summary appears on `ChartScreen` and the M13.1 cosmos
+      screen, generated on demand (a key press) rather than automatically
+      on every open — an automatic call would mean a paid API request
+      every time someone glances at their chart. Show a processing state
+      while it runs and a retryable error state if it fails, reusing
+      whatever M11.4d establishes.
+- [ ] M13.2e Tests: prompt-contract schema validation, the cache-hit path
+      (a second open makes no provider call), the fixture-fallback path,
+      and that no `readings` row is created by either summary.
+
+### M13.3 — Ship the processed knowledge sources
+
+`feedback.md`: "Let's process the knowledge sources (the three books) and
+include them as committed artifacts in the repo that all users get
+(should be in machine readable, non-pdf form)." Today `syzygy knowledge
+ingest` runs per-user against PDFs that `.gitignore` excludes
+(`docs/*.pdf`), so a fresh clone has an empty knowledge base — the
+ingestion pipeline exists (`syzygy.knowledge.ingest`/`store`) but nobody
+gets its output.
+
+- [ ] M13.3a **Confirm the redistribution question with the user before
+      committing anything.** `.gitignore`'s own note says derived data
+      (chunks, FTS index) is fine to commit while the raw PDFs are not —
+      but chunked full text of three in-copyright books is, in substance,
+      the books. The tier policy in `docs/KNOWLEDGE_SOURCES.md` and the
+      AGPL license make this a decision to take deliberately, not a
+      detail. Options to put to the user, cheapest first: (1) ship only
+      derived non-reproducible artifacts (embeddings/vectors and citation
+      metadata, no verbatim text); (2) ship short quoted excerpts only,
+      under a documented length cap; (3) ship full chunk text. Record the
+      answer in an ADR under `docs/adr/` — this is exactly the kind of
+      deviation that directory exists for.
+- [ ] M13.3b Build the artifact in whatever form M13.3a settles on, as a
+      committed, versioned file under `src/syzygy/resources/knowledge/`
+      so it ships in the wheel and reaches every user. Keep it a *build
+      product of the existing pipeline* — a script that runs
+      `syzygy.knowledge.ingest` against the PDFs and emits the artifact —
+      not a hand-maintained file that can drift from the parser.
+- [ ] M13.3c Load it at first run: on a fresh database, populate
+      `knowledge_chunks` (and the FTS index) from the bundled artifact
+      instead of requiring `syzygy knowledge ingest`. Keep the existing
+      ingest command working as the path for re-ingesting from a local PDF
+      — it must stay possible to regenerate, and the Tier 0/Tier 1 rules
+      in `AGENTS.md` are unchanged: `docs/book_of_thoth.pdf` remains the
+      only canonical source, and nothing here may modify
+      `thoth_deck.yaml`.
+- [ ] M13.3d If the chosen artifact includes embeddings, pick the
+      embedding model deliberately and record it: it must be
+      AGPL-compatible, and it must not add a hosted-service dependency or
+      a vector database (`AGENTS.md` forbids both) — a small local model
+      producing vectors committed to the repo, queried with plain numpy,
+      is the shape that fits. Retrieval stays in
+      `syzygy.knowledge.retrieve` beside the existing FTS path.
+- [ ] M13.3e Tests: a fresh database self-populates from the bundled
+      artifact; retrieval returns hits with correct citations without any
+      PDF present; the artifact is present in the built wheel; and the
+      generator script reproduces the committed artifact byte-for-byte
+      from the same inputs (so it can be audited).
+
+---
+
+## M14 — The animation system
+
+`feedback.md` items 13, 14, 15, 16 (and 11, 20 as context), designed
+against `animation.md`. Do not start before M12 lands. Implement in the
+order below, which follows `animation.md` §40's phasing: the framework
+first, then the specific moments the user asked for.
+
+### M14.1 — Animation framework
+
+- [ ] M14.1a Read `animation.md` §2, §29, §30, §33 before writing code.
+      The mandatory separation is that animated values are never the
+      source of truth: application state stays in `syzygy.domain`/storage,
+      temporary visual state lives in the animation layer, and the app
+      must remain correct with animation disabled entirely.
+- [ ] M14.1b Build the layer at `src/syzygy/tui/animation/` (a new package
+      under `syzygy.tui` — Textual types stay inside `syzygy.tui` per
+      `AGENTS.md`, and no domain module may import it). Use Textual's
+      existing animation/timer machinery where it fits rather than writing
+      a frame loop from scratch; `animation.md`'s architecture is the
+      contract to satisfy, not a mandate to reimplement what Textual
+      already provides.
+- [ ] M14.1c Provide the primitives `animation.md` §7 lists that Syzygy
+      will actually use — reveal, pulse, flash, shake, dim/brighten, glyph
+      morph, typewriter/decode, stagger — plus the easing set from §6
+      (`easeOutCubic`, `easeInOutQuad`, `easeOutBack`, `easeInCubic`).
+      Build only what M14.2–M14.6 consume; skip the rest until something
+      needs it.
+- [ ] M14.1d Expose semantic events, not low-level calls (§30): screens
+      trigger `enter`/`exit`/`focus`/`success`/`error`/`processing-start`/
+      `processing-stop`, and the animation layer maps those to visuals.
+      This is the interface the rest of M14 is written against.
+- [ ] M14.1e Reduced motion (§34) as a real setting in
+      `AppPaths.settings_path`: `full` | `reduced` | `off`, with `off`
+      rendering final states immediately. Add a CLI/TUI way to set it, and
+      honor the terminal/OS reduced-motion signal if one is available.
+      Add the debug slow-motion speed multiplier from §39 too — it makes
+      every later task in this milestone easier to verify.
+- [ ] M14.1f Tests: easing functions are correct at t=0/0.5/1; animations
+      are cancelable and retargetable without leaving stale visual state;
+      with `animations = off`, every screen reaches the same final state
+      it reaches with animation on (this is the "definition of done"
+      property from §42, and it is testable).
+
+### M14.2 — Startup animation and welcome screen
+
+`feedback.md`: "We need a startup animation, then a very cool welcome
+screen with 'press any button to continue'."
+
+- [ ] M14.2a Startup sequence on app launch: a Level 3 emphasis event
+      (`animation.md` §36), 300–700 ms, using the logo/wordmark from
+      M12.2/M12.3 — construct the wordmark rather than blitting it (border
+      construction, glyph morph, brightness ramp).
+- [ ] M14.2b Redesign `WelcomeScreen` to fill the space (M12.5) and to end
+      the startup sequence in a settled state, with an explicit "press any
+      key to continue" affordance that genuinely accepts *any* key — while
+      keeping `[Q]` quit working, per M10.2's app-level binding.
+- [ ] M14.2c Skippable: any keypress during the startup animation jumps
+      straight to the settled welcome state (§1.3 — input must never wait
+      on animation). Nobody should watch this twice.
+- [ ] M14.2d Tests: the app reaches the interactive welcome state with
+      animations off, with animations on after the sequence completes, and
+      immediately when a key is pressed mid-sequence.
+
+### M14.3 — Self-selected transition
+
+`feedback.md`: "We need an animation for after the user selects a self."
+
+- [ ] M14.3a On profile selection, animate SELF resolving into the
+      alignment (`AlignmentWidget`'s `self_resolved`) rather than flipping
+      it — the chart anchors stagger in (§11, 20–60 ms apart) as the
+      profile's data lands. Level 2, 150–350 ms.
+- [ ] M14.3b Preserve spatial continuity into `HomeScreen` (§10): the
+      selected profile should visibly become the home screen's identity
+      rather than the screen being replaced wholesale.
+- [ ] M14.3c Handle the slow path: chart data resolves asynchronously, so
+      the animation must not assume data is present at trigger time — it
+      animates the *state change*, whenever that arrives.
+
+### M14.4 — Turning the wheel
+
+`feedback.md`: "We need a transition animation for when a user selects to
+turn the wheel."
+
+- [ ] M14.4a Anticipation → transition → emphasis → settle (§1.2, §12) on
+      leaving `HomeScreen` for `WheelScreen`: the primary action reacts,
+      the home layout gives way, the wheel arrives already turning.
+- [ ] M14.4b The wheel itself is the one place continuous motion is
+      justified (§35: a frame loop only while visibly animating). Verify
+      idle CPU returns to baseline once the wheel stops — this is the
+      screen most at risk of a permanent render loop.
+- [ ] M14.4c The draw moment is Level 3 with particles (§22), used once:
+      the rim resolves, chance enters the alignment, and the transition to
+      reveal begins. Particles are nonessential (§27) and must be
+      cancelable.
+- [ ] M14.4d **The animation must not touch selection.** Entropy
+      collection and the unbiased draw (`syzygy.sortes`) are unchanged —
+      the animation reacts to a card that has already been chosen and
+      committed to storage. No animation state may feed the entropy pool
+      or influence timing of the draw itself.
+
+### M14.5 — Opening the reading
+
+`feedback.md`: "We need a transition animation for when a user opens
+today's reading."
+
+- [ ] M14.5a Reveal choreography on `RevealScreen` → `ReadingScreen`: the
+      card art (M11.5) settles, then the interpretation reveals beneath it
+      (`REVEAL_VERTICAL`, §7) with a typewriter or decode pass on the
+      headline only — never on the body copy (§24: animation may introduce
+      text but must not delay access to it).
+- [ ] M14.5b Interpretation is asynchronous and may fail: wire
+      `processing-start`/`processing-stop` (§16 — an animated border or
+      pulsing status, not a bare spinner) and the `error` event (§18 —
+      one-cell shake plus a brief flash, never obscuring the error text)
+      into the existing pending/failed states in
+      `widgets/reading_panel.py`. This is where M11.4d's retry-in-flight
+      state lands.
+- [ ] M14.5c Reopening an existing reading from the archive should *not*
+      replay the full first-time reveal — first reveal is a Level 3
+      event, revisiting is Level 1 (§36).
+
+### M14.6 — Consistency pass
+
+- [ ] M14.6a Sweep every screen and replace one-off timing hacks with the
+      semantic events from M14.1d (`animation.md` §40 Phase 5). Check
+      `widgets/wheel.py` and `widgets/tarot_card.py` for existing bespoke
+      timing that predates the framework.
+- [ ] M14.6b Verify against `animation.md` §42's definition of done, item
+      by item, and record the result in this task — especially: no
+      flicker, no input latency, no queued animations, and identical
+      behavior with animation off.
+- [ ] M14.6c Test at the sizes and terminals §39 lists that are actually
+      available here, and note which were checked and which were not
+      (SSH and slow terminals are easy to skip and easy to regress).
+
+---
+
+## M15 — Sound
+
+### M15.1 — Looping theme music
+
+`feedback.md`: "We now have a theme song, called theme.mp3 that should
+play on a loop the whole time the application is running." `theme.mp3` is
+at the repo root and untracked.
+
+- [ ] M15.1a Choose the playback mechanism and record the reasoning. There
+      is no audio in the stack today, and every option has a real cost:
+      a Python audio library adds a runtime dependency that must be
+      AGPL-compatible (`AGENTS.md`) and cross-platform; shelling out to a
+      system player (`ffplay`, `mpv`, `paplay`, `afplay`) adds no
+      dependency but is not portable and not guaranteed present.
+      Recommendation: an optional `audio` extra, mirroring how `geocoding`
+      and `providers` are already scoped, so the app runs unchanged
+      without it — a terminal divination app must not fail to start
+      because it cannot open an audio device.
+- [ ] M15.1b Bundle `theme.mp3` under `src/syzygy/resources/audio/` and
+      commit it (it is untracked today). Note its size in the task — it
+      ships in every wheel — and confirm the licensing of the track itself
+      is settled for AGPL redistribution.
+- [ ] M15.1c Play on app start, loop seamlessly, stop cleanly on exit
+      (including on `[Q]`, on an exception, and on SIGINT — a process that
+      exits leaving audio playing is a bug). Playback runs off the event
+      loop and must never block or delay the TUI.
+- [ ] M15.1d Make it controllable and off-by-default-recoverable: a mute
+      toggle bound in the TUI, a persisted setting in
+      `AppPaths.settings_path`, and a `--no-audio` CLI flag. Decide
+      whether audio defaults to on or off on first launch — recommendation
+      is on, since it is an explicit product intent, with the mute key
+      advertised on the welcome screen.
+- [ ] M15.1e Degrade silently: no audio device, no extra installed, no
+      system player, or a headless/CI environment must all result in a
+      silent app, never a crash or an error dialog. Tests cover the
+      no-audio path (CI has no audio device, so that is the path the test
+      suite will actually exercise) and the mute setting round-trip.
