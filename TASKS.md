@@ -342,6 +342,32 @@ force-split six ways; see the comment above
       keyring via `providers.api_keys`.
 - [x] M7.11 Context-builder tests (inclusion/exclusion rules per card
       astrology type) — depends on M7.5
+- [x] M7.12 (not in the original plan - added once M7.7-M7.10 left the four
+      providers unwired) Provider-selection wiring, so `reading_service`
+      actually calls a real provider instead of always `FixtureProvider`:
+      - `src/syzygy/interpretation/providers/selection.py`: a persisted
+        `ProviderSelection` (provider id + optional model id + optional
+        base url - never an API key) in a small local JSON file, not the
+        SQLite database. `resolve_selected_provider` never raises: a
+        missing selection, an unresolvable API key, or a bad selection all
+        fall back to `FixtureProvider` with a reason string, so the ritual
+        stays usable with no model configured (the same guarantee M5
+        shipped with).
+      - `syzygy.config.AppPaths` gained `settings_path`
+        (`<data_dir>/settings.json`).
+      - `syzygy model use <provider> [--model] [--base-url]` (CLI):
+        saves a selection; a hosted provider (openai/anthropic) prints the
+        DESIGN.md §13.3 off-machine disclosure before saving, and a
+        selection that can't currently be built (no key, no model id) is
+        still saved with a warning rather than rejected, so fixing the
+        underlying problem later doesn't require re-running `model use`.
+        `model status` now also reports the active selection and whether
+        it would presently fall back.
+      - `syzygy.tui.app.default_services` reads the saved selection and
+        passes the resolved provider into `SyzygyServices`, printing any
+        fallback reason to stderr - this replaces the "always
+        `FixtureProvider`" line M5/M7 shipped with. The TUI ritual itself
+        is unchanged; it still only ever sees an `InterpretationProvider`.
 
 ## M8 — Archive
 

@@ -116,3 +116,70 @@ def test_model_configure_delete_removes_a_stored_key(capsys):
 def test_model_configure_rejects_llama_cpp(capsys):
     with pytest.raises(SystemExit):
         main(["model", "configure", "llama_cpp"])
+
+
+@pytest.fixture
+def isolated_app_paths(tmp_path, monkeypatch):
+    """`model use` writes to `AppPaths.settings_path` - point that at a
+    tmp directory instead of the real machine's `platformdirs` data dir,
+    the same way `fake_keyring` isolates the OS keyring above."""
+    from syzygy.config import AppPaths
+
+    paths = AppPaths(
+        data_dir=tmp_path,
+        database_path=tmp_path / "syzygy.db",
+        settings_path=tmp_path / "settings.json",
+        knowledge_dir=tmp_path / "knowledge",
+        models_dir=tmp_path / "models",
+        logs_dir=tmp_path / "logs",
+    )
+    monkeypatch.setattr("syzygy.config.default_app_paths", lambda: paths)
+    return paths
+
+
+def test_model_use_fixture_clears_any_saved_selection(isolated_app_paths, capsys):
+    isolated_app_paths.settings_path.write_text('{"provider_id": "openai", "model_id": "x"}')
+
+    exit_code = main(["model", "use", "fixture"])
+    assert exit_code == 0
+    assert not isolated_app_paths.settings_path.exists()
+
+
+def test_model_use_llama_cpp_saves_a_selection(isolated_app_paths, capsys):
+    exit_code = main(["model", "use", "llama_cpp", "--model", "local-test"])
+    assert exit_code == 0
+
+    import json
+
+    saved = json.loads(isolated_app_paths.settings_path.read_text())
+    assert saved == {"provider_id": "llama_cpp", "model_id": "local-test", "base_url": None}
+
+
+def test_model_use_openai_without_a_model_id_warns_but_still_saves(isolated_app_paths, capsys):
+    exit_code = main(["model", "use", "openai"])
+    assert exit_code == 0
+    captured = capsys.readouterr()
+    assert "model id" in captured.err.lower()
+    assert isolated_app_paths.settings_path.exists()
+
+
+def test_model_use_openai_discloses_leaving_the_local_machine(isolated_app_paths, capsys):
+    main(["model", "use", "openai", "--model", "gpt-4o-mini"])
+    out = capsys.readouterr().out
+    assert "sends" in out.lower() and "servers" in out.lower()
+
+
+def test_model_use_llama_cpp_does_not_disclose_leaving_the_machine(isolated_app_paths, capsys):
+    main(["model", "use", "llama_cpp"])
+    out = capsys.readouterr().out
+    assert "servers" not in out.lower()
+
+
+def test_model_status_reflects_the_active_selection(isolated_app_paths, capsys):
+    main(["model", "use", "llama_cpp", "--model", "local-test"])
+    capsys.readouterr()  # discard `use`'s own output
+
+    exit_code = main(["model", "status"])
+    assert exit_code == 0
+    out = capsys.readouterr().out
+    assert "active provider: llama_cpp (local-test)" in out

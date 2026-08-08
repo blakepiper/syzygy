@@ -46,23 +46,39 @@ class SyzygyServices:
 
 
 def default_services(database_path: Path | str | None = None) -> SyzygyServices:
-    """Production wiring: real database, real clock, Kerykeion, and - for
-    now - the fixture interpretation provider.
+    """Production wiring: real database, real clock, Kerykeion, and
+    whichever `InterpretationProvider` `syzygy model use` last selected.
 
-    Milestone 5 deliberately ships with `FixtureProvider`: the whole ritual
-    must be navigable and coherent with no model configured
-    (DESIGN.md Milestone 5, ARCHITECTURE_HANDOFF.md section 34). Real
-    providers arrive in Milestone 7 and replace only this line.
+    The ritual must stay navigable and coherent with no model configured
+    (DESIGN.md Milestone 5, ARCHITECTURE_HANDOFF.md section 34), so this
+    never fails to produce a provider: `resolve_selected_provider` falls
+    back to `FixtureProvider` for a missing selection, a missing API key,
+    or any other reason the saved choice can't be built, and this prints
+    that reason to stderr rather than raising or hiding it.
     """
+    import sys
+
     from syzygy.astrology.kerykeion_backend import KerykeionAstrologyEngine
     from syzygy.config import default_app_paths
-    from syzygy.interpretation.providers.fixture import FixtureProvider
+    from syzygy.interpretation.providers.selection import load_selection, resolve_selected_provider
     from syzygy.storage.database import open_database
 
     if database_path is None:
         paths = default_app_paths()
         paths.ensure_exists()
         database_path = paths.database_path
+        settings_path = paths.settings_path
+    else:
+        # A caller supplying its own database path (a test, most likely)
+        # gets an equally isolated settings file next to it, rather than
+        # this reading the real machine's global settings.json.
+        settings_path = Path(database_path).with_name("settings.json")
+
+    provider, fallback_reason = resolve_selected_provider(load_selection(settings_path))
+    if fallback_reason:
+        print(
+            f"syzygy: {fallback_reason} - using the fixture provider instead", file=sys.stderr
+        )
 
     return SyzygyServices(
         # The TUI's thread workers touch this connection from a worker
@@ -70,7 +86,7 @@ def default_services(database_path: Path | str | None = None) -> SyzygyServices:
         conn=open_database(database_path, check_same_thread=False),
         clock=SystemClock(),
         astrology=KerykeionAstrologyEngine(),
-        provider=FixtureProvider(),
+        provider=provider,
     )
 
 

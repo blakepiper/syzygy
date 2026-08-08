@@ -170,20 +170,19 @@ contract (`syzygy.interpretation.prompts`), both wired into
 plus the three real ones - `llama_cpp`, `openai`, `anthropic`, all
 transport-only over `httpx` and sharing one parse/validate/repair-retry
 path in `interpretation.providers.structured_output`), OS-keyring-backed
-API key storage (`interpretation.providers.api_keys`), the Book of Thoth +
-companion-source (DuQuette, Ziegler) ingestion pipeline and retrieval
+API key storage (`interpretation.providers.api_keys`), provider
+*selection* (`interpretation.providers.selection`: a persisted provider +
+model id in `AppPaths.settings_path`, never the readings database) now
+wired into `syzygy.tui.app.default_services` - a reading actually uses
+whatever `syzygy model use` last selected, falling back to
+`FixtureProvider` (with a printed reason) if that provider can't be built,
+so the ritual still never requires a model configured - the Book of Thoth
++ companion-source (DuQuette, Ziegler) ingestion pipeline and retrieval
 (`syzygy.knowledge`), the TUI ritual (welcome → profile → home → Wheel →
-reveal → reading, plus chart and a list-only archive, running on
-`FixtureProvider`), the CLI (`dev deck`/`dev astrology`,
-`profile create`/`list`, `chart`, `knowledge ingest`/`status`,
-`model status`/`configure`, `tui`, `doctor`; bare `syzygy` launches the
-TUI).
-
-Real providers exist and are unit-tested (mocked transport, no network in
-tests) and configurable from the CLI, but nothing yet lets a user select
-one for an actual reading - the TUI and `reading_service` still default to
-`FixtureProvider`; wiring provider selection through is not yet scheduled
-in `TASKS.md`.
+reveal → reading, plus chart and a list-only archive), the CLI
+(`dev deck`/`dev astrology`, `profile create`/`list`, `chart`,
+`knowledge ingest`/`status`, `model status`/`configure`/`use`, `tui`,
+`doctor`; bare `syzygy` launches the TUI).
 
 Not yet implemented (see `TASKS.md` for the ordered list, and don't
 assume a stub exists just because a directory is mentioned in

@@ -22,11 +22,15 @@ Commands implemented so far:
   Book of Thoth / companion-source PDF and inspect what has been ingested
   (Milestone 6). Source PDFs live outside the repository (`docs/*.pdf` is
   gitignored) - see docs/KNOWLEDGE_SOURCES.md.
-- `syzygy model status` / `syzygy model configure <provider>` - inspect and
-  set up the three `InterpretationProvider`s (Milestone 7.10). Nothing
-  reachable here writes to the readings database: hosted-provider API keys
-  live in the OS keyring (`syzygy.interpretation.providers.api_keys`,
-  DESIGN.md section 13.3), never on disk in this application's own storage.
+- `syzygy model status` / `syzygy model configure <provider>` / `syzygy
+  model use <provider>` - inspect, set up, and select the four
+  `InterpretationProvider`s (Milestone 7.10 + the provider-selection
+  wiring after it). Nothing reachable here writes to the readings
+  database: hosted-provider API keys live in the OS keyring
+  (`syzygy.interpretation.providers.api_keys`, DESIGN.md section 13.3),
+  and the active selection lives in a small local settings file
+  (`syzygy.interpretation.providers.selection`) - `default_services`
+  reads that selection to decide what `reading_service` actually calls.
 - `syzygy doctor` - basic environment/health check.
 
 Everything else in DESIGN.md section 20's command list is a later
@@ -46,6 +50,7 @@ from syzygy.sortes.deck import DeckValidationError, load_deck
 
 if TYPE_CHECKING:
     import sqlite3
+    from pathlib import Path
 
     from syzygy.domain.astrology import NatalChart
 
@@ -298,6 +303,20 @@ def _cmd_knowledge_status(_args: argparse.Namespace) -> int:
 _HOSTED_PROVIDERS = ("openai", "anthropic")
 _HOSTED_PROVIDER_ENV_VARS = {"openai": "OPENAI_API_KEY", "anthropic": "ANTHROPIC_API_KEY"}
 
+#: Every id `model use` accepts. Kept as a local literal, not imported from
+#: `syzygy.interpretation.providers.selection`, so building the argument
+#: parser (and therefore every `syzygy ...` invocation, including
+#: `--help`) never requires the `providers` extra (httpx, keyring) to be
+#: installed - only actually running a `model` subcommand does, via the
+#: lazy imports inside each `_cmd_model_*` function below.
+_PROVIDER_IDS = ("fixture", "llama_cpp", "openai", "anthropic")
+
+
+def _settings_path() -> Path:
+    from syzygy.config import default_app_paths
+
+    return default_app_paths().settings_path
+
 
 def _cmd_model_status(_args: argparse.Namespace) -> int:
     import asyncio
@@ -305,6 +324,7 @@ def _cmd_model_status(_args: argparse.Namespace) -> int:
 
     from syzygy.interpretation.providers import llama_cpp
     from syzygy.interpretation.providers.api_keys import has_stored_api_key
+    from syzygy.interpretation.providers.selection import load_selection, resolve_selected_provider
 
     reachable = asyncio.run(llama_cpp.probe())
     state = "reachable" if reachable else "not reachable"
@@ -321,6 +341,18 @@ def _cmd_model_status(_args: argparse.Namespace) -> int:
                 f"{provider_id:12s} no key configured "
                 f"(`syzygy model configure {provider_id}`, or set {env_var})"
             )
+
+    selection = load_selection(_settings_path())
+    if selection is None:
+        print("\nactive provider: fixture (default - select one with `syzygy model use`)")
+        return 0
+
+    _, fallback_reason = resolve_selected_provider(selection)
+    label = selection.provider_id + (f" ({selection.model_id})" if selection.model_id else "")
+    if fallback_reason:
+        print(f"\nactive provider: {label} - CURRENTLY FALLING BACK TO FIXTURE: {fallback_reason}")
+    else:
+        print(f"\nactive provider: {label}")
     return 0
 
 
@@ -344,6 +376,49 @@ def _cmd_model_configure(args: argparse.Namespace) -> int:
 
     store_api_key(args.provider, api_key)
     print(f"Stored a key for {args.provider} in the OS keyring.")
+    return 0
+
+
+def _cmd_model_use(args: argparse.Namespace) -> int:
+    from syzygy.interpretation.providers.selection import (
+        FIXTURE_PROVIDER_ID,
+        HOSTED_PROVIDER_IDS,
+        ProviderBuildError,
+        ProviderSelection,
+        build_provider,
+        clear_selection,
+        save_selection,
+    )
+
+    settings_path = _settings_path()
+
+    if args.provider == FIXTURE_PROVIDER_ID:
+        clear_selection(settings_path)
+        print("Active provider set to fixture.")
+        return 0
+
+    selection = ProviderSelection(
+        provider_id=args.provider, model_id=args.model, base_url=args.base_url
+    )
+    try:
+        build_provider(selection)
+    except ProviderBuildError as exc:
+        # Saved anyway: fixing the underlying problem (adding a key,
+        # starting llama-server) shouldn't require re-running `model use`
+        # too - `model status`/the next reading will pick it up once fixed.
+        print(f"warning: {exc}", file=sys.stderr)
+        print("Selection saved, but readings will use fixture until this is fixed.")
+
+    if args.provider in HOSTED_PROVIDER_IDS:
+        print(
+            f"Selecting {args.provider} sends today's reading context (profile name, "
+            "chart placements, the drawn card, ranked transits, source passages) to its "
+            "servers on every reading from now on (DESIGN.md section 13.3)."
+        )
+
+    save_selection(settings_path, selection)
+    label = args.provider + (f" ({args.model})" if args.model else "")
+    print(f"Active provider set to {label}.")
     return 0
 
 
@@ -464,6 +539,18 @@ def build_parser() -> argparse.ArgumentParser:
         "--delete", action="store_true", help="remove the stored key instead of setting one"
     )
     model_configure_parser.set_defaults(func=_cmd_model_configure)
+
+    model_use_parser = model_subparsers.add_parser(
+        "use", help="select which provider readings use"
+    )
+    model_use_parser.add_argument("provider", choices=_PROVIDER_IDS)
+    model_use_parser.add_argument(
+        "--model", default=None, help="model id (required for openai/anthropic)"
+    )
+    model_use_parser.add_argument(
+        "--base-url", default=None, help="override the provider's default endpoint"
+    )
+    model_use_parser.set_defaults(func=_cmd_model_use)
 
     doctor_parser = subparsers.add_parser("doctor", help="check the local environment")
     doctor_parser.set_defaults(func=_cmd_doctor)
