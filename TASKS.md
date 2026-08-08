@@ -944,7 +944,7 @@ ingest` runs per-user against PDFs that `.gitignore` excludes
 ingestion pipeline exists (`syzygy.knowledge.ingest`/`store`) but nobody
 gets its output.
 
-- [ ] M13.3a **Confirm the redistribution question with the user before
+- [x] M13.3a **Confirm the redistribution question with the user before
       committing anything.** `.gitignore`'s own note says derived data
       (chunks, FTS index) is fine to commit while the raw PDFs are not —
       but chunked full text of three in-copyright books is, in substance,
@@ -956,13 +956,30 @@ gets its output.
       under a documented length cap; (3) ship full chunk text. Record the
       answer in an ADR under `docs/adr/` — this is exactly the kind of
       deviation that directory exists for.
-- [ ] M13.3b Build the artifact in whatever form M13.3a settles on, as a
+      **User chose option 1** (2026-08-08): vectors and citation metadata
+      only, no verbatim text. Recorded in
+      `docs/adr/0003-ship-derived-knowledge-index-without-source-text.md`
+      (0002 was already taken by the PyMuPDF license review). The
+      too-permissive wording in `.gitignore` and
+      `docs/KNOWLEDGE_SOURCES.md` was corrected, and `AGENTS.md` gained
+      the rule as an invariant.
+- [x] M13.3b Build the artifact in whatever form M13.3a settles on, as a
       committed, versioned file under `src/syzygy/resources/knowledge/`
       so it ships in the wheel and reaches every user. Keep it a *build
       product of the existing pipeline* — a script that runs
       `syzygy.knowledge.ingest` against the PDFs and emits the artifact —
       not a hand-maintained file that can drift from the parser.
-- [ ] M13.3c Load it at first run: on a fresh database, populate
+      `syzygy knowledge build-artifact` reads an ingested database and
+      writes `index.json` (290 citations, 131 KB, sorted and readable so a
+      reviewer can confirm there is no prose in it) plus `vectors.npy`
+      (290 × 256 float32, 297 KB). All 78 cards are covered in all three
+      sources.
+      One thing had to be sanitised: two section headings were
+      segmentation artifacts that had swept up a sentence of Crowley's
+      prose, which would have put verbatim text into the artifact through
+      the `title` field. `normalize_title` recovers the real heading or
+      truncates, and a test asserts no title is prose-shaped.
+- [x] M13.3c Load it at first run: on a fresh database, populate
       `knowledge_chunks` (and the FTS index) from the bundled artifact
       instead of requiring `syzygy knowledge ingest`. Keep the existing
       ingest command working as the path for re-ingesting from a local PDF
@@ -970,18 +987,58 @@ gets its output.
       in `AGENTS.md` are unchanged: `docs/book_of_thoth.pdf` remains the
       only canonical source, and nothing here may modify
       `thoth_deck.yaml`.
-- [ ] M13.3d If the chosen artifact includes embeddings, pick the
+      `open_database` installs it for any source the database has not
+      seen. Not the FTS index: it indexes text, and there is none — FTS
+      search correctly returns nothing on a citation-only install.
+      **Found and fixed a bug this created:** the artifact records the
+      same `file_hash` and `ingestion_version` a real ingest would, so
+      `ingest`'s idempotency check reported "already ingested" and did
+      nothing — the very first thing a user with their own PDF would try
+      was a silent no-op. It now also requires that the existing source
+      actually has text (`store.has_full_text`).
+- [x] M13.3d If the chosen artifact includes embeddings, pick the
       embedding model deliberately and record it: it must be
       AGPL-compatible, and it must not add a hosted-service dependency or
       a vector database (`AGENTS.md` forbids both) — a small local model
       producing vectors committed to the repo, queried with plain numpy,
       is the shape that fits. Retrieval stays in
       `syzygy.knowledge.retrieve` beside the existing FTS path.
-- [ ] M13.3e Tests: a fresh database self-populates from the bundled
+      **No model at all**, which is the version of that with the fewest
+      moving parts: `syzygy.knowledge.embedding` is the signed hashing
+      trick over stop-worded tokens with sublinear TF, in pure numpy.
+      Named honestly as a *hashed lexical signature* rather than an
+      embedding — it finds shared vocabulary, not shared meaning. A real
+      sentence model has to run at query time as well as build time, which
+      would make torch a runtime dependency of a local-first terminal app
+      for 290 short documents. `numpy` (BSD-3) becomes an explicit runtime
+      dependency; it was already transitive via Pillow and
+      `timezonefinder`. `retrieve.search_vectors` sits beside the FTS
+      path, exposed as `syzygy knowledge search`.
+- [x] M13.3e Tests: a fresh database self-populates from the bundled
       artifact; retrieval returns hits with correct citations without any
       PDF present; the artifact is present in the built wheel; and the
       generator script reproduces the committed artifact byte-for-byte
       from the same inputs (so it can be audited).
+      31 tests in `tests/knowledge/test_artifact.py`, including
+      `test_the_committed_index_contains_no_prose`, which enforces the ADR
+      mechanically rather than by review. Byte-for-byte reproducibility
+      was verified twice: as a test, and by re-ingesting all three PDFs
+      into a completely separate database and diffing both files against
+      the committed ones (identical). Wheel checked by hand — both files
+      present, 23.3 MB total.
+      Also fixed a latent mypy problem this surfaced: the numpy-stub
+      override in `pyproject.toml` never actually applied, because
+      `follow_imports` does not cover `.pyi` files without
+      `follow_imports_for_stubs`. It went unnoticed while numpy was merely
+      transitive.
+
+**What this milestone does and does not change, stated plainly:** a fresh
+install now knows where every card is discussed in all three books and can
+search that index. It does **not** improve readings — citation-only chunks
+are filtered out of the interpretation context, because a citation under
+the prompt's "SOURCE PASSAGES" heading with nothing beneath it invites the
+model to invent the contents (`DESIGN.md` §23). Grounded readings still
+require the user's own PDFs and `syzygy knowledge ingest`.
 
 ---
 

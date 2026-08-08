@@ -12,9 +12,12 @@ dist/
 # Raw source books for the knowledge base (docs/KNOWLEDGE_SOURCES.md).
 # These are personal reference copies used as ingestion input, not
 # redistributed as part of the package (DESIGN.md section 11.1, 22).
-# What ingestion produces from them (chunks, FTS index, any future
-# embedding index) is derived/processed data and is fine to commit -
-# only the raw PDFs themselves are excluded here.
+#
+# Note that excluding the PDFs is not by itself sufficient. Chunked full
+# text is in substance the book, so what ingestion produces is NOT
+# blanket-safe to commit: only citations (page ranges, headings, hashes)
+# and non-invertible vectors go into src/syzygy/resources/knowledge/.
+# See docs/adr/0003-ship-derived-knowledge-index-without-source-text.md.
 docs/*.pdf
 
 # Local application data. All Syzygy user data (profiles, natal charts,

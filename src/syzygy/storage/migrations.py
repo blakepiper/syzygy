@@ -144,6 +144,15 @@ _MIGRATIONS: list[tuple[int, str, str]] = [
         END;
         """,
     ),
+    (
+        4,
+        "knowledge_chunks: add vector BLOB for hashed lexical signatures (M13.3)",
+        """
+        ALTER TABLE knowledge_chunks ADD COLUMN vector BLOB;
+        ALTER TABLE knowledge_chunks ADD COLUMN vector_version TEXT;
+        ALTER TABLE knowledge_chunks ADD COLUMN word_count INTEGER;
+        """,
+    ),
 ]
 
 

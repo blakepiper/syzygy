@@ -49,9 +49,23 @@ MAX_KNOWLEDGE_CHUNKS_PER_SOURCE = 3
 
 
 def _select_knowledge_chunks(hits: list[KnowledgeHit]) -> list[KnowledgeChunk]:
+    """The chunks that may reach the model, capped per source.
+
+    Citation-only chunks are dropped (M13.3). The artifact bundled with
+    every install carries where each card is discussed but not what those
+    pages say, and a citation rendered under the prompt's "SOURCE
+    PASSAGES" heading with nothing beneath it is worse than no source at
+    all - it invites the model to invent the contents, which is exactly
+    the failure `DESIGN.md` section 23 forbids ("never imply Crowley
+    grounding that was not actually retrieved"). An install with no
+    ingested PDFs therefore supplies no passages and the prompt says so
+    plainly, exactly as it did before the artifact existed.
+    """
     selected: list[KnowledgeChunk] = []
     per_source: dict[str, int] = {}
     for hit in hits:
+        if not hit.chunk.has_text:
+            continue
         taken = per_source.get(hit.chunk.source_id, 0)
         if taken >= MAX_KNOWLEDGE_CHUNKS_PER_SOURCE:
             continue

@@ -72,9 +72,18 @@ certainly a design violation, not a shortcut.
   (DuQuette) and `docs/mirror_of_the_soul.pdf` (Ziegler) are Tier 1
   supplementary retrieval sources only — see `docs/KNOWLEDGE_SOURCES.md`.
   Never use a Tier 1 source to add, change, or "correct" an entry in
-  `thoth_deck.yaml`. None of the three source PDFs are committed to the
-  repository (`.gitignore`: `docs/*.pdf`) — only what ingestion derives
-  from them (chunks, indexes) is.
+  `thoth_deck.yaml`.
+- **Never commit source text from the three books — only citations and
+  vectors.** The PDFs are gitignored (`docs/*.pdf`), but that alone is not
+  the rule: chunked full text is in substance the book, whatever directory
+  it lands in. What ships in `src/syzygy/resources/knowledge/` is
+  per-chunk citations (page range, heading, hash, word count) plus a
+  non-invertible `float32[256]` signature — never the passages, and never
+  the FTS index, which *is* the text. See
+  `docs/adr/0003-ship-derived-knowledge-index-without-source-text.md`.
+  Citation-only chunks must also never reach a provider: a citation under
+  the prompt's "SOURCE PASSAGES" heading invites the model to invent what
+  the page says, so `reading_service` filters on `KnowledgeChunk.has_text`.
 - **No LangChain, LlamaIndex, hosted vector DB, agent framework, dependency
   injection container, or web framework.** If you think you need one,
   you're probably over-engineering a small local app — re-read

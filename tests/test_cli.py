@@ -18,10 +18,13 @@ def test_doctor_exits_zero(isolated_app_paths, capsys):
     out = capsys.readouterr().out
     assert "deck    OK" in out
     # Knowledge base and provider config are informational (DESIGN.md
-    # section 15/13.3's "no model configured" and "no source ingested"
+    # section 15/13.3's "no model configured" and "no source passages"
     # are both supported states) - doctor reports them, but neither can
     # fail its exit code.
-    assert "not ingested" in out
+    #
+    # "citations only" is the default state since M13.3: every install
+    # ships the citation index, and full text needs the user's own PDFs.
+    assert "citations only" in out
     assert "llama_cpp" in out
     assert "active provider: fixture" in out
 

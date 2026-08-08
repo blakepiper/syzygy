@@ -25,6 +25,10 @@ dependencies = [
     # AGPL-compatibility concerns.
     "pillow>=10.3",
     "rich-pixels>=3.0",
+    # The bundled knowledge index (M13.3) is a float32 matrix loaded and
+    # queried with plain numpy - no vector database, no hosted service,
+    # no inference runtime (AGENTS.md). BSD-3, so AGPL-compatible.
+    "numpy>=1.26",
 ]
 
 [project.optional-dependencies]
@@ -76,14 +80,20 @@ ignore_missing_imports = true
 disallow_untyped_defs = false
 warn_unused_ignores = true
 
-# numpy's bundled stubs (pulled in transitively by timezonefinder, a
-# geocoding-extra dependency, and by Pillow's PEP 561 stubs, a card-art
-# dependency) use 3.12+ `type` statement syntax that breaks parsing under
-# this project's py3.11 target - skip following them rather than
-# deep-checking a third-party stub file we don't control. Both the bare
-# package and the `.*` glob are listed because mypy's per-module
+# numpy's bundled stubs use 3.12+ `type` statement syntax that breaks
+# parsing under this project's py3.11 target - skip following them rather
+# than deep-checking a third-party stub file we don't control. Both the
+# bare package and the `.*` glob are listed because mypy's per-module
 # `follow_imports` doesn't reliably match a direct `import numpy` off the
 # glob alone.
+#
+# `follow_imports_for_stubs` is what makes the skip apply to `.pyi` files
+# at all: without it `follow_imports` covers only source modules, so the
+# unparseable stub was still read. That went unnoticed while numpy was
+# merely transitive (via timezonefinder and Pillow's stubs); it surfaced
+# as soon as first-party code imported numpy directly for the knowledge
+# vectors (M13.3).
 [[tool.mypy.overrides]]
 module = ["PIL", "PIL.*", "numpy", "numpy.*", "timezonefinder.*"]
 follow_imports = "skip"
+follow_imports_for_stubs = true

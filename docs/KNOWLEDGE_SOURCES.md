@@ -57,12 +57,25 @@ None of the three source PDFs are committed to this repository — see
 `.gitignore` (`docs/*.pdf`). This matches `DESIGN.md` section 11.1 ("The
 repository should not contain the complete book text unless distribution
 rights are clearly established") and section 22's redistribution-rights
-note. What ingestion *produces* from them — chunks, hashes, the FTS index,
-and any future embedding index, all inside the SQLite database or a
-generated artifact under `src/syzygy/resources/` or a data directory —
-is fine to commit once Milestone 6 exists, since that's derived,
-attributed, chunked material with page-level provenance, not a redistributed
-copy of the book.
+note.
+
+**What *is* committed, and what is not.** The earlier wording here (and in
+`.gitignore`) said that anything ingestion produces is fine to commit
+"since that's derived". That is too permissive: chunked full text is, in
+substance, the book, whatever directory it lands in. The line actually
+drawn — see
+`docs/adr/0003-ship-derived-knowledge-index-without-source-text.md` — is:
+
+| Committed (`src/syzygy/resources/knowledge/`) | Never committed |
+|---|---|
+| Per-chunk citations: source, section id/type, `card_id`, heading, page range, chunk index, SHA-256, word count | Chunk text |
+| A `float32[256]` hashed lexical signature per chunk | The FTS index (it *is* the text) |
+
+So every install knows **where** each of the 78 cards is discussed in all
+three books, and can search that index, while carrying none of what those
+pages say. Source passages reach a reading only on installs where the user
+has ingested their own copies with `syzygy knowledge ingest`; the bundled
+index deliberately never reaches the model (see the ADR).
 
 Each source's raw-file hash is recorded below so ingestion can verify it's
 processing the same file this document was written against, the same way

@@ -24,10 +24,14 @@ Commands implemented so far:
   takes the profile's readings with it). Storage lives at
   `syzygy.config.default_app_paths()`.
 - `syzygy chart` - print a saved profile's natal chart.
-- `syzygy knowledge ingest <pdf>` / `syzygy knowledge status` - ingest a
-  Book of Thoth / companion-source PDF and inspect what has been ingested
-  (Milestone 6). Source PDFs live outside the repository (`docs/*.pdf` is
-  gitignored) - see docs/KNOWLEDGE_SOURCES.md.
+- `syzygy knowledge ingest <pdf>` / `status` / `search` / `build-artifact`
+  - ingest a Book of Thoth / companion-source PDF, inspect what is
+  present, search the index, and (development-only) regenerate the
+  committed citations+vectors artifact. Source PDFs live outside the
+  repository (`docs/*.pdf` is gitignored); every install ships citations
+  and vectors for all three sources but no passages (M13.3) - see
+  docs/KNOWLEDGE_SOURCES.md and
+  docs/adr/0003-ship-derived-knowledge-index-without-source-text.md.
 - `syzygy model status` / `syzygy model configure <provider>` / `syzygy
   model use <provider>` - inspect, set up, and select the four
   `InterpretationProvider`s (Milestone 7.10 + the provider-selection
@@ -384,15 +388,87 @@ def _cmd_knowledge_status(_args: argparse.Namespace) -> int:
         for source_type in SOURCE_TYPES:
             source = get_source_by_type(conn, source_type)
             if source is None:
-                print(f"{source_type:26s} not ingested")
+                print(f"{source_type:26s} not present")
                 continue
             chunk_count = count_chunks(conn, source.id)
+            with_text = conn.execute(
+                "SELECT COUNT(*) FROM knowledge_chunks WHERE source_id = ? AND text != ''",
+                (source.id,),
+            ).fetchone()[0]
+            # Citations-only is the normal state for anyone who has not
+            # supplied their own PDFs (M13.3), so it is reported as a mode
+            # rather than as a shortfall.
+            kind = "full text" if with_text else "citations only"
             print(
-                f"{source_type:26s} {chunk_count:4d} chunks  "
+                f"{source_type:26s} {chunk_count:4d} chunks  {kind:15s} "
                 f"(version {source.ingestion_version}, hash {source.file_hash[:12]})"
+            )
+        if not any(
+            conn.execute(
+                "SELECT 1 FROM knowledge_chunks WHERE text != '' LIMIT 1"
+            ).fetchall()
+        ):
+            print(
+                "\nNo source passages are available, so readings are interpreted without\n"
+                "them. Run `syzygy knowledge ingest <pdf>` against your own copies of the\n"
+                "books to add them - see docs/KNOWLEDGE_SOURCES.md."
             )
     finally:
         conn.close()
+    return 0
+
+
+def _cmd_knowledge_search(args: argparse.Namespace) -> int:
+    from syzygy.knowledge.retrieve import search_vectors
+
+    conn = _open_profile_db()
+    try:
+        hits = search_vectors(conn, args.query, limit=args.limit)
+    finally:
+        conn.close()
+
+    if not hits:
+        print("No matches.")
+        return 0
+    for hit in hits:
+        chunk = hit.chunk
+        card = f"  [{chunk.card_id}]" if chunk.card_id else ""
+        print(f"{hit.score:.3f}  {chunk.citation}{card}")
+    return 0
+
+
+def _cmd_knowledge_build_artifact(args: argparse.Namespace) -> int:
+    """Regenerate the committed knowledge artifact (M13.3b).
+
+    Development-only, and deliberately separate from `ingest`: it reads an
+    ingested database and writes citations plus vectors, never text. See
+    `docs/adr/0003-ship-derived-knowledge-index-without-source-text.md`.
+    """
+    from pathlib import Path
+
+    from syzygy.knowledge.artifact import ArtifactError, build_artifact, write_artifact
+
+    if args.database:
+        from syzygy.storage.database import open_database
+
+        conn = open_database(Path(args.database))
+    else:
+        conn = _open_profile_db()
+
+    try:
+        artifact = build_artifact(conn)
+    except ArtifactError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    finally:
+        conn.close()
+
+    index_path, vectors_path = write_artifact(artifact, Path(args.output))
+    print(
+        f"Wrote {len(artifact.chunks)} citations from {len(artifact.sources)} sources:\n"
+        f"  {index_path} ({index_path.stat().st_size:,} bytes)\n"
+        f"  {vectors_path} ({vectors_path.stat().st_size:,} bytes)"
+    )
     return 0
 
 
@@ -568,21 +644,27 @@ def _doctor_knowledge_base() -> None:
     ingested.
     """
     from syzygy.knowledge.ingest import SOURCE_TYPES
-    from syzygy.knowledge.store import count_chunks, get_source_by_type
+    from syzygy.knowledge.store import count_chunks, get_source_by_type, has_full_text
 
     conn = _open_profile_db()
     try:
-        any_ingested = False
+        any_full_text = False
         for source_type in SOURCE_TYPES:
             source = get_source_by_type(conn, source_type)
             if source is None:
-                print(f"knowledge {source_type:26s} not ingested")
+                print(f"knowledge {source_type:26s} not present")
                 continue
-            any_ingested = True
             chunk_count = count_chunks(conn, source.id)
-            print(f"knowledge {source_type:26s} {chunk_count:4d} chunks")
-        if not any_ingested:
-            print("(no source ingested yet - readings still work with no source passages;")
+            # Since M13.3 every install ships citations for all three
+            # sources, so "present" and "has the passages" are different
+            # states and both are supported.
+            if has_full_text(conn, source.id):
+                any_full_text = True
+                print(f"knowledge {source_type:26s} {chunk_count:4d} chunks, full text")
+            else:
+                print(f"knowledge {source_type:26s} {chunk_count:4d} chunks, citations only")
+        if not any_full_text:
+            print("(citations only - readings still work, with no source passages;")
             print(" see `syzygy knowledge ingest`)")
     finally:
         conn.close()
@@ -694,6 +776,27 @@ def build_parser() -> argparse.ArgumentParser:
         "status", help="show what has been ingested"
     )
     knowledge_status_parser.set_defaults(func=_cmd_knowledge_status)
+
+    knowledge_search_parser = knowledge_subparsers.add_parser(
+        "search", help="vector search over the knowledge index"
+    )
+    knowledge_search_parser.add_argument("query", help="free text")
+    knowledge_search_parser.add_argument("--limit", type=int, default=10)
+    knowledge_search_parser.set_defaults(func=_cmd_knowledge_search)
+
+    knowledge_build_parser = knowledge_subparsers.add_parser(
+        "build-artifact",
+        help="regenerate the committed citations+vectors index from an ingested database",
+    )
+    knowledge_build_parser.add_argument(
+        "--output",
+        default="src/syzygy/resources/knowledge",
+        help="directory to write index.json and vectors.npy into",
+    )
+    knowledge_build_parser.add_argument(
+        "--database", default=None, help="ingested database to read (default: the app's own)"
+    )
+    knowledge_build_parser.set_defaults(func=_cmd_knowledge_build_artifact)
 
     model_parser = subparsers.add_parser(
         "model", help="inspect and configure interpretation providers"

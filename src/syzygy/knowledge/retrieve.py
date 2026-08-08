@@ -1,12 +1,19 @@
-"""Two-tier retrieval: exact `card_id` structural lookup, then SQLite FTS5
-lexical search (DESIGN.md section 11.2). No embeddings in this milestone
-(DESIGN.md section 11.4).
+"""Three-tier retrieval: exact `card_id` structural lookup, SQLite FTS5
+lexical search, and vector search over hashed lexical signatures
+(DESIGN.md section 11.2).
 
 Structural lookup is tier-aware across sources (IMPLEMENTATION_PLAN.md
 Milestone 6): Tier 0 (`book_of_thoth`) chunks are always returned first,
 then any ingested Tier 1 (`duquette_companion`, `ziegler_mirror_of_soul`)
 chunks for the same card - a source that was never ingested simply
 contributes nothing (docs/KNOWLEDGE_SOURCES.md section 5).
+
+Note which tiers work on which installs. Structural lookup and vector
+search work everywhere, because the bundled artifact (M13.3) carries
+citations and vectors for all three sources. FTS5 needs the passages
+themselves and so only finds anything for sources the user has ingested
+from their own PDFs - `search` on a citation-only install returns nothing,
+which is correct rather than broken.
 """
 
 from __future__ import annotations
@@ -76,3 +83,48 @@ def search(conn: sqlite3.Connection, query: str, limit: int = 10) -> list[Knowle
         KnowledgeHit(chunk=_row_to_chunk(row), retrieval_method="fts", score=row["fts_score"])
         for row in rows
     ]
+
+
+def search_vectors(conn: sqlite3.Connection, query: str, limit: int = 10) -> list[KnowledgeHit]:
+    """Vector search over every chunk carrying a current-version vector.
+
+    Works on a citation-only install, where FTS5 has nothing to match
+    against - the vectors ship with the package even though the passages
+    do not (M13.3). Scores are cosine similarities in `[-1, 1]`; hits at
+    or below zero share no vocabulary with the query and are dropped
+    rather than padded out to `limit`.
+
+    These are hashed lexical signatures, not neural embeddings (see
+    `syzygy.knowledge.embedding`): this finds shared vocabulary, not
+    shared meaning.
+    """
+    from syzygy.knowledge.artifact import chunk_vectors
+    from syzygy.knowledge.embedding import lexical_vector, similarities
+
+    query_vector = lexical_vector(query)
+    if not query_vector.any():
+        return []
+
+    ids, matrix = chunk_vectors(conn)
+    if not ids:
+        return []
+
+    scores = similarities(query_vector, matrix)
+    ranked = sorted(zip(ids, scores, strict=True), key=lambda pair: -pair[1])[:limit]
+
+    hits: list[KnowledgeHit] = []
+    for chunk_id, score in ranked:
+        if score <= 0:
+            continue
+        row = conn.execute(
+            "SELECT * FROM knowledge_chunks WHERE id = ?", (chunk_id,)
+        ).fetchone()
+        if row is not None:
+            hits.append(
+                KnowledgeHit(
+                    chunk=_row_to_chunk(row),
+                    retrieval_method="semantic",
+                    score=float(score),
+                )
+            )
+    return hits

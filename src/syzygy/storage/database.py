@@ -49,4 +49,28 @@ def open_database(
 
     conn = connect(database_path, check_same_thread=check_same_thread)
     apply_all(conn)
+    _install_bundled_knowledge(conn)
     return conn
+
+
+def _install_bundled_knowledge(conn: sqlite3.Connection) -> None:
+    """Populate the knowledge base from the artifact shipped with the
+    package, for any source this database has never seen (M13.3).
+
+    A fresh install therefore knows where each of the 78 cards is
+    discussed in all three sources without anyone obtaining a PDF first.
+    Locally ingested full text is never replaced - the real passages
+    always win over the shipped citations.
+
+    Deliberately best-effort: the knowledge base is optional, and a build
+    with no artifact, or one whose artifact cannot be parsed, must still
+    open a working database rather than refuse to start.
+    """
+    from datetime import UTC, datetime
+
+    try:
+        from syzygy.knowledge.artifact import ensure_knowledge_base
+
+        ensure_knowledge_base(conn, now=datetime.now(UTC))
+    except Exception:  # pragma: no cover - defensive; never blocks startup
+        pass

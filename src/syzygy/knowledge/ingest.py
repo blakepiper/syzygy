@@ -27,7 +27,7 @@ from syzygy.knowledge.segment import (
     segment_duquette,
     segment_ziegler,
 )
-from syzygy.knowledge.store import get_source_by_type, replace_source
+from syzygy.knowledge.store import get_source_by_type, has_full_text, replace_source
 
 if TYPE_CHECKING:
     import sqlite3
@@ -133,6 +133,12 @@ def ingest(
         existing is not None
         and existing.file_hash == file_hash
         and existing.ingestion_version == version
+        # ...and it actually has the passages. A source installed from the
+        # bundled artifact (M13.3) records the same file hash and version
+        # as a real ingest but carries citations only, so without this the
+        # first thing a user does with their own PDF - ingest it - would
+        # report "already ingested" and change nothing (M13.3c).
+        and has_full_text(conn, existing.id)
     ):
         return IngestResult(source_type=resolved_type, skipped=True, chunk_count=0, card_count=0)
 
