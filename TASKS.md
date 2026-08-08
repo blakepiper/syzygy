@@ -540,29 +540,74 @@ correctly." `src/syzygy/tui/widgets/card_art.py` renders via
 own docstring says the on-screen size was left to be revisited "once
 styling work starts" — this is that task.
 
-- [ ] M11.5a Record the actual defect first (screenshot or description):
+- [x] M11.5a Record the actual defect first (screenshot or description):
       wrong aspect ratio, art squashed into too few rows, colors washed
       out, art overlapping the text below it, or nothing rendering at all.
       Terminal cells are roughly 1:2, and `resize=size` takes (columns,
       rows) — a naive square resize will look stretched.
-- [ ] M11.5b Fix sizing: compute the render size from the widget's actual
+      **The art was squashed to half its height.** Measured: the fixed
+      `ART_SIZE = (22, 17)` renders as 22 columns × **9** cell rows,
+      because `resize` is in *image pixels* and `HalfcellRenderer` packs
+      two image rows into each cell row. Delivered aspect 17/22 = 0.77
+      against a source of ~1.54 — an exact factor of two.
+      The cause is a double correction. A cell is ~2× taller than wide
+      *and* holds 2 stacked image pixels, so an image pixel is already
+      about square on screen and the source ratio can go into `resize`
+      directly. Correcting for the cell ratio on top of that halves it.
+- [x] M11.5b Fix sizing: compute the render size from the widget's actual
       cell dimensions and the source image's aspect ratio, accounting for
       the 1:2 cell ratio and for `HalfcellRenderer` packing two image rows
       per cell row. Re-render on resize rather than caching one fixed size
       (`render_card_pixels`'s `@cache` is keyed on size, so this is a call
       -site change, but check the cache cannot grow unbounded across many
       resize steps).
-- [ ] M11.5c Give the art a stable frame: a fixed aspect-ratio box so the
+      `art_size_for(card_id, columns, cell_rows)` searches downward from
+      the widest allowed width and derives the height from the source
+      ratio each time, so the ratio is never traded away to make something
+      fit — if nothing fits, it returns `None` and the caller shows text.
+      Widths are quantised to even columns and capped at
+      `MAX_ART_COLUMNS`, so dragging a terminal edge cannot decode the PNG
+      once per column crossed or fill the cache with near-identical
+      entries.
+- [x] M11.5c Give the art a stable frame: a fixed aspect-ratio box so the
       card does not reflow the surrounding text as the terminal resizes,
       and a graceful degradation path when the pane is too small to show
       art at all (fall back to the existing text card — this connects to
       the not-yet-implemented "terminal too small" state).
-- [ ] M11.5d Check the art renders correctly on both `RevealScreen` and
+      `#reveal-card`/`#reading-card` now have explicit heights (with
+      `-compact` variants) rather than `height: auto` — a card that sizes
+      its art from its own box cannot also size its box from that art.
+      Two related bugs fell out: the widget rendered its content in
+      `__init__`, before `Widget.__init__` had run, so reading `self.size`
+      there raised; and the text block's row count was assumed rather than
+      measured, so a wrapping correspondence label ("MERCURY in VIRGO
+      20°-30°") let the art push the card's own words out of the box —
+      verified against all 78 cards, previously 30+ overflowed.
+- [x] M11.5d Check the art renders correctly on both `RevealScreen` and
       `ReadingScreen`, in truecolor and 256-color terminals, and note in
       the task which terminals were actually checked.
-- [ ] M11.5e Tests: assert the computed render size preserves the source
+      Checked on both screens at 80×24, 100×32 and 140×45 through
+      `Pilot` — delivered aspect 1.50–1.58 against sources of ~1.49–1.56
+      at every size. **Not checked in a real terminal, truecolor or
+      256-color**: no interactive terminal is available in this
+      environment (the M10.3a limitation). The colour-depth question is
+      untouched by this task either way — `rich-pixels` emits the same
+      ANSI it always did; only the geometry changed.
+      One honest tradeoff to note: at the 80×24 floor the *reading*
+      screen's card now declines to draw art at all (7 cell rows left
+      after the text, below what any legible size needs) and shows the
+      text card. That is the correct call for the current layout rather
+      than a squashed smear; M12.5 should give it more room.
+- [x] M11.5e Tests: assert the computed render size preserves the source
       aspect ratio within a cell of tolerance across several widget sizes,
       and that a too-small widget falls back to text instead of raising.
+      `tests/tui/test_card_art.py`, 25 tests: aspect preserved across 7
+      box sizes for all 78 cards, never exceeds its box, declines rather
+      than squashing when too short or too narrow, is capped when given a
+      huge box, the renderer really produces the cell rows the arithmetic
+      assumes, widths quantise, no card overflows the widget, a tiny
+      widget renders the text card, and one test pinning the old `(22,17)`
+      as a ratio failure so the regression cannot come back quietly.
 
 ### M11.6 — Dev-only reroll (testing affordance)
 

@@ -279,6 +279,36 @@ TarotCardWidget {
     text-align: center;
 }
 
+/* The card (M11.5).
+ *
+ * Explicit boxes, not `height: auto`. `TarotCardWidget` sizes its
+ * illustration from its own cell box, so an auto-sized card would be
+ * deciding its height from content whose height depends on that box.
+ * Fixing the frame also stops the surrounding text reflowing every time
+ * the terminal is resized. The art fills whatever is left after
+ * `TarotCardWidget.TEXT_ROWS`, at the source illustration's own aspect
+ * ratio, and falls back to the text card when the box gets too small.
+ */
+
+#reveal-card {
+    height: 28;
+}
+
+#reading-card {
+    height: 24;
+}
+
+/* Below the ideal 100x32 the full-height card would push the rest of the
+ * screen off the bottom. The art shrinks with the box and drops out
+ * entirely (leaving the text card) once it would be illegible. */
+.-compact #reveal-card {
+    height: 20;
+}
+
+.-compact #reading-card {
+    height: 18;
+}
+
 /* Reveal */
 
 #reveal-body {

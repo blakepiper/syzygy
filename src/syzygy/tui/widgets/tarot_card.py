@@ -7,19 +7,22 @@ invents no correspondence of its own.
 
 from __future__ import annotations
 
+from rich.cells import cell_len
 from rich.console import Group, RenderableType
 from rich.text import Text
 from textual.widgets import Static
 
 from syzygy.domain.tarot import TarotCard
-from syzygy.tui.widgets.card_art import render_card_pixels
+from syzygy.tui.widgets.card_art import art_size_for, render_card_pixels
 from syzygy.tui.widgets.glyph import GlyphSet, default_glyphs
 
 INNER_WIDTH = 27
-#: (columns, rows) passed to `rich_pixels` - chosen to roughly preserve the
-#: source art's portrait aspect ratio at typical terminal cell proportions.
-#: Expected to be revisited once this gets real styling attention.
-ART_SIZE: tuple[int, int] = (22, 17)
+
+#: Fallback art box for the rare case where the widget is asked to render
+#: before it has been laid out and has no size yet. Portrait, and in image
+#: pixels - see `card_art`'s module docstring on why the height is not
+#: halved here.
+DEFAULT_ART_COLUMNS = 22
 
 
 def correspondence_label(card: TarotCard, glyphs: GlyphSet | None = None) -> str:
@@ -71,16 +74,53 @@ class TarotCardWidget(Static):
     ) -> None:
         self._glyphs = glyphs or default_glyphs()
         self._card = card
-        super().__init__(self._content(), id=id, classes=classes)
+        # Content is rendered on mount, not here: it is sized from the
+        # widget's own cell box, and `self.size` is not available until
+        # `Widget.__init__` has run and the widget has been laid out.
+        super().__init__("", id=id, classes=classes)
 
     @property
     def card(self) -> TarotCard | None:
         return self._card
 
+    def on_mount(self) -> None:
+        self.update(self._content())
+
     def set_card(self, card: TarotCard | None) -> None:
         """Turn the card face up (or, with `None`, face down again)."""
         self._card = card
         self.update(self._content())
+
+    def on_resize(self) -> None:
+        """Re-render the art at the new size. The illustration is sized
+        from the widget's actual box, so it has to be rebuilt when that
+        box changes - otherwise it keeps whatever size it happened to be
+        laid out at first."""
+        if self._card is not None:
+            self.update(self._content())
+
+    def _text_lines(self, card: TarotCard) -> list[tuple[str, str]]:
+        """The card's own words, as (line, style) pairs."""
+        lines = [
+            (card.roman_numeral or "", "#7ea6c9"),
+            ("", ""),
+            (card.display_name.upper(), "bold #e6ddc9"),
+        ]
+        if card.full_name != card.display_name:
+            lines.append((card.full_name, "#8a8272"))
+        lines.append(("", ""))
+        lines.append((correspondence_label(card, self._glyphs), "#cf9b3f"))
+        return lines
+
+    def _art_box(self, text_rows: int) -> tuple[int, int]:
+        """(columns, cell rows) left for the illustration once `text_rows`
+        and the blank row between art and text are reserved."""
+        size = self.size
+        if not size.width or not size.height:
+            # Not laid out yet (constructed in `compose`, rendered before
+            # the first resize): fall back to the nominal portrait box.
+            return DEFAULT_ART_COLUMNS, DEFAULT_ART_COLUMNS
+        return size.width, max(0, size.height - text_rows - 1)
 
     def _content(self) -> RenderableType:
         if self._card is None:
@@ -90,16 +130,27 @@ class TarotCardWidget(Static):
             return back
 
         card = self._card
-        text = Text()
-        text.append(f"{card.roman_numeral or ''}\n", style="#7ea6c9")
-        text.append("\n")
-        text.append(f"{card.display_name.upper()}\n", style="bold #e6ddc9")
-        if card.full_name != card.display_name:
-            text.append(f"{card.full_name}\n", style="#8a8272")
-        text.append("\n")
-        text.append(correspondence_label(card, self._glyphs), style="#cf9b3f")
+        lines = self._text_lines(card)
+        text = Text("\n".join(line for line, _ in lines))
+        offset = 0
+        for line, style in lines:
+            if style:
+                text.stylize(style, offset, offset + len(line))
+            offset += len(line) + 1
 
-        pixels = render_card_pixels(card.id, ART_SIZE)
+        # Measured, not assumed: a long correspondence label ("MERCURY in
+        # VIRGO 20°-30°") wraps at these widths, and reserving a fixed
+        # row count let the art push the card's own words out of the box.
+        width = self.size.width or DEFAULT_ART_COLUMNS
+        text_rows = sum(max(1, -(-cell_len(line) // width)) for line, _ in lines)
+
+        size = art_size_for(card.id, *self._art_box(text_rows))
+        if size is None:
+            # Too small for legible art, or no art mapped for this id. The
+            # card's words carry it either way - never a blank box
+            # (M11.5c).
+            return text
+        pixels = render_card_pixels(card.id, size)
         if pixels is None:  # defensive - every card in the deck has art
             return text
         return Group(pixels, Text(""), text)

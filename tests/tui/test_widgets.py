@@ -35,7 +35,7 @@ def test_every_card_has_bundled_art_that_renders():
         relative_path = art_relative_path(card.id)
         assert relative_path is not None
         assert relative_path.endswith(".png")
-        assert render_card_pixels(card.id, (22, 17)) is not None
+        assert render_card_pixels(card.id, (22, 34)) is not None
 
 
 @pytest.mark.parametrize(
