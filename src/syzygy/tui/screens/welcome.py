@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from textual import work
 from textual.app import ComposeResult
 from textual.containers import Center, Middle, Vertical
 from textual.widgets import Footer, Static
 
 from syzygy.tui.screens.base import SyzygyScreen
+from syzygy.tui.screens.model_setup import load_status
 
 BANNER = r"""
  ███████ ██    ██ ███████ ██    ██  ██████  ██    ██
@@ -16,12 +18,20 @@ BANNER = r"""
  ███████    ██    ███████    ██     ██████     ██
 """
 
+#: A first-launch nudge, not a gate (M10.4c/AGENTS.md: "the ritual still
+#: never requires a model configured") - shown only when nothing has ever
+#: been selected or stored, so a returning user who deliberately chose
+#: fixture doesn't see it again.
+NO_MODEL_CONFIGURED_NUDGE = (
+    "No model configured — press [M] to set one up, or continue with sample readings."
+)
+
 
 class WelcomeScreen(SyzygyScreen):
     """`SELF` is the first point of the alignment; nothing else can
     resolve until a profile exists."""
 
-    BINDINGS = [("n", "create_profile", "create profile")]
+    BINDINGS = [("n", "create_profile", "create profile"), ("m", "model", "model")]
 
     def compose(self) -> ComposeResult:
         with Middle():
@@ -35,8 +45,41 @@ class WelcomeScreen(SyzygyScreen):
                         "drawn, or interpreted before one exists.",
                         classes="muted",
                     )
-                    yield Static("[N] Create profile     [Q] Quit", classes="keys", markup=False)
+                    yield Static("", id="welcome-model-nudge", classes="muted", markup=False)
+                    yield Static(
+                        "[N] Create profile     [M] Model     [Q] Quit",
+                        classes="keys",
+                        markup=False,
+                    )
         yield Footer()
+
+    def on_mount(self) -> None:
+        self._check_model_configured()
+
+    @work(thread=True, exclusive=True)
+    def _check_model_configured(self) -> None:
+        try:
+            status = load_status()
+        except ImportError:
+            # The `providers` extra isn't installed - fixture is the only
+            # provider that can possibly be active, so there's nothing to
+            # nudge about.
+            return
+        configured = (
+            status.active_provider_id != "fixture"
+            or status.openai_key_source is not None
+            or status.anthropic_key_source is not None
+        )
+        if not configured:
+            self.app.call_from_thread(self._show_nudge)
+
+    def _show_nudge(self) -> None:
+        if not self.is_mounted:
+            return
+        self.query_one("#welcome-model-nudge", Static).update(NO_MODEL_CONFIGURED_NUDGE)
 
     def action_create_profile(self) -> None:
         self.app.push_screen("profile_create")
+
+    def action_model(self) -> None:
+        self.app.push_screen("model_setup")

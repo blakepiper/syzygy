@@ -30,6 +30,7 @@ from syzygy.storage.profiles import list_profiles
 from syzygy.tui.screens.archive import ArchiveScreen
 from syzygy.tui.screens.chart import ChartScreen
 from syzygy.tui.screens.home import HomeScreen
+from syzygy.tui.screens.model_setup import ModelSetupScreen
 from syzygy.tui.screens.profile_create import ProfileCreateScreen
 from syzygy.tui.screens.profile_select import ProfileSelectScreen
 from syzygy.tui.screens.too_small import MIN_HEIGHT, MIN_WIDTH, TooSmallScreen
@@ -114,6 +115,7 @@ class SyzygyApp(App[None]):
         "home": HomeScreen,
         "chart": ChartScreen,
         "archive": ArchiveScreen,
+        "model_setup": ModelSetupScreen,
         "too_small": TooSmallScreen,
     }
 

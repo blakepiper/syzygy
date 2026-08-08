@@ -21,6 +21,7 @@ from syzygy.domain.astrology import RankedTransit, sign_for_longitude
 from syzygy.domain.reading import Reading, ReadingStatus
 from syzygy.storage.reading_service import rank_current_transits
 from syzygy.tui.screens.base import SyzygyScreen, TitleBar
+from syzygy.tui.screens.model_setup import ProviderStatus, load_status
 from syzygy.tui.widgets.alignment import AlignmentWidget
 from syzygy.tui.widgets.glyph import Glyph, format_degrees
 from syzygy.tui.widgets.transit_badge import TransitBadge
@@ -35,6 +36,7 @@ class HomeScreen(SyzygyScreen):
         ("c", "chart", "chart"),
         ("a", "archive", "archive"),
         ("p", "profiles", "profiles"),
+        ("m", "model", "model"),
     ]
 
     def __init__(self) -> None:
@@ -54,6 +56,7 @@ class HomeScreen(SyzygyScreen):
             with Horizontal(id="home-transits"):
                 pass
             yield Static("", id="home-status", classes="muted")
+            yield Static("", id="home-model-status", classes="muted", markup=False)
         with Center():
             yield Button(TURN_THE_WHEEL, id="primary-action", variant="primary")
         yield Footer()
@@ -62,12 +65,15 @@ class HomeScreen(SyzygyScreen):
         self._render_self()
         self._refresh_reading_state()
         self._load_sky()
+        self._load_model_status()
 
     def on_screen_resume(self) -> None:
         # Coming back from the wheel/reveal/reading flow: today's reading
-        # may now exist, which changes the primary action.
+        # may now exist, which changes the primary action. Coming back
+        # from model setup (M10.4), the active provider may have changed.
         super().on_screen_resume()
         self._refresh_reading_state()
+        self._load_model_status()
 
     # -- SELF -------------------------------------------------------------
 
@@ -140,6 +146,31 @@ class HomeScreen(SyzygyScreen):
         self.query_one("#home-sky", Static).update(f"Sky calculation failed - {message}")
         self.query_one("#primary-action", Button).disabled = True
 
+    # -- model provider status (M10.4) -------------------------------------
+
+    @work(thread=True, exclusive=True, group="model-status")
+    def _load_model_status(self) -> None:
+        try:
+            status = load_status()
+        except ImportError:
+            # The `providers` extra isn't installed - fixture is the only
+            # provider that can possibly be active, so say nothing more.
+            self.app.call_from_thread(self._model_status_resolved, None)
+            return
+        self.app.call_from_thread(self._model_status_resolved, status)
+
+    def _model_status_resolved(self, status: ProviderStatus | None) -> None:
+        if not self.is_mounted or status is None:
+            return
+        label = status.active_provider_id
+        if status.active_model_id:
+            label += f" ({status.active_model_id})"
+        text = f"Model: {label}"
+        if status.fallback_reason:
+            text += f" - falling back to fixture: {status.fallback_reason}"
+        text += "  ·  [M] configure"
+        self.query_one("#home-model-status", Static).update(text)
+
     # -- CHANCE -----------------------------------------------------------
 
     def _refresh_reading_state(self) -> None:
@@ -189,6 +220,9 @@ class HomeScreen(SyzygyScreen):
 
     def action_profiles(self) -> None:
         self.app.push_screen("profile_select")
+
+    def action_model(self) -> None:
+        self.app.push_screen("model_setup")
 
     def refresh_reading(self) -> None:
         """Re-read today's reading from storage (used after a draw)."""

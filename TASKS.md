@@ -170,7 +170,7 @@ The only credential either provider accepts from an app like Syzygy is a
 separate, separately-billed API key. Label this screen "API key," not
 "subscription," so it doesn't promise something that isn't possible.
 
-- [ ] M10.4a New screen, e.g. `src/syzygy/tui/screens/model_setup.py`:
+- [x] M10.4a New screen, e.g. `src/syzygy/tui/screens/model_setup.py`:
       list `fixture` (always available, "no model — canned copy"),
       `llama_cpp` (probe reachability at the default base URL the same
       way `syzygy model status` does, via
@@ -183,20 +183,36 @@ separate, separately-billed API key. Label this screen "API key," not
       `build_provider` — this screen is TUI plumbing around what
       `cli.py`'s `_cmd_model_*` functions already do, not new provider
       logic.
-- [ ] M10.4b Entry points: a binding from `HomeScreen` (e.g. `[M] Model`)
+      Note: `build_provider` requires a model id for `openai`/`anthropic`
+      (raises `ProviderBuildError` without one), so the key form also
+      collects a model id - `cli.py`'s `--model` flag has the same
+      requirement, this just surfaces it as a second input instead.
+- [x] M10.4b Entry points: a binding from `HomeScreen` (e.g. `[M] Model`)
       and from `WelcomeScreen`, plus surfacing *current* provider status
       somewhere reachable (mirrors `syzygy model status`'s output) so a
       user can tell whether they're on the fixture fallback and why.
-- [ ] M10.4c First-launch nudge, not a gate: if `on_mount` in
+      Implemented as a `#home-model-status` line on `HomeScreen` itself
+      (refreshed on mount and on screen resume) in addition to the full
+      status list inside `ModelSetupScreen` - both degrade to "say
+      nothing" rather than crash if the `providers` extra isn't installed
+      (`load_status` raises plain `ImportError` in that case, caught at
+      both call sites; `syzygy doctor` already had this same guard around
+      `_print_provider_status`, `default_services` does not - out of
+      scope here, that call site is unchanged).
+- [x] M10.4c First-launch nudge, not a gate: if `on_mount` in
       `SyzygyApp`/`WelcomeScreen` finds no saved selection and no stored
       key for either hosted provider, surface a one-line "no model
       configured — press [M] to set one up, or continue with sample
       readings" — never block profile creation or a reading on this,
       per `AGENTS.md`'s "the ritual still never requires a model
       configured."
-- [ ] M10.4d Tests: `Pilot`-driven walk through selecting `llama_cpp` with
+- [x] M10.4d Tests: `Pilot`-driven walk through selecting `llama_cpp` with
       a mocked-reachable probe, and selecting `openai`/`anthropic` with a
       fake key and asserting `store_api_key`/`save_selection` were called
       — no real network calls, no real keyring writes in the test suite
       (fixture the keyring backend the way `tests/interpretation/providers`
       already does, if it does).
+      Note: no interactive terminal was available in this environment to
+      manually click through the finished screen, so verification is
+      Pilot-only (`tests/tui/test_model_setup.py`, 9 tests) plus
+      `ruff`/`mypy`/`syzygy doctor` - the same limitation noted in M10.3a.
