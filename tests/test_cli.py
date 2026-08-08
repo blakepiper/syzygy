@@ -190,3 +190,103 @@ def test_model_status_reflects_the_active_selection(isolated_app_paths, capsys):
     assert exit_code == 0
     out = capsys.readouterr().out
     assert "active provider: llama_cpp (local-test)" in out
+
+
+# -- `syzygy profile delete` (M11.2d) ------------------------------------
+
+
+def _seed_profile(paths, profile_id: str = "p1", display_name: str = "Blake") -> None:
+    """Write a profile straight to the isolated database. Goes through the
+    storage layer rather than `profile create`, which would need Kerykeion
+    to calculate a real chart."""
+    import uuid
+    from datetime import UTC, datetime
+
+    from syzygy.domain.astrology import BirthData, NatalChart, NatalPlacement
+    from syzygy.domain.profile import Profile
+    from syzygy.storage.database import open_database
+    from syzygy.storage.profiles import insert_profile
+
+    birth = BirthData(
+        local_date="1990-08-07",
+        local_time="14:22:00",
+        place_label="Alexandria, Virginia, USA",
+        latitude=38.8048,
+        longitude=-77.0469,
+        timezone="America/New_York",
+    )
+    chart = NatalChart(
+        birth_data=birth,
+        placements=[NatalPlacement(body="Sun", sign="Leo", longitude=135.0, house=10)],
+        aspects=[],
+        ascendant_longitude=210.0,
+        midheaven_longitude=120.0,
+        astrology_engine="fixture",
+        astrology_engine_version="0",
+        chart_schema_version="natal-v1",
+    )
+    now = datetime(2026, 8, 7, 12, 0, tzinfo=UTC)
+    conn = open_database(paths.database_path)
+    try:
+        insert_profile(
+            conn,
+            Profile(
+                id=profile_id or str(uuid.uuid4()),
+                display_name=display_name,
+                birth_data=birth,
+                natal_chart=chart,
+                created_at_utc=now,
+                updated_at_utc=now,
+            ),
+        )
+    finally:
+        conn.close()
+
+
+def _saved_profile_ids(paths) -> list[str]:
+    from syzygy.storage.database import open_database
+    from syzygy.storage.profiles import list_profiles
+
+    conn = open_database(paths.database_path)
+    try:
+        return [profile.id for profile in list_profiles(conn)]
+    finally:
+        conn.close()
+
+
+def test_profile_delete_with_yes_deletes_without_prompting(isolated_app_paths, capsys):
+    _seed_profile(isolated_app_paths)
+
+    exit_code = main(["profile", "delete", "p1", "--yes"])
+
+    assert exit_code == 0
+    assert "Deleted profile p1" in capsys.readouterr().out
+    assert _saved_profile_ids(isolated_app_paths) == []
+
+
+def test_profile_delete_requires_the_name_to_confirm(isolated_app_paths, capsys, monkeypatch):
+    _seed_profile(isolated_app_paths)
+    monkeypatch.setattr("builtins.input", lambda *a, **k: "Blake")
+
+    exit_code = main(["profile", "delete", "p1"])
+
+    assert exit_code == 0
+    assert _saved_profile_ids(isolated_app_paths) == []
+
+
+def test_profile_delete_aborts_on_a_wrong_confirmation(isolated_app_paths, capsys, monkeypatch):
+    _seed_profile(isolated_app_paths)
+    monkeypatch.setattr("builtins.input", lambda *a, **k: "")
+
+    exit_code = main(["profile", "delete", "p1"])
+
+    assert exit_code == 1
+    assert "Not deleted." in capsys.readouterr().err
+    assert _saved_profile_ids(isolated_app_paths) == ["p1"]
+
+
+def test_profile_delete_reports_an_unknown_id(isolated_app_paths, capsys):
+    exit_code = main(["profile", "delete", "no-such-profile", "--yes"])
+
+    assert exit_code == 1
+    assert "no profile with id" in capsys.readouterr().err

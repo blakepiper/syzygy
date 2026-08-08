@@ -328,7 +328,7 @@ before assuming.
 `list_profiles` and no delete; `ProfileSelectScreen` is list-and-pick
 only.
 
-- [ ] M11.2a `delete_profile(conn, profile_id)` in
+- [x] M11.2a `delete_profile(conn, profile_id)` in
       `src/syzygy/storage/profiles.py`. Decide and document the fate of
       that profile's readings: readings are keyed by `profile_id`, so
       either cascade-delete them in the same transaction or refuse to
@@ -339,20 +339,49 @@ only.
       `src/syzygy/storage/migrations.py` already declares `ON DELETE
       CASCADE` (and whether `PRAGMA foreign_keys` is actually on in
       `database.py`) rather than assuming.
-- [ ] M11.2b TUI: `[D] Delete` on `ProfileSelectScreen` with a
+      Checked: `readings.profile_id` is a plain `REFERENCES profiles(id)`
+      with **no** `ON DELETE CASCADE`, and `PRAGMA foreign_keys = ON` *is*
+      set in `database.py::connect` — so a naive profile delete would have
+      raised `IntegrityError`. Cascading in SQL here rather than adding
+      the constraint: SQLite cannot add `ON DELETE CASCADE` to an existing
+      table without rebuilding it, which is a far larger and riskier
+      migration than two ordered statements, and it would bury a
+      destructive behavior in schema metadata where no reader of
+      `profiles.py` would see it. Readings are deleted first (foreign keys
+      are on, so the order is load-bearing), inside an explicit
+      `BEGIN`/`COMMIT` — connections are autocommit, same pattern as
+      `knowledge.store.replace_source`. Returns the number of readings
+      deleted; a missing profile is not an error. Added `count_readings`
+      alongside it for the confirmation copy.
+- [x] M11.2b TUI: `[D] Delete` on `ProfileSelectScreen` with a
       confirmation step that names the profile and the number of readings
       that will go with it. Deletion is destructive and irreversible —
       require an explicit confirm, never a single keypress.
-- [ ] M11.2c Handle deleting the *active* profile: clear
+      The confirm panel names the profile, its birth data, the reading
+      count, and whether it is the active profile. **CANCEL takes focus,
+      not DELETE** — a reflexive ENTER on a destructive prompt must not be
+      what destroys the data; `escape` also cancels. `[D]` on an empty
+      list rings the bell rather than opening a confirmation for nothing.
+- [x] M11.2c Handle deleting the *active* profile: clear
       `SyzygyServices`/app state and route back to profile selection (or
       the welcome screen if no profiles remain) rather than leaving a
       dangling `self.syzygy.profile`.
-- [ ] M11.2d CLI parity: `syzygy profile delete <id>` alongside the
+      Added `SyzygyApp.clear_profile()`. Deliberately does *not*
+      auto-select a survivor: which self is being read for is the user's
+      choice, never a side effect of a deletion. Deleting the last profile
+      switches to the welcome screen.
+- [x] M11.2d CLI parity: `syzygy profile delete <id>` alongside the
       existing `profile create`/`list`, with a `--yes` flag for the
       non-interactive path.
-- [ ] M11.2e Tests: storage-level delete (with and without readings), the
+      Interactive confirmation requires typing the profile's display name,
+      not just "y" — it is the only irreversible command in the CLI.
+- [x] M11.2e Tests: storage-level delete (with and without readings), the
       confirm-then-delete `Pilot` walk, and the active-profile-deleted
       state transition.
+      6 storage tests (including atomicity when the second statement
+      fails, via a connection proxy — `sqlite3.Connection.execute` is
+      read-only and cannot be monkeypatched), 8 TUI tests
+      (`tests/tui/test_profile_delete.py`), 4 CLI tests.
 
 ### M11.3 — `[M]` model setup: selecting llama.cpp does nothing
 

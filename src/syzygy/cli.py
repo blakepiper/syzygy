@@ -15,8 +15,10 @@ Commands implemented so far:
   manually-supplied birth data (Milestone 2 acceptance criterion,
   DESIGN.md section 20). Takes birth data directly via flags rather than
   a saved profile - it does not touch storage at all.
-- `syzygy profile create` / `syzygy profile list` - save/list profiles
-  (Milestone 4). Storage lives at `syzygy.config.default_app_paths()`.
+- `syzygy profile create` / `syzygy profile list` / `syzygy profile
+  delete` - save/list/delete profiles (Milestone 4; delete is M11.2 and
+  takes the profile's readings with it). Storage lives at
+  `syzygy.config.default_app_paths()`.
 - `syzygy chart` - print a saved profile's natal chart.
 - `syzygy knowledge ingest <pdf>` / `syzygy knowledge status` - ingest a
   Book of Thoth / companion-source PDF and inspect what has been ingested
@@ -215,6 +217,35 @@ def _cmd_profile_list(_args: argparse.Namespace) -> int:
             f"{profile.id}  {profile.display_name:20s} "
             f"{birth.local_date} {birth.local_time} {birth.place_label}"
         )
+    return 0
+
+
+def _cmd_profile_delete(args: argparse.Namespace) -> int:
+    from syzygy.storage.profiles import count_readings, delete_profile, get_profile
+
+    conn = _open_profile_db()
+    try:
+        profile = get_profile(conn, args.profile_id)
+        if profile is None:
+            print(f"no profile with id {args.profile_id!r}", file=sys.stderr)
+            return 1
+
+        readings = count_readings(conn, profile.id)
+        if not args.yes:
+            print(
+                f"This deletes {profile.display_name} ({profile.id}) and its "
+                f"{readings} reading(s). This cannot be undone."
+            )
+            answer = input("Type the profile's name to confirm: ").strip()
+            if answer != profile.display_name:
+                print("Not deleted.", file=sys.stderr)
+                return 1
+
+        deleted = delete_profile(conn, profile.id)
+    finally:
+        conn.close()
+
+    print(f"Deleted profile {profile.id} ({profile.display_name}) and {deleted} reading(s)")
     return 0
 
 
@@ -550,6 +581,17 @@ def build_parser() -> argparse.ArgumentParser:
 
     profile_list_parser = profile_subparsers.add_parser("list", help="list saved profiles")
     profile_list_parser.set_defaults(func=_cmd_profile_list)
+
+    profile_delete_parser = profile_subparsers.add_parser(
+        "delete", help="delete a profile and all of its readings (irreversible)"
+    )
+    profile_delete_parser.add_argument("profile_id", help="id from `syzygy profile list`")
+    profile_delete_parser.add_argument(
+        "--yes",
+        action="store_true",
+        help="skip the interactive confirmation (for non-interactive use)",
+    )
+    profile_delete_parser.set_defaults(func=_cmd_profile_delete)
 
     chart_parser = subparsers.add_parser("chart", help="print a saved profile's natal chart")
     chart_parser.add_argument(

@@ -78,3 +78,51 @@ def get_profile(conn: sqlite3.Connection, profile_id: str) -> Profile | None:
 def list_profiles(conn: sqlite3.Connection) -> list[Profile]:
     rows = conn.execute("SELECT * FROM profiles ORDER BY created_at").fetchall()
     return [_row_to_profile(row) for row in rows]
+
+
+def count_readings(conn: sqlite3.Connection, profile_id: str) -> int:
+    """How many readings would be destroyed along with `profile_id`.
+
+    Deleting a profile is irreversible and takes its readings with it, so
+    the caller is expected to show this number before asking the user to
+    confirm (M11.2b).
+    """
+    row = conn.execute(
+        "SELECT COUNT(*) AS total FROM readings WHERE profile_id = ?", (profile_id,)
+    ).fetchone()
+    return int(row["total"])
+
+
+def delete_profile(conn: sqlite3.Connection, profile_id: str) -> int:
+    """Delete `profile_id` and every reading belonging to it, atomically.
+    Returns the number of readings deleted. A missing profile is not an
+    error - the post-condition ("no such profile") already holds.
+
+    **Readings cascade.** A reading is an interpretation *of a particular
+    natal chart*; with the profile gone there is nothing left to interpret
+    it against, and its `profile_id` would dangle. The cascade is done
+    here in SQL rather than by the schema: `readings.profile_id` is a
+    plain `REFERENCES profiles(id)` with no `ON DELETE CASCADE`
+    (`storage/migrations.py` migration 1), and SQLite cannot add one to an
+    existing table without rebuilding it - which is a much larger, riskier
+    change than an explicit two-statement delete, and would bury a
+    destructive behavior in schema metadata where no reader of this module
+    would see it. `PRAGMA foreign_keys = ON` (see `storage/database.py`)
+    means the order below is load-bearing: readings first, then the
+    profile.
+
+    As in `knowledge.store.replace_source`, atomicity needs an explicit
+    `BEGIN`/`COMMIT` because connections are opened in autocommit mode.
+    """
+    conn.execute("BEGIN")
+    try:
+        deleted_readings = conn.execute(
+            "DELETE FROM readings WHERE profile_id = ?", (profile_id,)
+        ).rowcount
+        conn.execute("DELETE FROM profiles WHERE id = ?", (profile_id,))
+    except Exception:
+        conn.execute("ROLLBACK")
+        raise
+    else:
+        conn.execute("COMMIT")
+    return deleted_readings

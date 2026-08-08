@@ -165,6 +165,16 @@ class SyzygyApp(App[None]):
     def set_profile(self, profile: Profile) -> None:
         self.profile = profile
 
+    def clear_profile(self) -> None:
+        """Forget the active profile (M11.2c: it was just deleted).
+
+        Screens read `self.profile` to decide what to render and every one
+        of them already handles `None`, so this is the whole of it - but it
+        must happen, or the app keeps a `Profile` whose row no longer
+        exists and would try to write readings against a dangling id.
+        """
+        self.profile = None
+
     def todays_reading(self) -> Reading | None:
         """Today's canonical reading for the active profile, if it exists.
 

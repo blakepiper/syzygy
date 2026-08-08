@@ -186,6 +186,22 @@ TarotCardWidget {
     color: $syz-bone;
 }
 
+/* Profile selection and deletion (M11.2) */
+
+#profile-select-body {
+    height: 1fr;
+}
+
+#profile-delete-confirm {
+    height: auto;
+    padding: 1 0;
+}
+
+#delete-body {
+    padding: 0 2;
+    color: $syz-bone;
+}
+
 /* Home */
 
 #home-body {
