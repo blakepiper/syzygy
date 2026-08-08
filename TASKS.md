@@ -297,7 +297,21 @@ force-split six ways; see the comment above
       (the Ascendant already reaches the model as `ascendant_sign`), and
       `tests/interpretation/test_context_builder.py`'s fixture chart no
       longer invents angle placements the real engine never produces.
-- [ ] M7.7 `src/syzygy/interpretation/providers/llama_cpp.py` — depends on M7.5, M7.6
+- [x] M7.7 `src/syzygy/interpretation/providers/llama_cpp.py` — depends on M7.5, M7.6.
+      Talks to `llama-server`'s OpenAI-compatible `/v1/chat/completions` over
+      plain `httpx` (no SDK), constrained with `response_format:
+      json_schema` built from `prompts.RESPONSE_JSON_SCHEMA`, and defaults to
+      `http://127.0.0.1:8080/v1` (localhost-only, DESIGN.md §28). Response
+      parsing/validation (markdown-fence tolerance, provenance stamping, the
+      single repair-turn retry of DESIGN.md §13.4) now lives in a new shared
+      `syzygy.interpretation.providers.structured_output` module, written so
+      `openai.py`/`anthropic.py` (M7.8/M7.9) reuse it rather than
+      reimplementing the same validate-then-repair logic per provider.
+      Tests use `httpx.MockTransport` via a test-only `transport=` argument
+      on the provider — no real server, no new test dependency. Also added
+      `tests/interpretation/conftest.py` (`sample_context`/`build_sample_context`)
+      so provider tests share one fixture context instead of each
+      reimplementing `FixtureProvider`'s test helper.
 - [ ] M7.8 `src/syzygy/interpretation/providers/openai.py` — depends on M7.5, M7.6
 - [ ] M7.9 `src/syzygy/interpretation/providers/anthropic.py` — depends on M7.5, M7.6
 - [ ] M7.10 `syzygy model status` / `syzygy model configure` CLI
