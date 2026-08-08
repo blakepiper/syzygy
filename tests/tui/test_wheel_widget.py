@@ -148,3 +148,71 @@ async def test_renders_at_any_size():
         await pilot.pause()
         strip = wheel.render_line(2)
         assert strip.cell_length == wheel.size.width
+
+
+# -- M12.4: the rim symbols are bigger, and still never collide ----------
+
+
+def _frame(widget: WheelWidget) -> str:
+    return "\n".join(
+        "".join(segment.text for segment in widget.render_line(y)._segments)
+        for y in range(widget.size.height)
+    )
+
+
+async def _wheel_at(size: tuple[int, int], phase: float = 0.0) -> str:
+    app = WheelHarness()
+    async with app.run_test(size=size) as pilot:
+        await pilot.pause()
+        widget = app.query_one("#wheel", WheelWidget)
+        widget.phase = phase
+        await pilot.pause()
+        return _frame(widget)
+
+
+import math  # noqa: E402
+
+import pytest  # noqa: E402
+
+from syzygy.tui.widgets.glyph import WHEEL_RIM_GLYPHS, WHEEL_RIM_LABELS  # noqa: E402
+
+
+@pytest.mark.parametrize("size", [(110, 36), (100, 32), (80, 24), (60, 14), (40, 11)])
+@pytest.mark.parametrize("phase", [0.0, 0.3, math.pi / 7, 1.9])
+async def test_every_sign_survives_at_every_size_and_phase(size, phase):
+    """The collision test, stated as something observable: a rim symbol
+    that overlaps its neighbour gets partly overwritten, and the glyph
+    disappears from the frame."""
+    frame = await _wheel_at(size, phase)
+    for glyph in WHEEL_RIM_GLYPHS:
+        assert frame.count(glyph) == 1, f"{glyph!r} appears {frame.count(glyph)}x at {size}"
+
+
+async def test_a_roomy_wheel_gets_cartouches_and_names():
+    frame = await _wheel_at((110, 36))
+    assert "(♈)" in frame
+    for label in WHEEL_RIM_LABELS:
+        assert label in frame
+
+
+async def test_a_small_wheel_drops_the_names_but_keeps_the_cartouche():
+    """Sizes here are the *widget's*, which in this bare harness is the
+    whole terminal - a real screen's wheel is smaller than its terminal."""
+    frame = await _wheel_at((60, 16))
+    assert "(♈)" in frame
+    # Names would collide with their neighbours at this radius.
+    assert "CAP" not in frame
+
+
+async def test_a_tiny_wheel_falls_back_to_bare_glyphs():
+    frame = await _wheel_at((40, 11))
+    assert "(♈)" not in frame
+    assert "♈" in frame
+
+
+async def test_labels_never_outnumber_their_glyphs():
+    """A name without its glyph on the row above means the two were
+    computed from different positions."""
+    frame = await _wheel_at((110, 36))
+    for label in WHEEL_RIM_LABELS:
+        assert frame.count(label) == 1

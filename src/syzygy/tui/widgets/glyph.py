@@ -97,6 +97,12 @@ ELEMENT_GLYPHS: dict[str, str] = {
 WHEEL_RIM_GLYPHS: tuple[str, ...] = tuple(SIGN_GLYPHS.values())
 WHEEL_RIM_ASCII: tuple[str, ...] = tuple("ABCDEFGHIJKL")
 
+#: Three-letter sign names, in the same zodiacal order as the rim. The
+#: Wheel draws these under each glyph when it has the room (M12.4): a
+#: terminal cannot scale a glyph, so a symbol is made *larger* by giving
+#: it more cells, and a name is the most useful thing to fill them with.
+WHEEL_RIM_LABELS: tuple[str, ...] = tuple(name[:3].upper() for name in SIGN_GLYPHS)
+
 
 @dataclass(frozen=True)
 class GlyphSet:
@@ -130,6 +136,10 @@ class GlyphSet:
     @property
     def rim(self) -> tuple[str, ...]:
         return WHEEL_RIM_GLYPHS if self.unicode else WHEEL_RIM_ASCII
+
+    @property
+    def rim_labels(self) -> tuple[str, ...]:
+        return WHEEL_RIM_LABELS
 
 
 UNICODE_GLYPHS = GlyphSet(unicode=True)

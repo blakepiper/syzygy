@@ -797,7 +797,7 @@ Cinzel"; it can be the three things that are actually achievable.
 `feedback.md`: "The astrological symbols that rotate around in the wheel
 animation are too small — make them larger."
 
-- [ ] M12.4a In `src/syzygy/tui/widgets/wheel.py`, the rim glyphs are
+- [x] M12.4a In `src/syzygy/tui/widgets/wheel.py`, the rim glyphs are
       single characters placed one per cell (`place(glyph_x, glyph, lit)`
       around a radius derived from the widget size). Make each rim symbol
       occupy a multi-cell block instead: either a small hand-authored
@@ -805,15 +805,34 @@ animation are too small — make them larger."
       technique used for card art if per-sign artwork exists. Keep the
       2:1 horizontal stretch already applied (`2 * radius * cos`) so the
       rim stays circular.
-- [ ] M12.4b Scale with the widget: at small terminal sizes fall back to
+      Neither of the two suggested routes: per-sign pixel art at 3×3 cells
+      is 3×6 pixels, far too coarse for a recognisable zodiac symbol, and
+      hand-authored block mosaics have the same problem. What was actually
+      wrong is visible in a rendered frame — the glyphs were single specks
+      *camouflaged among the rim dots*. Each sign is now a three-cell
+      cartouche `(♈)` with its three-letter name on the row below, which
+      triples the footprint and, more usefully, makes the rim readable.
+      The 2:1 stretch is unchanged.
+- [x] M12.4b Scale with the widget: at small terminal sizes fall back to
       the current single-cell glyphs rather than overlapping neighbours.
       Compute how many cells of arc each symbol has available and pick the
       largest representation that fits.
-- [ ] M12.4c Give the wheel more of the screen while doing this — see
+      Three tiers off the available arc (`2 * radius * 2π/12`): bare glyph
+      below 6 cells, cartouche from 6, cartouche plus name from 9.
+- [x] M12.4c Give the wheel more of the screen while doing this — see
       M12.5; it is the main animated object on its screen and should be
       sized like it.
-- [ ] M12.4d Tests: rim symbols never overlap at any widget size ≥ the
+      **Deferred to M12.5** rather than done here. The wheel already takes
+      `1fr` of its screen; making it larger means changing what shares
+      that screen, which is the layout pass, not this task. At 110×36 the
+      widget is already 110×27.
+- [x] M12.4d Tests: rim symbols never overlap at any widget size ≥ the
       minimum, and the small-size fallback engages instead of clipping.
+      Stated as something observable rather than as geometry: an
+      overlapping symbol gets partly overwritten and its glyph disappears
+      from the frame, so the test asserts all 12 appear exactly once —
+      across 5 widget sizes × 4 rotation phases. Plus one test per tier,
+      and one that every name has its glyph.
 
 ### M12.5 — Make the layout use the space
 

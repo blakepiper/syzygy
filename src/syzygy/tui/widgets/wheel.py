@@ -54,6 +54,10 @@ FRAME_INTERVAL = 1 / 24
 _RIM_DIM = Style(color=palette.DIM)
 _RIM_LIT = Style(color=palette.ACCENT)
 _RIM_HOT = Style(color=palette.EMBER, bold=True)
+#: The sign names under the rim glyphs (M12.4). Dimmer than the glyph
+#: itself so the symbol stays the thing the eye lands on.
+_RIM_LABEL = Style(color=palette.MUTED)
+_RIM_LABEL_HOT = Style(color=palette.OXIDE, bold=True)
 _HUB = Style(color=palette.LUNAR)
 _HUB_RELEASED = Style(color=palette.EMBER, bold=True)
 _POINTER = Style(color=palette.BONE, bold=True)
@@ -224,6 +228,12 @@ class WheelWidget(Widget, can_focus=True):
             if 0 <= x < width:
                 cells[x] = (char, style)
 
+        def place_text(center: int, text: str, style: Style) -> None:
+            """Write `text` centred on column `center`."""
+            start = center - (len(text) - 1) // 2
+            for offset, char in enumerate(text):
+                place(start + offset, char, style)
+
         # The rim itself: every cell within half a row of the circle.
         for x in range(width):
             dx = (x - center_x) / 2
@@ -233,15 +243,33 @@ class WheelWidget(Widget, can_focus=True):
                 place(x, "·", _RIM_DIM)
 
         # The turning glyphs, evenly spaced around the rim.
+        #
+        # A terminal cannot scale a glyph, so a sign is made *larger*
+        # (M12.4) by giving it more cells: a bracketed cartouche instead of
+        # a lone character, and its three-letter name on the row below when
+        # the rim is big enough. Both are gated on the arc actually
+        # available between neighbours - at small sizes they would collide,
+        # and a single character is better than an illegible pile.
         rim = self._glyphs.rim
+        labels = self._glyphs.rim_labels
+        # Horizontal arc between adjacent signs. The horizontal axis is
+        # plotted at twice the radius, so the widest gap is that stretch
+        # times the angular step.
+        arc_cells = 2 * radius * (2 * math.pi / len(rim))
+        cartouche = arc_cells >= 6
+        labelled = cartouche and arc_cells >= 9 and radius >= 6
+
         lit = _RIM_HOT if self.energy > 0.55 else _RIM_LIT
         for index, glyph in enumerate(rim):
             angle = self.phase + index * (2 * math.pi / len(rim))
             glyph_y = round(center_y + radius * math.sin(angle))
-            if glyph_y != y:
-                continue
             glyph_x = round(center_x + 2 * radius * math.cos(angle))
-            place(glyph_x, glyph, lit)
+            if glyph_y == y:
+                place_text(glyph_x, f"({glyph})" if cartouche else glyph, lit)
+            elif labelled and glyph_y + 1 == y and index < len(labels):
+                # The name sits inside the rim, below its glyph.
+                label_style = _RIM_LABEL_HOT if self.energy > 0.55 else _RIM_LABEL
+                place_text(glyph_x, labels[index], label_style)
 
         # A fixed pointer at twelve o'clock: the rim moves, this does not.
         if y == round(center_y - radius) - 1 and y >= 0:
