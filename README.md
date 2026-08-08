@@ -1,4 +1,8 @@
-<img src="logo.svg" alt="Syzygy" width="100%">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="logo-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="logo-light.svg">
+  <img alt="Syzygy" src="logo-light.svg" width="100%">
+</picture>
 
 # Syzygy
 
