@@ -71,7 +71,20 @@ def isolated_environment(fake_keyring, fake_settings_path, reachable_llama_cpp):
 
 
 def _saved_selection(settings_path) -> dict:
-    return json.loads(settings_path.read_text())
+    """The provider section of the settings document.
+
+    Since M15 the file is namespaced - audio settings share it - so the
+    selection is no longer the whole document.
+    """
+    return json.loads(settings_path.read_text())["provider"]
+
+
+def _no_selection(settings_path) -> bool:
+    """`model use fixture` clears the selection but leaves the file, since
+    other subsystems keep preferences there."""
+    from syzygy.interpretation.providers.selection import load_selection
+
+    return load_selection(settings_path) is None
 
 
 async def test_home_screen_m_opens_model_setup(app: SyzygyApp, profile):
@@ -205,7 +218,7 @@ async def test_saving_a_key_without_a_model_id_shows_an_inline_error(
         await pilot.pause()
 
         assert "model id is required" in text_of(q(pilot, "#key-form-error", Static))
-        assert not fake_settings_path.exists()
+        assert _no_selection(fake_settings_path)
 
 
 async def test_cancel_returns_to_the_provider_list(app: SyzygyApp):
@@ -464,5 +477,5 @@ async def test_selecting_fixture_says_what_it_means(app: SyzygyApp, fake_setting
         await pilot.press("enter")
         await settle(pilot)
 
-        assert not fake_settings_path.exists()
+        assert _no_selection(fake_settings_path)
         assert "canned copy" in text_of(q(pilot, "#model-message", Static))

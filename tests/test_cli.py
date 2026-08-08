@@ -148,11 +148,17 @@ def isolated_app_paths(tmp_path, monkeypatch):
 
 
 def test_model_use_fixture_clears_any_saved_selection(isolated_app_paths, capsys):
+    """The legacy flat settings shape, which existing installs still have
+    on disk (M15: the file is namespaced now, but must keep loading)."""
+    from syzygy.interpretation.providers.selection import load_selection
+
     isolated_app_paths.settings_path.write_text('{"provider_id": "openai", "model_id": "x"}')
 
     exit_code = main(["model", "use", "fixture"])
     assert exit_code == 0
-    assert not isolated_app_paths.settings_path.exists()
+    # The file survives - other subsystems keep preferences there now -
+    # but it no longer names a provider.
+    assert load_selection(isolated_app_paths.settings_path) is None
 
 
 def test_model_use_llama_cpp_saves_a_selection(isolated_app_paths, capsys):
@@ -162,7 +168,11 @@ def test_model_use_llama_cpp_saves_a_selection(isolated_app_paths, capsys):
     import json
 
     saved = json.loads(isolated_app_paths.settings_path.read_text())
-    assert saved == {"provider_id": "llama_cpp", "model_id": "local-test", "base_url": None}
+    assert saved["provider"] == {
+        "provider_id": "llama_cpp",
+        "model_id": "local-test",
+        "base_url": None,
+    }
 
 
 def test_model_use_openai_without_a_model_id_warns_but_still_saves(isolated_app_paths, capsys):

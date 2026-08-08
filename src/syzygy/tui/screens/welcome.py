@@ -45,15 +45,22 @@ class WelcomeScreen(SyzygyScreen):
                             classes="muted",
                         )
                         yield Static("", id="welcome-model-nudge", classes="muted", markup=False)
-                        yield Static(
-                            "[N] Create profile     [M] Model     [Q] Quit",
-                            classes="keys",
-                            markup=False,
-                        )
+                        yield Static("", id="welcome-keys", classes="keys", markup=False)
         yield Footer()
 
     def on_mount(self) -> None:
+        self._render_keys()
         self._check_model_configured()
+
+    def _render_keys(self) -> None:
+        """The key line, including the mute toggle when there is sound to
+        mute (M15.1d). A build with no audio does not advertise a key that
+        would do nothing."""
+        keys = ["[N] Create profile", "[M] Model"]
+        if self.syzygy.theme_player.available:
+            keys.append("[S] Sound")
+        keys.append("[Q] Quit")
+        self.query_one("#welcome-keys", Static).update("     ".join(keys))
 
     @work(thread=True, exclusive=True)
     def _check_model_configured(self) -> None:

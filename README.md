@@ -39,7 +39,7 @@ pip install .                   # base install: the TUI, CLI, local astrology,
                                  # and the fixture interpretation provider
 ```
 
-Two optional extras add capability without being required for the core
+Three optional extras add capability without being required for the core
 ritual:
 
 ```bash
@@ -50,7 +50,13 @@ pip install ".[providers]"      # OpenAI / Anthropic hosted providers
 pip install ".[geocoding]"      # birthplace geocoding during profile
                                  # creation, instead of entering
                                  # latitude/longitude/timezone by hand
+pip install ".[audio]"          # the looping theme music
 ```
+
+Without `[audio]` the application runs exactly as it otherwise would, in
+silence, and does not offer a mute key. `syzygy --no-audio` starts a
+session without music whether or not the extra is installed, and `[S]`
+mutes and unmutes at any point (the choice is remembered).
 
 Then run `syzygy doctor` to confirm the install is healthy, and `syzygy`
 to launch the interface:
@@ -110,7 +116,7 @@ syzygy knowledge status
 ## Development
 
 ```bash
-pip install -e ".[dev,providers,geocoding]"
+pip install -e ".[dev,providers,geocoding,audio]"
 pytest
 ruff check .
 mypy src

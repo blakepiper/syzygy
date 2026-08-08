@@ -8,7 +8,8 @@ contain domain logic itself.
 Commands implemented so far:
 
 - `syzygy` (no arguments) or `syzygy tui` - launch the terminal interface
-  (DESIGN.md section 20's first listed command).
+  (DESIGN.md section 20's first listed command). `--no-audio` starts it
+  without the looping theme (M15); `[S]` toggles it in-app.
 - `syzygy dev deck` - enumerate the canonical 78-card deck (Milestone 1
   acceptance criterion).
 - `syzygy dev astrology` - compute a natal chart and current transits for
@@ -71,10 +72,12 @@ if TYPE_CHECKING:
     from syzygy.domain.astrology import NatalChart
 
 
-def _cmd_tui(_args: argparse.Namespace) -> int:
+def _cmd_tui(args: argparse.Namespace) -> int:
     from syzygy.tui.app import run
 
-    run()
+    # `getattr`: `syzygy` with no arguments dispatches here too, and that
+    # namespace has no flags of its own.
+    run(audio=not getattr(args, "no_audio", False))
     return 0
 
 
@@ -697,6 +700,11 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command")
 
     tui_parser = subparsers.add_parser("tui", help="launch the terminal interface (default)")
+    tui_parser.add_argument(
+        "--no-audio",
+        action="store_true",
+        help="start with no theme music (the [S] key toggles it per session)",
+    )
     tui_parser.set_defaults(func=_cmd_tui)
 
     dev_parser = subparsers.add_parser("dev", help="development/debug utilities")

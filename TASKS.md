@@ -1187,7 +1187,7 @@ today's reading."
 play on a loop the whole time the application is running." `theme.mp3` is
 at the repo root and untracked.
 
-- [ ] M15.1a Choose the playback mechanism and record the reasoning. There
+- [x] M15.1a Choose the playback mechanism and record the reasoning. There
       is no audio in the stack today, and every option has a real cost:
       a Python audio library adds a runtime dependency that must be
       AGPL-compatible (`AGENTS.md`) and cross-platform; shelling out to a
@@ -1197,22 +1197,65 @@ at the repo root and untracked.
       and `providers` are already scoped, so the app runs unchanged
       without it — a terminal divination app must not fail to start
       because it cannot open an audio device.
-- [ ] M15.1b Bundle `theme.mp3` under `src/syzygy/resources/audio/` and
+      Took the recommendation: an optional `audio` extra with
+      `just_playback` (MIT, AGPL-compatible), which wraps miniaudio,
+      decodes MP3 itself, and ships prebuilt wheels for glibc **and** musl
+      Linux, macOS on both architectures, and Windows — verified against
+      PyPI, so no compiler is needed on any mainstream target. Reasoning
+      is in `syzygy/audio.py`'s module docstring.
+      The subprocess route was rejected on the *mute* requirement
+      specifically, not on portability alone: killing a player loses the
+      playback position, so every toggle would restart a 2:47 track from
+      the top. `just_playback` has real `pause`/`resume`.
+- [x] M15.1b Bundle `theme.mp3` under `src/syzygy/resources/audio/` and
       commit it (it is untracked today). Note its size in the task — it
       ships in every wheel — and confirm the licensing of the track itself
       is settled for AGPL redistribution.
-- [ ] M15.1c Play on app start, loop seamlessly, stop cleanly on exit
+      3.5 MB, taking the wheel from 23.3 MB to 26.8 MB. **Licensing
+      confirmed by the user (2026-08-08): the track is their own work, so
+      there is no third-party right to clear.**
+- [x] M15.1c Play on app start, loop seamlessly, stop cleanly on exit
       (including on `[Q]`, on an exception, and on SIGINT — a process that
       exits leaving audio playing is a bug). Playback runs off the event
       loop and must never block or delay the TUI.
-- [ ] M15.1d Make it controllable and off-by-default-recoverable: a mute
+      Started from `SyzygyApp.on_mount`, looped via `loop_at_end(True)`,
+      and stopped in two places on purpose: `on_unmount` for the tidy
+      path, and a `finally` in `tui.app.run` that also covers an unhandled
+      exception and SIGINT. `stop()` is idempotent, so both firing is
+      harmless. Playback is on the library's own thread; the TUI only ever
+      calls `toggle_mute()`/`stop()`.
+- [x] M15.1d Make it controllable and off-by-default-recoverable: a mute
       toggle bound in the TUI, a persisted setting in
       `AppPaths.settings_path`, and a `--no-audio` CLI flag. Decide
       whether audio defaults to on or off on first launch — recommendation
       is on, since it is an explicit product intent, with the mute key
       advertised on the welcome screen.
-- [ ] M15.1e Degrade silently: no audio device, no extra installed, no
+      Defaults to on, per the recommendation. `[S]` is an app-level
+      binding so it works on every screen (a focused `Input` still takes a
+      literal "s", same rule as `q`), mute is `pause` so unmuting resumes
+      rather than restarting, and the choice persists.
+      **This needed a prerequisite that was not in the plan.**
+      `settings.json` *was* the provider selection — `save_selection` wrote
+      the whole file — so writing a second setting to it would have
+      silently destroyed the first. Added `syzygy.settings`, a namespaced
+      read-modify-write layer that preserves keys it does not know about,
+      and moved the provider selection under a `"provider"` key while
+      still reading the legacy flat shape, so an existing install does not
+      lose its configured provider on upgrade. M14.1e's
+      `animations = full|reduced|off` now has somewhere to live too.
+- [x] M15.1e Degrade silently: no audio device, no extra installed, no
       system player, or a headless/CI environment must all result in a
       silent app, never a crash or an error dialog. Tests cover the
       no-audio path (CI has no audio device, so that is the path the test
       suite will actually exercise) and the mute setting round-trip.
+      Every failure path resolves to `SilentTheme`, which satisfies the
+      same protocol and does nothing: extra missing, device missing,
+      backend raising, theme unreadable from a zipped wheel, `--no-audio`.
+      A backend that throws *mid-session* (a headset unplugged) is
+      swallowed too. `SilentTheme` reports `available = False`, so the
+      welcome screen does not advertise a key that would do nothing and
+      `[S]` says "no audio on this install" rather than being dead.
+      28 tests (`tests/test_audio.py`, `tests/tui/test_audio_binding.py`),
+      all against fakes — plus a manual end-to-end check against the real
+      device at volume 0: plays, mute holds position, unmute resumes,
+      preference persists, stop releases the device.

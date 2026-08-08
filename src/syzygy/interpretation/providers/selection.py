@@ -28,6 +28,7 @@ from pydantic import BaseModel
 from syzygy.interpretation.base import InterpretationProvider
 from syzygy.interpretation.providers.api_keys import MissingAPIKeyError
 from syzygy.interpretation.providers.fixture import FixtureProvider
+from syzygy.settings import PROVIDER_SECTION, load_document, save_document, save_section
 
 FIXTURE_PROVIDER_ID: Final = "fixture"
 LLAMA_CPP_PROVIDER_ID: Final = "llama_cpp"
@@ -69,26 +70,49 @@ class ProviderBuildError(RuntimeError):
 
 def load_selection(path: Path) -> ProviderSelection | None:
     """`None` if nothing has been selected yet, or the file is missing or
-    unreadable - never raises."""
-    try:
-        raw = path.read_text()
-    except OSError:
+    unreadable - never raises.
+
+    Reads both shapes of the settings file. Before M15 the selection *was*
+    the whole document (`{"provider_id": ...}`); it now lives under a
+    `"provider"` key so other preferences can share the file. The legacy
+    form is still accepted so an existing install does not silently lose
+    its configured provider on upgrade.
+    """
+    document = load_document(path)
+    if not document:
         return None
+
+    section = document.get(PROVIDER_SECTION)
+    if not isinstance(section, dict):
+        section = document if "provider_id" in document else None
+    if section is None:
+        return None
+
     try:
-        return ProviderSelection.model_validate_json(raw)
+        return ProviderSelection.model_validate(section)
     except ValueError:
         return None
 
 
 def save_selection(path: Path, selection: ProviderSelection) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(selection.model_dump_json())
+    save_section(path, PROVIDER_SECTION, selection.model_dump())
 
 
 def clear_selection(path: Path) -> None:
     """Revert to no selection (`resolve_selected_provider` then always
-    returns `FixtureProvider`). Safe to call if nothing was ever saved."""
-    path.unlink(missing_ok=True)
+    returns `FixtureProvider`). Safe to call if nothing was ever saved.
+
+    Removes the provider section rather than the file: other subsystems
+    keep their preferences there now.
+    """
+    save_section(path, PROVIDER_SECTION, None)
+    # A legacy flat document has no section to remove - its keys *are* the
+    # selection, so they have to go individually.
+    document = load_document(path)
+    if "provider_id" in document:
+        for key in ("provider_id", "model_id", "base_url"):
+            document.pop(key, None)
+        save_document(path, document)
 
 
 def build_provider(selection: ProviderSelection) -> InterpretationProvider:

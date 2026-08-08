@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 from textual.app import App
 
 from syzygy.astrology.base import AstrologyEngine
+from syzygy.audio import SilentTheme, ThemePlayer
 from syzygy.clock import Clock, SystemClock
 from syzygy.domain.profile import Profile
 from syzygy.domain.reading import Reading
@@ -102,11 +103,14 @@ class SyzygyApp(App[None]):
     CSS_PATH = "syzygy.tcss"
     TITLE = "SYZYGY"
 
-    #: Declared once here, not per-screen, so quit works identically on
+    #: Declared once here, not per-screen, so these work identically on
     #: every screen by construction (M10.2). A focused `Input` still gets
-    #: first refusal at a keystroke, so typing a literal "q" into a form
-    #: field is unaffected.
-    BINDINGS = [("q", "quit", "quit")]
+    #: first refusal at a keystroke, so typing a literal "q" or "s" into a
+    #: form field is unaffected.
+    BINDINGS = [
+        ("q", "quit", "quit"),
+        ("s", "toggle_sound", "sound"),
+    ]
 
     SCREENS = {
         "welcome": WelcomeScreen,
@@ -124,13 +128,20 @@ class SyzygyApp(App[None]):
         services: SyzygyServices,
         *,
         glyphs: GlyphSet | None = None,
+        theme_player: ThemePlayer | None = None,
     ) -> None:
         super().__init__()
         self.services = services
         self.glyphs = glyphs or default_glyphs()
         self.profile: Profile | None = None
+        #: Silent unless a caller supplies a real one. Tests and CI get
+        #: silence by construction rather than by mocking a device.
+        # Not `self.theme`: Textual's `App.theme` is its own colour-theme
+        # name, and shadowing it breaks the app's styling.
+        self.theme_player = theme_player or SilentTheme("no theme player supplied")
 
     def on_mount(self) -> None:
+        self.theme_player.start()
         profiles = list_profiles(self.services.conn)
         if not profiles:
             self.push_screen("welcome")
@@ -162,6 +173,25 @@ class SyzygyApp(App[None]):
             # text from `on_mount`, once it has actually mounted.
             current.update_size(width, height)
 
+    def action_toggle_sound(self) -> None:
+        """Mute/unmute the theme (M15.1d).
+
+        A visible response either way: on a build with no audio the key
+        is not silently dead, it says why.
+        """
+        if not self.theme_player.available:
+            self.bell()
+            self.notify("No audio on this install.", severity="information", timeout=3)
+            return
+        muted = self.theme_player.toggle_mute()
+        self.notify("Theme muted." if muted else "Theme unmuted.", timeout=2)
+
+    def on_unmount(self) -> None:
+        """Release the audio device however the app is ending - `[Q]`, an
+        exception, or a signal. `run()` stops it again in a `finally`;
+        `stop()` is idempotent."""
+        self.theme_player.stop()
+
     def set_profile(self, profile: Profile) -> None:
         self.profile = profile
 
@@ -186,10 +216,25 @@ class SyzygyApp(App[None]):
         return readings_store.get_today(self.services.conn, self.profile.id, local_date)
 
 
-def run(database_path: Path | str | None = None) -> None:
-    """Launch the TUI against the local database and close it cleanly."""
+def run(database_path: Path | str | None = None, *, audio: bool = True) -> None:
+    """Launch the TUI against the local database and close it cleanly.
+
+    The theme is stopped in a `finally`, so the device is released on a
+    normal quit, on an unhandled exception, and on SIGINT alike - not only
+    on the tidy path through `on_unmount`.
+    """
+    from syzygy.audio import create_theme_player
+    from syzygy.config import default_app_paths
+
     services = default_services(database_path)
+    settings_path = (
+        default_app_paths().settings_path
+        if database_path is None
+        else Path(database_path).with_name("settings.json")
+    )
+    theme = create_theme_player(settings_path, enabled=audio)
     try:
-        SyzygyApp(services).run()
+        SyzygyApp(services, theme_player=theme).run()
     finally:
+        theme.stop()
         services.conn.close()
