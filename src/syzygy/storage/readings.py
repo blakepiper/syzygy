@@ -99,6 +99,32 @@ def get_today(conn: sqlite3.Connection, profile_id: str, local_date: str) -> Rea
     return _row_to_reading(row) if row is not None else None
 
 
+def get_by_id(conn: sqlite3.Connection, reading_id: str) -> Reading | None:
+    """Read one reading back verbatim. Reopening a past reading is a pure
+    read - nothing here recalculates astrology or re-runs a provider.
+    """
+    return _get_by_id(conn, reading_id)
+
+
+def list_readings(
+    conn: sqlite3.Connection, profile_id: str, *, limit: int | None = None
+) -> list[Reading]:
+    """One profile's readings, most recent local date first.
+
+    The archive's list view (Milestone 5) needs only this much; the
+    frequency/statistics queries in DESIGN.md section 15 are Milestone 8.
+    """
+    sql = (
+        "SELECT * FROM readings WHERE profile_id = ? "
+        "ORDER BY consultation_local_date DESC, created_at DESC"
+    )
+    params: list[object] = [profile_id]
+    if limit is not None:
+        sql += " LIMIT ?"
+        params.append(limit)
+    return [_row_to_reading(row) for row in conn.execute(sql, params).fetchall()]
+
+
 def create_prepared(
     conn: sqlite3.Connection,
     *,

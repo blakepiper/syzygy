@@ -5,9 +5,12 @@ Ordered, ID'd checklist derived from `IMPLEMENTATION_PLAN.md`. Check off
 you deviated from the plan. Dependencies are noted inline; unless stated
 otherwise, tasks within a milestone are sequential.
 
-**Next recommended task: M5.1** (M6 was completed out of order, ahead of
-M5/M7, per an explicit request to jump ahead to Book of Thoth + companion
-source ingestion).
+**Next recommended task: M7.6** (`interpretation/prompts.py`), then the
+real providers — M6 and M5 are both done, so the remaining gap to a v0.1
+is an actual model behind the interface. Note M7.5's context builder is
+implemented but not yet wired into `reading_service`, which still builds a
+minimal context of its own with no knowledge chunks; wiring those two
+together belongs with M7.6.
 
 ---
 
@@ -125,25 +128,58 @@ source ingestion).
       CLI commands — depends on M4.5. `chart` takes an optional
       `--profile-id`, required only when more than one profile is saved.
 
-## M5 — TUI ritual
+## M5 — TUI ritual — DONE
 
-- [ ] M5.1 `src/syzygy/tui/app.py` — app shell, `SCREENS`
-- [ ] M5.2 `screens/welcome.py`, `profile_create.py`, `profile_select.py` —
-      depends on M4.5/M4.9
-- [ ] M5.3 `screens/home.py` — depends on M4.7 (or a fixture
-      `AstrologyEngine` if M2/M4 aren't finished yet — do not block TUI
-      work on real astrology, per DESIGN.md Milestone 5 guidance)
-- [ ] M5.4 `widgets/wheel.py` (`WheelWidget`, Line API + `set_interval`,
-      emits impulse/disturbance/release, calls `syzygy.sortes` only) —
-      depends on M3 (done)
-- [ ] M5.5 `screens/wheel.py`, `screens/reveal.py` — depends on M5.4
-- [ ] M5.6 `widgets/tarot_card.py`, `widgets/alignment.py`,
-      `widgets/transit_badge.py`, `widgets/glyph.py`
-- [ ] M5.7 `screens/reading.py` + `widgets/reading_panel.py` — uses
-      `FixtureProvider` (done, no dependency on M2/M6/M7.2+)
-- [ ] M5.8 `screens/chart.py`, `screens/archive.py` (basic, list-only until M8)
-- [ ] M5.9 `syzygy.tcss`
-- [ ] M5.10 Textual `Pilot`-based tests for key flows, wheel events, resize
+- [x] M5.1 `src/syzygy/tui/app.py` — app shell, `SCREENS`, and
+      `SyzygyServices` (connection/clock/astrology/provider injected, so
+      tests substitute a fixture engine + `FixtureProvider` wholesale).
+      **Additions to the plan**: `syzygy tui` (and bare `syzygy`, per
+      DESIGN.md §20) launch it — `tests/test_cli.py`'s no-arguments test
+      became a `--help` test accordingly; `storage.database.connect` grew
+      a `check_same_thread` flag because Textual thread workers touch the
+      connection off the main thread.
+- [x] M5.2 `screens/welcome.py`, `profile_create.py`, `profile_select.py`.
+      Profile creation is two-phase (form → resolved-values confirmation)
+      per DESIGN.md §6.1, with manual coordinate/timezone entry only —
+      geocoding stays an optional extra.
+- [x] M5.3 `screens/home.py`. Its sky preview calls a new
+      `reading_service.rank_current_transits` rather than composing
+      engine + policy + ranker in the TUI; the snapshot *stored* on a
+      reading is still the one calculated at draw time.
+- [x] M5.4 `widgets/wheel.py` (`WheelWidget`, Line API + `set_interval`,
+      posts `WheelImpulse`/`WheelDisturbance`/`WheelRelease` plus a
+      `WheelNotReady` for a too-early `ENTER`; records into an injected
+      `EntropyCollector` and nothing else). A test parses the module's
+      imports to prove it can never reach `sortes.draw`/`sortes.deck`.
+- [x] M5.5 `screens/wheel.py`, `screens/reveal.py`. **Deviation**:
+      `reading_service.get_or_create_todays_reading` was split into
+      `draw_todays_reading` (synchronous, provider-free) and
+      `interpret_reading` (async), with the old function now composing
+      the two — the reveal must show a committed card before any model
+      call, and retry-after-failure needs an interpretation-only entry
+      point. Behaviour and ordering are unchanged for existing callers.
+- [x] M5.6 `widgets/tarot_card.py`, `widgets/alignment.py`,
+      `widgets/transit_badge.py`, `widgets/glyph.py` (glyph set +
+      ASCII fallbacks behind `SYZYGY_ASCII=1`; real terminal capability
+      detection is still M9.2).
+- [x] M5.7 `screens/reading.py` + `widgets/reading_panel.py` — esoteric,
+      conventional, and INPUTS views over stored data; interpretation runs
+      in an exclusive worker; failure shows DESIGN.md §23's copy with `[R]`
+      retry against the same context.
+- [x] M5.8 `screens/chart.py`, `screens/archive.py` (list-only until M8).
+      Added `storage.readings.list_readings` + `get_by_id` — the list part
+      of M8.1; `card_frequency`/`suit_frequency` remain M8.1's.
+- [x] M5.9 `syzygy.tcss`
+- [x] M5.10 Textual `Pilot` tests (`tests/tui/`): full ritual to a
+      `COMPLETE` reading, reopening without redrawing, failure-then-retry
+      keeping the same card, archive reopening without re-interpreting,
+      wheel event/entropy contract, navigation, widget formatting, and
+      100×32/80×24/60×18 plus mid-flow resize.
+
+Left for later milestones on purpose: a dedicated "terminal too small"
+state and compact mode (M9.3), knowledge chunks in the interpretation
+context (the INPUTS view says plainly when none were supplied), and
+archive statistics (M8).
 
 ## M6 — Book of Thoth ingestion (+ optional companion sources) — DONE
 

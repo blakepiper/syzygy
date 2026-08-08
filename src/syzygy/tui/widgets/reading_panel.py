@@ -1,0 +1,181 @@
+"""The reading itself, in its three views.
+
+Esoteric and Conventional are two registers of one synthesis, not two
+readings (DESIGN.md section 4.2), so they are views over the same stored
+`InterpretationResult` rather than separately fetched content. The third
+view - INPUTS - shows the exact facts the model was given, which is a
+product requirement, not a debug affordance (DESIGN.md section 14.3).
+
+Every view renders stored data verbatim. Reopening a reading never
+recalculates astrology and never re-runs a provider.
+"""
+
+from __future__ import annotations
+
+from enum import StrEnum
+
+from rich.text import Text
+from textual.app import ComposeResult
+from textual.containers import VerticalScroll
+from textual.widgets import Static
+
+from syzygy.domain.reading import Reading, ReadingStatus
+from syzygy.tui.widgets.glyph import GlyphSet, default_glyphs, format_degrees
+from syzygy.tui.widgets.tarot_card import correspondence_label
+from syzygy.tui.widgets.transit_badge import format_transit
+
+_HEADING = "bold #cf9b3f"
+_BODY = "#e6ddc9"
+_MUTED = "#8a8272"
+_WARNING = "bold #ff4d1f"
+
+
+class ReadingView(StrEnum):
+    ESOTERIC = "esoteric"
+    CONVENTIONAL = "conventional"
+    INPUTS = "inputs"
+
+
+def _esoteric_text(reading: Reading) -> Text:
+    result = reading.interpretation
+    assert result is not None
+    text = Text()
+    text.append("ESOTERIC\n\n", style=_HEADING)
+    text.append(f"{result.esoteric.summary}\n\n", style=_BODY)
+    text.append(f"{result.esoteric.body}\n", style=_BODY)
+    return text
+
+
+def _conventional_text(reading: Reading) -> Text:
+    result = reading.interpretation
+    assert result is not None
+    conventional = result.conventional
+    text = Text()
+    text.append("TODAY\n\n", style=_HEADING)
+    text.append(f"{conventional.summary}\n\n", style=_BODY)
+    text.append(f"{conventional.body}\n", style=_BODY)
+    if conventional.watch_for:
+        text.append("\nWATCH FOR\n", style=_HEADING)
+        for item in conventional.watch_for:
+            text.append(f"• {item}\n", style=_BODY)
+    text.append("\nREFLECT\n", style=_HEADING)
+    text.append(f"{conventional.reflection}\n", style=_BODY)
+    return text
+
+
+def _inputs_text(reading: Reading, glyphs: GlyphSet) -> Text:
+    text = Text()
+    text.append("INPUTS\n\n", style=_HEADING)
+
+    context = reading.interpretation_context
+    if context is None:
+        text.append("No interpretation context has been built yet.\n", style=_MUTED)
+        return text
+
+    card = context.card
+    text.append("CARD\n", style=_HEADING)
+    text.append(f"  {card.full_name} ({card.id})\n", style=_BODY)
+    text.append(f"  {correspondence_label(card, glyphs)}\n", style=_BODY)
+    if card.hebrew_letter:
+        text.append(f"  Hebrew letter {card.hebrew_letter}\n", style=_MUTED)
+    if card.qabalah.sephira or card.qabalah.path_number:
+        qabalah = card.qabalah.sephira or f"path {card.qabalah.path_number}"
+        text.append(f"  Qabalah: {qabalah}\n", style=_MUTED)
+    if reading.card_draw is not None:
+        text.append(f"  Drawn {reading.card_draw.drawn_at_utc.isoformat()}\n", style=_MUTED)
+        text.append(
+            f"  {reading.card_draw.sortes_version} / entropy "
+            f"{reading.card_draw.entropy_digest[:16]}…\n",
+            style=_MUTED,
+        )
+
+    text.append("\nSELECTED TRANSITS\n", style=_HEADING)
+    if context.significant_transits:
+        for ranked in context.significant_transits:
+            text.append(
+                f"  #{ranked.rank} {format_transit(ranked, glyphs)}  score {ranked.score:.3f}\n",
+                style=_BODY,
+            )
+    else:
+        text.append("  none in orb\n", style=_MUTED)
+
+    text.append("\nNATAL PLACEMENTS SUPPLIED\n", style=_HEADING)
+    for placement in context.relevant_natal_placements:
+        retrograde = " ℞" if placement.retrograde else ""
+        text.append(
+            f"  {glyphs.body(placement.body)} {placement.body:<10} "
+            f"{glyphs.sign(placement.sign)} {placement.sign:<12} "
+            f"{format_degrees(placement.longitude)}{retrograde}\n",
+            style=_BODY,
+        )
+    text.append(f"  Ascendant sign: {context.ascendant_sign}\n", style=_BODY)
+
+    text.append("\nSOURCE MATERIAL\n", style=_HEADING)
+    if context.knowledge_chunks:
+        for chunk in context.knowledge_chunks:
+            text.append(
+                f"  {chunk.title} (pages {chunk.page_start}-{chunk.page_end}) [{chunk.id}]\n",
+                style=_BODY,
+            )
+    else:
+        # DESIGN.md section 23: never imply Crowley grounding that was not
+        # actually retrieved.
+        text.append("  no source chunks were supplied to the model\n", style=_MUTED)
+
+    text.append("\nPROVENANCE\n", style=_HEADING)
+    text.append(f"  provider: {reading.provider_id or '—'}\n", style=_BODY)
+    text.append(f"  model: {reading.model_id or '—'}\n", style=_BODY)
+    text.append(f"  prompt version: {context.prompt_version}\n", style=_BODY)
+    text.append(f"  context schema: {context.context_schema_version}\n", style=_BODY)
+    if reading.transit_snapshot is not None:
+        text.append(
+            f"  astrology policy: {reading.transit_snapshot.astrology_policy_version}\n",
+            style=_BODY,
+        )
+    text.append(f"  consultation: {reading.consultation_local_timestamp}\n", style=_BODY)
+    return text
+
+
+def _pending_text(reading: Reading) -> Text:
+    text = Text()
+    if reading.status == ReadingStatus.INTERPRETATION_FAILED:
+        # The exact copy DESIGN.md section 23 specifies: the oracle stands
+        # even when the interpreter does not.
+        text.append("THE ALIGNMENT IS FIXED.\n", style=_WARNING)
+        text.append("INTERPRETATION IS UNAVAILABLE.\n\n", style=_WARNING)
+        text.append("[R] Retry interpretation\n", style=_BODY)
+        text.append("[I] Inspect inputs\n", style=_BODY)
+        return text
+    text.append("THE ALIGNMENT IS FIXED.\n", style=_HEADING)
+    text.append("INTERPRETATION IN PROGRESS…\n", style=_MUTED)
+    return text
+
+
+class ReadingPanel(VerticalScroll):
+    """Scrollable body of the reading screen, switched between views."""
+
+    def __init__(self, *, glyphs: GlyphSet | None = None, id: str | None = None) -> None:
+        super().__init__(id=id)
+        self._glyphs = glyphs or default_glyphs()
+        self._body = Static(id="reading-body")
+        self.view = ReadingView.ESOTERIC
+
+    def compose(self) -> ComposeResult:
+        yield self._body
+
+    def show(self, reading: Reading, view: ReadingView) -> None:
+        """Render `view` of `reading`, falling back to the pending/failed
+        state when there is no interpretation to show yet.
+        """
+        self.view = view
+        if view == ReadingView.INPUTS:
+            self._body.update(_inputs_text(reading, self._glyphs))
+            return
+        if reading.interpretation is None:
+            self._body.update(_pending_text(reading))
+            return
+        if view == ReadingView.ESOTERIC:
+            self._body.update(_esoteric_text(reading))
+        else:
+            self._body.update(_conventional_text(reading))
+        self.scroll_home(animate=False)

@@ -99,7 +99,7 @@ certainly a design violation, not a shortcut.
 | `src/syzygy/interpretation/` | `InterpretationProvider` protocol, the fixture provider, (later) context builder + real providers |
 | `src/syzygy/storage/` | SQLite connection + migrations (append-only, never edit a merged migration) |
 | `src/syzygy/resources/thoth_deck.yaml` | The canonical 78-card deck — single source of truth for card metadata |
-| `src/syzygy/tui/` | Not yet created — Milestone 5 |
+| `src/syzygy/tui/` | The Textual app: `app.py` (shell + injected `SyzygyServices`), `screens/`, `widgets/`, `syzygy.tcss` |
 | `src/syzygy/knowledge/` | Book of Thoth + companion-source ingestion (`normalize.py`, `segment.py`, `store.py`, `ingest.py`) and retrieval (`retrieve.py`) — Milestone 6 |
 | `tests/` | Mirrors `src/syzygy/` layout |
 
@@ -151,6 +151,7 @@ ruff check .           # lint
 mypy src               # type check
 syzygy dev deck        # enumerate the canonical 78-card deck
 syzygy doctor          # environment sanity check
+syzygy tui             # launch the interface (bare `syzygy` does the same)
 ```
 
 All four (`pytest`, `ruff check .`, `mypy src`, and both `syzygy`
@@ -163,13 +164,18 @@ Implemented and tested: domain schemas, `AstrologyEngine` protocol +
 Kerykeion adapter, transit orb policy + ranking, deck loader + data,
 entropy collection, the unbiased draw, the reading state machine (types
 and the storage-backed service/repositories that drive it), SQLite schema
-+ migrations, `FixtureProvider`, the Book of Thoth + companion-source
-(DuQuette, Ziegler) ingestion pipeline and retrieval (`syzygy.knowledge`),
-the CLI skeleton (`dev deck`/`dev astrology`, `profile create`/`list`,
-`chart`, `knowledge ingest`/`status`, `doctor`).
++ migrations, `FixtureProvider`, the interpretation context builder, the
+Book of Thoth + companion-source (DuQuette, Ziegler) ingestion pipeline
+and retrieval (`syzygy.knowledge`), the TUI ritual (welcome → profile →
+home → Wheel → reveal → reading, plus chart and a list-only archive,
+running on `FixtureProvider`), the CLI (`dev deck`/`dev astrology`,
+`profile create`/`list`, `chart`, `knowledge ingest`/`status`, `tui`,
+`doctor`; bare `syzygy` launches the TUI).
 
 Not yet implemented (see `TASKS.md` for the ordered list, and don't
 assume a stub exists just because a directory is mentioned in
-`IMPLEMENTATION_PLAN.md`): the Wheel and the rest of the TUI, the
-interpretation context builder and prompt module, real LLM providers, the
-archive.
+`IMPLEMENTATION_PLAN.md`): the prompt module and real LLM providers (the
+reading service still builds a minimal context itself, with no knowledge
+chunks, rather than calling `interpretation.context_builder`), the full
+archive with statistics, the glyph capability detection and "terminal too
+small" state.

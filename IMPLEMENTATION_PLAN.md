@@ -238,7 +238,9 @@ syzygy dev astrology
 produce stable structured `NatalChart`/`TransitSnapshot` output. Do not
 start Milestone 5 (TUI) work that depends on real astrology until this
 milestone's tests pass — fixture-driven TUI work can and should proceed in
-parallel using `FixtureProvider`, per Milestone 5 below.
+parallel using `FixtureProvider`, per Milestone 5 below. (Both are now
+done; this ordering note is kept as the rationale for how they were
+built.)
 
 ---
 
@@ -255,12 +257,14 @@ Tests: `tests/sortes/test_entropy.py`, `tests/sortes/test_draw.py` (17
 tests total) — determinism given fixed inputs, all-reachable-indices proof,
 approximate uniformity smoke test, production default uses `os.urandom`.
 
-**Not yet wired up**: nothing in the Wheel/TUI calls `EntropyCollector.record`
-from real keyboard events yet — that's Milestone 5's `WheelWidget`, which
-should call `.record("impulse", ...)` etc. on user input and then call
-`syzygy.sortes.draw.draw_card` on release. The widget must not contain any
-of its own randomness or selection logic (`DESIGN.md` section 7.1,
-`ARCHITECTURE_HANDOFF.md` section 31).
+**Wired up in Milestone 5**: `syzygy.tui.widgets.wheel.WheelWidget` calls
+`.record("impulse"/"disturbance"/"release")` on real key events, and
+`syzygy.tui.screens.wheel.WheelScreen` hands the collector to
+`reading_service.draw_todays_reading` (which calls
+`syzygy.sortes.draw.draw_card`) on release. The widget contains no
+randomness or selection logic of its own (`DESIGN.md` section 7.1,
+`ARCHITECTURE_HANDOFF.md` section 31) — `tests/tui/test_wheel_widget.py`
+asserts it cannot even import the deck or the draw.
 
 ---
 
@@ -372,9 +376,15 @@ recovered `Reading.card_draw.card_id` is unchanged.
 
 ---
 
-## Milestone 5 — TUI ritual — **NEXT**
+## Milestone 5 — TUI ritual — **DONE**
 
-Not started. Per `ARCHITECTURE_HANDOFF.md` section 34 and `DESIGN.md`
+Built as sketched below, against a fixture `AstrologyEngine` (in
+`tests/tui/conftest.py`, deliberately not in `src/`) and `FixtureProvider`.
+See `TASKS.md`'s M5 section for the deviations — chiefly that
+`reading_service.get_or_create_todays_reading` was split into
+`draw_todays_reading` + `interpret_reading` so the reveal can show a
+committed card while interpretation is still running, and that
+`syzygy`/`syzygy tui` now launch the app. Per `ARCHITECTURE_HANDOFF.md` section 34 and `DESIGN.md`
 Milestone 5: **do not integrate a real LLM provider for this milestone —
 use `FixtureProvider` (already implemented,
 `syzygy.interpretation.providers.fixture.FixtureProvider`).** This

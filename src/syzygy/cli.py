@@ -1,13 +1,14 @@
 """Syzygy command-line entry point.
 
-The TUI (`syzygy.tui`, not yet implemented - see IMPLEMENTATION_PLAN.md
-Milestone 5) is the primary interface, but every non-visual capability
-should be reachable and scriptable from here too (DESIGN.md section 20).
-This module only parses arguments and dispatches; it must not contain
-domain logic itself.
+The TUI (`syzygy.tui`) is the primary interface, but every non-visual
+capability should be reachable and scriptable from here too (DESIGN.md
+section 20). This module only parses arguments and dispatches; it must not
+contain domain logic itself.
 
 Commands implemented so far:
 
+- `syzygy` (no arguments) or `syzygy tui` - launch the terminal interface
+  (DESIGN.md section 20's first listed command).
 - `syzygy dev deck` - enumerate the canonical 78-card deck (Milestone 1
   acceptance criterion).
 - `syzygy dev astrology` - compute a natal chart and current transits for
@@ -42,6 +43,13 @@ if TYPE_CHECKING:
     import sqlite3
 
     from syzygy.domain.astrology import NatalChart
+
+
+def _cmd_tui(_args: argparse.Namespace) -> int:
+    from syzygy.tui.app import run
+
+    run()
+    return 0
 
 
 def _cmd_dev_deck(_args: argparse.Namespace) -> int:
@@ -320,6 +328,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--version", action="version", version=f"syzygy {__version__}")
     subparsers = parser.add_subparsers(dest="command")
 
+    tui_parser = subparsers.add_parser("tui", help="launch the terminal interface (default)")
+    tui_parser.set_defaults(func=_cmd_tui)
+
     dev_parser = subparsers.add_parser("dev", help="development/debug utilities")
     dev_subparsers = dev_parser.add_subparsers(dest="dev_command")
     dev_deck_parser = dev_subparsers.add_parser("deck", help="enumerate the canonical deck")
@@ -386,6 +397,11 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if not hasattr(args, "func"):
+        if args.command is None:
+            # `syzygy` with no arguments opens the application, per
+            # DESIGN.md section 20 - the TUI is the primary interface, not
+            # a subcommand of a CLI.
+            return _cmd_tui(args)
         parser.print_help()
         return 0
 

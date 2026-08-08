@@ -1,0 +1,273 @@
+/* Syzygy's visual identity (DESIGN.md section 18).
+ *
+ * A near-black field, warm bone text, solar gold for the calculated
+ * (astrology, correspondences), lunar blue for the structural, oxidized
+ * red for warnings, and one high-energy ember accent reserved for chance
+ * and reveal - the accent is never used for anything the machine
+ * calculated, only for what it did not.
+ *
+ * Color is never the sole carrier of meaning: states also change glyph,
+ * label, or key hint.
+ */
+
+$syz-field: #0a0b0d;
+$syz-panel: #131417;
+$syz-bone: #e6ddc9;
+$syz-muted: #8a8272;
+$syz-dim: #4a4438;
+$syz-gold: #cf9b3f;
+$syz-lunar: #7ea6c9;
+$syz-oxide: #8f3a2a;
+$syz-ember: #ff4d1f;
+
+Screen {
+    background: $syz-field;
+    color: $syz-bone;
+    layout: vertical;
+}
+
+.hidden {
+    display: none;
+}
+
+.title-bar {
+    width: 1fr;
+    padding: 0 2;
+    color: $syz-gold;
+    text-style: bold;
+    border-bottom: solid $syz-dim;
+}
+
+.lede {
+    color: $syz-bone;
+    text-style: bold;
+    padding: 1 2 0 2;
+}
+
+.muted {
+    color: $syz-muted;
+    padding: 0 2;
+}
+
+.keys {
+    color: $syz-lunar;
+    padding: 1 2;
+}
+
+.error {
+    color: $syz-ember;
+    padding: 0 2;
+}
+
+.section-heading {
+    color: $syz-gold;
+    text-style: bold;
+    padding: 1 2 0 2;
+}
+
+.field-label {
+    color: $syz-muted;
+    padding: 1 2 0 2;
+}
+
+.button-row {
+    height: auto;
+    padding: 1 2;
+}
+
+Button {
+    margin: 0 2 0 0;
+}
+
+Footer {
+    background: $syz-panel;
+    color: $syz-muted;
+}
+
+Input {
+    margin: 0 2;
+    background: $syz-panel;
+    border: tall $syz-dim;
+}
+
+Input:focus {
+    border: tall $syz-gold;
+}
+
+ListView {
+    background: $syz-field;
+    padding: 0 2;
+}
+
+ListItem {
+    background: $syz-field;
+    padding: 0 1;
+}
+
+ListItem.--highlight {
+    background: $syz-panel;
+    color: $syz-gold;
+}
+
+AlignmentWidget {
+    /* Two content rows (labels + axis) plus one row of padding above and
+       below - `height` is the whole box, padding included. */
+    padding: 1 2;
+    height: 4;
+}
+
+.transit-badge {
+    width: auto;
+    height: 1;
+    margin: 0 2 0 0;
+    color: $syz-gold;
+}
+
+.transit-badge.applying {
+    text-style: bold;
+}
+
+.transit-badge.separating {
+    color: $syz-muted;
+}
+
+TarotCardWidget {
+    width: 33;
+    height: 11;
+    padding: 1 2;
+    content-align: center middle;
+    text-align: center;
+    border: double $syz-gold;
+    background: $syz-panel;
+}
+
+/* Welcome */
+
+#welcome-banner {
+    color: $syz-gold;
+    width: auto;
+}
+
+#welcome-body {
+    width: auto;
+    padding: 1 0;
+}
+
+/* Profile creation */
+
+#profile-form {
+    height: 1fr;
+}
+
+#profile-confirm {
+    height: auto;
+    padding: 1 0;
+}
+
+#confirm-body {
+    padding: 0 2;
+    color: $syz-bone;
+}
+
+/* Home */
+
+#home-body {
+    height: auto;
+    padding: 1 0;
+}
+
+#home-anchors {
+    height: auto;
+    padding: 0 2;
+}
+
+#home-anchors Glyph {
+    width: auto;
+    margin: 0 3 0 0;
+    color: $syz-lunar;
+}
+
+#home-transits {
+    height: auto;
+    padding: 1 2 0 2;
+}
+
+#primary-action {
+    margin: 1 0;
+    background: $syz-panel;
+    color: $syz-ember;
+    border: tall $syz-ember;
+    text-style: bold;
+}
+
+#primary-action:hover {
+    background: $syz-oxide;
+    color: $syz-bone;
+}
+
+/* The Wheel */
+
+#wheel-body {
+    height: 1fr;
+}
+
+#wheel {
+    height: 1fr;
+    min-height: 9;
+}
+
+#wheel-status {
+    color: $syz-muted;
+    text-align: center;
+}
+
+/* Reveal */
+
+#reveal-body {
+    height: 1fr;
+    padding: 1 0;
+}
+
+#reveal-transits {
+    height: auto;
+    padding: 1 2;
+}
+
+#reveal-hint {
+    color: $syz-ember;
+    text-style: bold;
+}
+
+/* Reading */
+
+#reading-header {
+    height: auto;
+    padding: 0 0 1 0;
+}
+
+#reading-summary {
+    height: auto;
+    padding: 1 2 0 2;
+}
+
+#reading-transits {
+    width: 1fr;
+    height: auto;
+    padding: 1 0 0 3;
+}
+
+#reading-panel {
+    height: 1fr;
+    padding: 0 2;
+    border-top: solid $syz-dim;
+}
+
+#reading-body {
+    width: 1fr;
+}
+
+/* Chart / archive */
+
+#chart-body {
+    padding: 1 2;
+}

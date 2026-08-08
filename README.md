@@ -17,6 +17,10 @@ The LLM interprets; it never calculates astrology, selects the card, or rerolls 
 
 Pre-release, under active development. Not yet installable as a finished product.
 
+The full daily ritual is playable today — create a profile, turn the Wheel,
+draw a card, and read it — but interpretation still comes from a built-in
+fixture provider rather than a real model.
+
 ## Documentation
 
 - [`DESIGN.md`](DESIGN.md) — product design and rationale
@@ -31,6 +35,9 @@ Pre-release, under active development. Not yet installable as a finished product
 pip install -e ".[dev]"
 pytest
 ruff check .
+mypy src
+
+syzygy            # launch the terminal interface (same as `syzygy tui`)
 syzygy dev deck
 syzygy doctor
 ```

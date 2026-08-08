@@ -16,11 +16,23 @@ def test_doctor_exits_zero(capsys):
     assert "deck    OK" in out
 
 
-def test_no_args_prints_help_and_exits_zero(capsys):
-    exit_code = main([])
-    assert exit_code == 0
+def test_help_flag_prints_usage(capsys):
+    import pytest
+
+    # `syzygy` with no arguments launches the TUI (DESIGN.md section 20),
+    # so usage is reached through --help rather than through no arguments.
+    with pytest.raises(SystemExit) as exc_info:
+        main(["--help"])
+    assert exc_info.value.code == 0
     out = capsys.readouterr().out
     assert "usage" in out.lower()
+    assert "tui" in out
+
+
+def test_unknown_subcommand_group_prints_help(capsys):
+    exit_code = main(["dev"])
+    assert exit_code == 0
+    assert "usage" in capsys.readouterr().out.lower()
 
 
 def test_version_flag(capsys):
