@@ -32,7 +32,11 @@ class ReadingScreen(SyzygyScreen):
         ("1", "view_esoteric", "esoteric"),
         ("2", "view_conventional", "conventional"),
         ("i", "view_inputs", "inputs"),
-        ("r", "retry", "retry"),
+        # Bound for both cases (M10.3a): Textual reports a shifted letter
+        # as its own key ("R"), distinct from "r" - a real terminal with
+        # Caps Lock on, or a Shift held slightly late, sent exactly that
+        # and made retry look broken despite the binding being "correct".
+        ("r,R", "retry", "retry"),
         ("escape", "back", "back"),
     ]
 
@@ -125,9 +129,11 @@ class ReadingScreen(SyzygyScreen):
         self._show()
 
     def action_retry(self) -> None:
-        if not self._may_interpret:
-            return
-        if self.reading.status != ReadingStatus.INTERPRETATION_FAILED:
+        # A correct no-op (nothing to retry) still needs a visible response
+        # - otherwise a stray "r" press is indistinguishable from a broken
+        # binding (M10.3b).
+        if not self._may_interpret or self.reading.status != ReadingStatus.INTERPRETATION_FAILED:
+            self.app.bell()
             return
         self._begin_interpretation()
 

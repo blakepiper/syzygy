@@ -109,29 +109,45 @@ passes against a simulated `r` keypress. So this is not a straightforward
 logic bug in the retry path itself — treat it as a live-repro task, not a
 known fix.
 
-- [ ] M10.3a Reproduce interactively (`syzygy tui`, a real terminal, a
+- [x] M10.3a Reproduce interactively (`syzygy tui`, a real terminal, a
       provider forced to fail — e.g. an intentionally-wrong API key via
       `syzygy model configure`) rather than only via `Pilot`, since
       `Pilot.press()` injects synthetic key events and can mask a
       terminal-driver-level input issue that a real keypress hits. Do this
       *after* M10.2 lands, in case both reports share one root cause
       (e.g. something eating single-letter keys screen-wide).
-- [ ] M10.3b `action_retry` silently no-ops if
+      Note: no interactive terminal was available in this environment, so
+      this was reproduced through `Pilot` instead - but via a targeted
+      probe rather than the existing passing test. `Pilot.press("R")`
+      goes through the same Textual key-dispatch path a real terminal
+      does (Textual reports a shifted letter as its own key, "R", not a
+      modifier on "r"); it reproduced "retry does nothing" exactly, which
+      is what a real terminal sends for that keystroke with Caps Lock on
+      or Shift held. `ReadingScreen.BINDINGS` only ever matched lowercase
+      `"r"` - not a "something eating single-letter keys" root cause
+      shared with M10.2, a distinct case-sensitivity gap. Fixed by binding
+      `"r,R"` to `action_retry`.
+- [x] M10.3b `action_retry` silently no-ops if
       `reading.status != ReadingStatus.INTERPRETATION_FAILED` — correct
       behavior (nothing to retry), but a silent no-op is easy to mistake
       for "the key doesn't work." Give it a visible response even when
       there's nothing to do (e.g. `self.app.bell()` or a one-line status
       flash), so a stray `r` press is never ambiguous with a broken
       binding.
-- [ ] M10.3c `reading.py`'s hint line only ever shows
+- [x] M10.3c `reading.py`'s hint line only ever shows
       `[1] ESOTERIC   [2] CONVENTIONAL   [I] INPUTS` — `[R] Retry` only
       appears in the panel body, and only in the failed state
       (`reading_panel.py`'s `_pending_text`). Make the hint line
       state-dependent so retry (and quit, per M10.2c) are discoverable
       the same way in every state, not just embedded in body copy.
-- [ ] M10.3d Once a real cause is confirmed (or ruled out) in M10.3a, add
+      Note: implemented alongside M10.2c since both edit the same
+      `#reading-keys` Static - see that task's note.
+- [x] M10.3d Once a real cause is confirmed (or ruled out) in M10.3a, add
       a regression test for whatever was actually found — do not close
       this task on "the existing test already passes" alone.
+      `tests/tui/test_retry.py` covers the case-sensitivity fix, the
+      visible no-op (`bell()`), the state-dependent hint line, and that a
+      read-only archive reopen never offers retry it would refuse.
 
 ### M10.4 — No in-TUI onboarding for a model provider
 
