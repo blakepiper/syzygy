@@ -76,6 +76,11 @@ Screen {
     padding: 0 2;
 }
 
+.ok {
+    color: $syz-lunar;
+    padding: 0 2;
+}
+
 .section-heading {
     color: $syz-gold;
     text-style: bold;
@@ -184,6 +189,26 @@ TarotCardWidget {
 #confirm-body {
     padding: 0 2;
     color: $syz-bone;
+}
+
+/* Local-model setup (M11.3) */
+
+#model-body {
+    height: 1fr;
+}
+
+#model-message {
+    height: auto;
+    max-height: 5;
+}
+
+#llama-form {
+    height: auto;
+    padding: 1 0;
+}
+
+#llama-help {
+    padding: 1 2;
 }
 
 /* Profile selection and deletion (M11.2) */

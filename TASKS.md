@@ -392,26 +392,68 @@ select it nothing happens." Two distinct problems in
 a failed probe but offers no way to act on it, and selecting an
 unreachable provider appears to silently do nothing.
 
-- [ ] M11.3a Make the llama.cpp row actionable: show the base URL being
+**Reproduced (M11.3a).** Selecting `llama_cpp` with nothing listening
+*did* save the selection and *did* write a confirmation — but: (1) the row
+still read "not reachable" afterwards, so the state the user cared about
+was unchanged; (2) `build_provider` never raises for `llama_cpp`
+(unlike the hosted providers it has no key to check), so there was no
+warning that readings would silently fall back to fixture; (3) the
+confirmation landed at **y=30 inside a scrollable body on a 32-row
+screen** — measured, not guessed — so on any smaller terminal it was
+below the fold; and (4) most importantly there was nothing to *act on*:
+no way to point at a different URL, no way to re-probe after starting a
+server, and no hint how to start one. "Nothing happens" was a fair
+description.
+
+- [x] M11.3a Make the llama.cpp row actionable: show the base URL being
       probed, let the user edit it (an `Input`, same shape as the API-key
       form), re-probe on demand (`[P] Probe again`), and persist the
       chosen base URL wherever `interpretation.providers.llama_cpp` reads
       it from — check whether that is currently hardcoded and, if so, add
       it to the settings file (`AppPaths.settings_path`, never the
       readings database, per the existing selection module's rule).
-- [ ] M11.3b Make selection produce visible feedback in every outcome:
+      Checked: not hardcoded — `ProviderSelection.base_url` already exists
+      and `build_provider` already honours it, and the CLI already has
+      `model use --base-url`. The gap was TUI-only, so this adds no new
+      persistence, just the form (`#llama-form`) that reaches the existing
+      field. Only a *non-default* URL is persisted, so settings never pin
+      a default that may move.
+      Note on `[P]`: it is a screen binding, so it fires from the provider
+      list but **not** while a form `Input` has focus — a focused input
+      gets first refusal on every printable key (the same rule that lets a
+      literal "q" be typed into a form field, M10.2b). The form therefore
+      offers a PROBE button and ENTER-in-the-URL-field instead, and the
+      "press [P] to probe again" copy appears on the list view, where it
+      works. Tested both ways.
+- [x] M11.3b Make selection produce visible feedback in every outcome:
       selected-and-reachable, selected-but-unreachable (allowed — the
       server may start later; say so), and build failure. `_select_local_provider`
       must never return without changing something on screen.
-- [ ] M11.3c Add actionable copy for the unreachable case: the exact
+      Selecting now re-probes and says which of the two situations the
+      user is in, naming the URL. `#model-message` was also **moved out of
+      the scrolling body** so the confirmation is always on screen —
+      verified at both 80×24 (y=20) and 100×32 (y=28). A confirmation
+      nobody can see is indistinguishable from a dead key.
+- [x] M11.3c Add actionable copy for the unreachable case: the exact
       command to start a llama.cpp server and the URL Syzygy expects, so
       "not reachable" tells the user what to do rather than only what is
       wrong.
-- [ ] M11.3d Tests: `Pilot` walk selecting `llama_cpp` with the probe
+      `LLAMA_CPP_HELP` gives the `llama-server -m … --port 8080` line and
+      notes any OpenAI-compatible `/v1` endpoint works; shown only while
+      unreachable, hidden once a server answers. The row itself now names
+      the URL it probed.
+- [x] M11.3d Tests: `Pilot` walk selecting `llama_cpp` with the probe
       mocked both reachable and unreachable, asserting `save_selection`
       was called and that the screen says something different in each
       case; plus a test for a persisted custom base URL round-tripping
       through settings.
+      14 new tests in `tests/tui/test_model_setup.py` (23 total). Two
+      robustness fixes fell out of writing them: a malformed base URL made
+      `httpx` raise *before* any request, which took down the whole status
+      load — `probe_llama_cpp` now treats "could not even try" as "not
+      reachable", with a broad catch in `_refresh_status` as a backstop —
+      and `#model-message` needed `markup=False`, since Rich was eating
+      the literal "[P]" out of its own instructions.
 
 ### M11.4 — `[R]` retry still does not work
 
