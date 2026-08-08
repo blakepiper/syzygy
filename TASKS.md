@@ -463,27 +463,74 @@ those tests pass, so the remaining failure is something the M10.3 probe
 did not model. M10.3a was closed without a real-terminal repro (no
 interactive terminal was available); that gap is the thing to close here.
 
-- [ ] M11.4a Reproduce in a real terminal with a provider forced to fail
+**Root cause found — it was M11.4b, and M10.3's fix was unrelated to it.**
+A reading can be persisted as `INTERPRETING` and then abandoned: the row
+is written by `begin_interpreting` *before* the provider call, so any
+process that stops between those two points (quit, crash, closed
+terminal) leaves it there permanently. In that state
+`ReadingScreen.on_mount` skipped starting interpretation (`status in
+(COMPLETE, INTERPRETING)`) *and* `action_retry` refused (`status !=
+INTERPRETATION_FAILED`), so the screen showed "INTERPRETING…" forever,
+with a spinner that wasn't running, no `[R] RETRY` in the hint line, and
+an `r` key that only rang the bell. Since it is the canonical reading for
+that date, there was no way out for the rest of the day.
+
+The route there is a direct consequence of M11.3: select llama.cpp with
+no server running, start a reading, wait out part of the provider's
+**120-second** timeout, give up, quit. Reproduced with a scripted probe
+(`INTERPRETING` persisted, screen reopened) — no interactive terminal is
+available in this environment, the same limitation noted in M10.3a.
+
+- [x] M11.4a Reproduce in a real terminal with a provider forced to fail
       (`syzygy model configure` with a deliberately wrong API key), and
       record the observed behavior precisely: does the key do nothing at
       all, does the panel flash and revert, or does retry run and fail
       again with the same error (which would be *correct* behavior with a
       still-wrong key, and a copy problem rather than a binding bug)?
-- [ ] M11.4b Check the states `action_retry` refuses. It no-ops unless
+      A *wrong API key* turns out to be the case that already worked: the
+      provider raises, `interpret_reading` catches it, and the row lands
+      on `INTERPRETATION_FAILED` with retry offered (asserted in M11.4b's
+      test). The broken case is an *interrupted* call, not a failed one.
+- [x] M11.4b Check the states `action_retry` refuses. It no-ops unless
       `status == INTERPRETATION_FAILED`; confirm the reading actually
       reaches that status on a provider error rather than staying in
       `INTERPRETING` (e.g. a worker exception that never writes the failed
       state through `reading_service`), which would make retry
       permanently unavailable while the panel shows a failure.
-- [ ] M11.4c Verify the retry path re-runs interpretation *without*
+      This was the bug, in the form the task predicted but by a different
+      mechanism — not an exception escaping, but a process ending. Fixed
+      by distinguishing "a call of *ours* is in flight" (a new
+      `_interpreting` flag on the screen) from "the row says
+      `INTERPRETING`": the latter without the former is an interrupted
+      reading, which now renders as "INTERPRETATION WAS INTERRUPTED" and
+      is retryable. `interpret_reading` already resumed such a row
+      correctly — with status `INTERPRETING` it skips `begin_interpreting`
+      and calls the provider — so no storage or state-machine change was
+      needed.
+- [x] M11.4c Verify the retry path re-runs interpretation *without*
       redrawing the card — the `ALLOWED_TRANSITIONS` invariant in
       `syzygy.domain.reading` — and that a second failure leaves the
       reading retryable again rather than in a terminal state.
-- [ ] M11.4d Show retry progress: while a retry is in flight the panel
+      Both asserted. `INTERPRETATION_FAILED -> INTERPRETING` is a legal
+      transition and the card id is unchanged across every retry path
+      tested, including the interrupted one.
+- [x] M11.4d Show retry progress: while a retry is in flight the panel
       must say so (this pairs with M14's `processing-start`/`stop`
       events), and a completed retry must visibly replace the error.
-- [ ] M11.4e Regression test for whatever M11.4a–b actually turns up. As
+      The in-flight state is now checked *before* the stored status in
+      both the title and the panel body — a running retry still reads as
+      `INTERPRETATION_FAILED` in storage until the call returns, so
+      without that ordering the screen showed a failure while working.
+      `[R] RETRY` is withdrawn from the hint line while a retry runs, so a
+      second press cannot stack a concurrent provider call.
+- [x] M11.4e Regression test for whatever M11.4a–b actually turns up. As
       in M10.3d, do not close this on "the existing tests pass."
+      6 new tests in `tests/tui/test_retry.py` (10 total): the stranded
+      reading is retryable and keeps its card, it says "interrupted" not
+      "in progress", a read-only archive reopen still offers no retry, an
+      in-flight retry shows progress and refuses a second concurrent call,
+      a provider error really does land on `INTERPRETATION_FAILED` in
+      storage, and a second failure stays retryable.
 
 ### M11.5 — Card art does not display correctly
 

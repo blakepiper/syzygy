@@ -49,6 +49,11 @@ class ReadingScreen(SyzygyScreen):
         #: daily flow may start or retry interpretation.
         self._may_interpret = interpret
         self._wait_frame = 0
+        #: True once *this* screen has a provider call in flight. A stored
+        #: `INTERPRETING` status is not the same thing (M11.4): it can be
+        #: left behind by a process that died mid-call, and the difference
+        #: decides whether the spinner is telling the truth.
+        self._interpreting = False
 
     def compose(self) -> ComposeResult:
         yield TitleBar(self.reading.consultation_local_date)
@@ -82,15 +87,48 @@ class ReadingScreen(SyzygyScreen):
 
     # -- rendering --------------------------------------------------------
 
+    def _is_interrupted(self) -> bool:
+        """A stored `INTERPRETING` with no call of ours in flight.
+
+        The only way to reach this is a process that stopped between
+        `begin_interpreting` and the provider's reply - quitting during a
+        slow call, a crash, a closed terminal. The row is legal (the state
+        machine allows `INTERPRETING -> COMPLETE/INTERPRETATION_FAILED`)
+        but nothing will ever advance it on its own, and it is the
+        canonical reading for that date, so without a way out it is a dead
+        end for the rest of the day (M11.4).
+        """
+        return self.reading.status == ReadingStatus.INTERPRETING and not self._interpreting
+
+    def _may_retry(self) -> bool:
+        if not self._may_interpret or self._interpreting:
+            # Nothing to retry while a retry is already running - offering
+            # it would invite a second, concurrent provider call.
+            return False
+        return self.reading.status == ReadingStatus.INTERPRETATION_FAILED or self._is_interrupted()
+
     def _show(self, view: ReadingView | None = None) -> None:
         panel = self.query_one("#reading-panel", ReadingPanel)
-        panel.show(self.reading, view or panel.view)
+        panel.show(
+            self.reading,
+            view or panel.view,
+            interrupted=self._is_interrupted(),
+            in_flight=self._interpreting,
+        )
         result = self.reading.interpretation
         title = self.query_one("#reading-title", Static)
-        if result is not None:
+        if self._interpreting:
+            # Checked first: a retry is in flight *before* the stored
+            # status has moved off INTERPRETATION_FAILED, and the screen
+            # must show the work rather than the state it is leaving.
+            title.update("THE ALIGNMENT IS FIXED. INTERPRETING…")
+        elif result is not None:
             title.update(result.alignment_title)
         elif self.reading.status == ReadingStatus.INTERPRETATION_FAILED:
             title.update("THE ALIGNMENT IS FIXED.")
+        elif self._is_interrupted():
+            # Never claim to be working when nothing is.
+            title.update("THE ALIGNMENT IS FIXED. INTERPRETATION WAS INTERRUPTED.")
         else:
             title.update("THE ALIGNMENT IS FIXED. INTERPRETING…")
         self._update_keys_hint()
@@ -99,7 +137,7 @@ class ReadingScreen(SyzygyScreen):
         # Retry (and quit) are discoverable the same way in every state,
         # not just embedded in the failed-state panel body (M10.3c).
         keys = "[1] ESOTERIC   [2] CONVENTIONAL   [I] INPUTS"
-        if self._may_interpret and self.reading.status == ReadingStatus.INTERPRETATION_FAILED:
+        if self._may_retry():
             keys += "   [R] RETRY"
         keys += "   [Q] QUIT"
         self.query_one("#reading-keys", Static).update(keys)
@@ -113,26 +151,46 @@ class ReadingScreen(SyzygyScreen):
     # -- interpretation ---------------------------------------------------
 
     def _begin_interpretation(self) -> None:
+        self._interpreting = True
         self._wait_timer = self.set_interval(0.2, self._tick_wait)
+        self._show()  # the spinner is now telling the truth
         self._interpret()
+
+    def _end_interpretation(self) -> None:
+        self._interpreting = False
+        if self._wait_timer is not None:
+            self._wait_timer.stop()
+            self._wait_timer = None
 
     @work(exclusive=True, group="interpret")
     async def _interpret(self) -> None:
         services = self.syzygy.services
-        reading = await interpret_reading(
-            services.conn, self.reading, services.clock, services.provider
-        )
+        try:
+            reading = await interpret_reading(
+                services.conn, self.reading, services.clock, services.provider
+            )
+        except Exception:
+            # `interpret_reading` swallows provider failures itself, so
+            # anything reaching here is a storage or state-machine error
+            # (e.g. a stale worker from a previous screen already wrote a
+            # result). Re-read rather than guessing: the row is the truth.
+            self._end_interpretation()
+            from syzygy.storage import readings as readings_store
+
+            latest = readings_store.get_by_id(services.conn, self.reading.id)
+            if latest is not None:
+                self.reading = latest
+            self._show()
+            return
         self.reading = reading
-        if self._wait_timer is not None:
-            self._wait_timer.stop()
-            self._wait_timer = None
+        self._end_interpretation()
         self._show()
 
     def action_retry(self) -> None:
         # A correct no-op (nothing to retry) still needs a visible response
         # - otherwise a stray "r" press is indistinguishable from a broken
         # binding (M10.3b).
-        if not self._may_interpret or self.reading.status != ReadingStatus.INTERPRETATION_FAILED:
+        if not self._may_retry():
             self.app.bell()
             return
         self._begin_interpretation()

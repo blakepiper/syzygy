@@ -136,13 +136,30 @@ def _inputs_text(reading: Reading, glyphs: GlyphSet) -> Text:
     return text
 
 
-def _pending_text(reading: Reading) -> Text:
+def _pending_text(
+    reading: Reading, *, interrupted: bool = False, in_flight: bool = False
+) -> Text:
     text = Text()
+    if in_flight:
+        # A retry is running right now. Checked before the stored status,
+        # which still reads INTERPRETATION_FAILED until the call returns.
+        text.append("THE ALIGNMENT IS FIXED.\n", style=_HEADING)
+        text.append("INTERPRETATION IN PROGRESS…\n", style=_MUTED)
+        return text
     if reading.status == ReadingStatus.INTERPRETATION_FAILED:
         # The exact copy DESIGN.md section 23 specifies: the oracle stands
         # even when the interpreter does not.
         text.append("THE ALIGNMENT IS FIXED.\n", style=_WARNING)
         text.append("INTERPRETATION IS UNAVAILABLE.\n\n", style=_WARNING)
+        text.append("[R] Retry interpretation\n", style=_BODY)
+        text.append("[I] Inspect inputs\n", style=_BODY)
+        return text
+    if interrupted:
+        # A stored INTERPRETING that nothing is working on - the previous
+        # attempt was cut short rather than failing (M11.4). Same card,
+        # same context, still retryable.
+        text.append("THE ALIGNMENT IS FIXED.\n", style=_WARNING)
+        text.append("INTERPRETATION WAS INTERRUPTED.\n\n", style=_WARNING)
         text.append("[R] Retry interpretation\n", style=_BODY)
         text.append("[I] Inspect inputs\n", style=_BODY)
         return text
@@ -163,16 +180,32 @@ class ReadingPanel(VerticalScroll):
     def compose(self) -> ComposeResult:
         yield self._body
 
-    def show(self, reading: Reading, view: ReadingView) -> None:
+    def show(
+        self,
+        reading: Reading,
+        view: ReadingView,
+        *,
+        interrupted: bool = False,
+        in_flight: bool = False,
+    ) -> None:
         """Render `view` of `reading`, falling back to the pending/failed
         state when there is no interpretation to show yet.
+
+        `interrupted` and `in_flight` are the caller's answer to "is
+        anything actually working on this right now?" - the panel cannot
+        tell from the reading alone. A stored `INTERPRETING` looks
+        identical whether a call is in flight or the process that started
+        it died, and a retry in flight still reads as
+        `INTERPRETATION_FAILED` until the call returns.
         """
         self.view = view
         if view == ReadingView.INPUTS:
             self._body.update(_inputs_text(reading, self._glyphs))
             return
         if reading.interpretation is None:
-            self._body.update(_pending_text(reading))
+            self._body.update(
+                _pending_text(reading, interrupted=interrupted, in_flight=in_flight)
+            )
             return
         if view == ReadingView.ESOTERIC:
             self._body.update(_esoteric_text(reading))
