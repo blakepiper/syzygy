@@ -18,7 +18,7 @@ standard library has. Two shapes were considered:
   gives real `pause`/`resume` that hold position - which is what makes the
   mute key feel like a mute key.
 
-The second, per `IMPLEMENTATION_PLAN.md` M15.1a's recommendation.
+The second, per `TASKS.md` M15.1a's recommendation.
 
 ## Nothing here is allowed to matter
 

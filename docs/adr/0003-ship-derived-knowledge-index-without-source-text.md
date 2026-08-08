@@ -18,8 +18,9 @@ ingestion input:
 
 The consequence is that a fresh clone has an **empty** knowledge base. The
 ingestion pipeline exists and works, but nobody who has not separately
-obtained the books gets anything from it. `feedback.md` asks for the
-processed sources to be committed as artifacts "that all users get".
+obtained the books gets anything from it. A hands-on review of the app
+(2026-08-08, see `TASKS.md` M13.3) asked for the processed sources to be
+committed as artifacts "that all users get".
 
 `.gitignore`'s own note anticipates this and says derived data is fine to
 commit:
@@ -74,7 +75,7 @@ land in the same vector space as the corpus — which makes
 `sentence-transformers`/`torch` a runtime dependency of a local-first
 terminal app, for a few hundred short documents. `AGENTS.md` already rules
 out a vector database and a hosted service for the same reason, and
-`IMPLEMENTATION_PLAN.md` M13.3d asks specifically for "a small local model
+`TASKS.md` M13.3d asks specifically for "a small local model
 producing vectors committed to the repo, queried with plain numpy". A
 hashed signature is the version of that with no model at all.
 

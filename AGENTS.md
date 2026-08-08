@@ -2,9 +2,10 @@
 
 Compact, durable rules for any coding agent working in this repository.
 This is not the design doc — read `DESIGN.md` for product intent and
-rationale, and `IMPLEMENTATION_PLAN.md` for how a specific milestone
-should be built. This file is what you should already have loaded before
-touching code.
+rationale, and `TASKS.md` for how the milestone you are working on should
+be built (`IMPLEMENTATION_PLAN.md` holds the same for M0–M9, which are
+done). This file is what you should already have loaded before touching
+code.
 
 ## The one-paragraph mental model
 
@@ -97,26 +98,31 @@ certainly a design violation, not a shortcut.
 | Path | What lives here |
 |---|---|
 | `DESIGN.md` | Product design and rationale — read when product intent is unclear |
-| `IMPLEMENTATION_PLAN.md` | Concrete architecture per milestone — read the relevant milestone before implementing |
-| `TASKS.md` | The ordered task checklist — find your task here, check it off when done |
+| `TASKS.md` | The ordered task checklist and the spec for M10 onward — find your task here, check it off when done |
+| `IMPLEMENTATION_PLAN.md` | Concrete architecture per milestone for M0–M9. History; current work is in `TASKS.md` |
+| `docs/animation.md` | The animation design spec M14 is written against — read before touching motion |
+| `docs/BRAND_ASSETS.md` | How the bundled logo/mascot PNGs and the theme MP3 are produced and where they live |
 | `docs/THOTH_INGESTION_MAP.md` | Verified facts about `docs/book_of_thoth.pdf`'s structure (Tier 0), for the M6 ingestion parser |
-| `docs/KNOWLEDGE_SOURCES.md` | Multi-source tier policy + structural notes for the Tier 1 companion sources (DuQuette, Ziegler) |
+| `docs/KNOWLEDGE_SOURCES.md` | Multi-source tier policy + what may and may not be committed from the books |
 | `docs/adr/` | Architecture decision records for deviations from `DESIGN.md`'s provisional recommendations |
 | `src/syzygy/domain/` | Pure Pydantic contracts. No Textual, no Kerykeion, no provider SDK imports — ever |
-| `src/syzygy/astrology/` | `AstrologyEngine` protocol, Syzygy's orb policy, (later) the Kerykeion adapter and ranker |
+| `src/syzygy/astrology/` | `AstrologyEngine` protocol, Syzygy's orb policy, the Kerykeion adapter and ranker |
 | `src/syzygy/sortes/` | Deck loading, entropy collection, the unbiased draw |
-| `src/syzygy/interpretation/` | `InterpretationProvider` protocol, the fixture provider, (later) context builder + real providers |
+| `src/syzygy/interpretation/` | `InterpretationProvider` protocol, the prompt contract, context builder, and the four providers |
 | `src/syzygy/storage/` | SQLite connection + migrations (append-only, never edit a merged migration) |
-| `src/syzygy/resources/thoth_deck.yaml` | The canonical 78-card deck — single source of truth for card metadata |
-| `src/syzygy/tui/` | The Textual app: `app.py` (shell + injected `SyzygyServices`), `screens/`, `widgets/`, `syzygy.tcss` |
-| `src/syzygy/knowledge/` | Book of Thoth + companion-source ingestion (`normalize.py`, `segment.py`, `store.py`, `ingest.py`) and retrieval (`retrieve.py`) — Milestone 6 |
+| `src/syzygy/knowledge/` | Ingestion (`normalize`/`segment`/`store`/`ingest`), retrieval (`retrieve`), and the shipped citations+vectors index (`artifact`, `embedding`) |
+| `src/syzygy/settings.py` | The namespaced settings document. Add a preference as a *section*; never write the whole file |
+| `src/syzygy/audio.py` | The looping theme, behind the optional `audio` extra. Degrades to `SilentTheme` on every failure |
+| `src/syzygy/dev.py` | Development-only affordances, all gated on `SYZYGY_DEV` |
+| `src/syzygy/resources/` | `thoth_deck.yaml` (canonical card metadata), `art/` (78 card PNGs), `brand/`, `audio/`, `knowledge/` (citations + vectors) |
+| `src/syzygy/tui/` | The Textual app: `app.py` (shell + injected `SyzygyServices`), `screens/`, `widgets/`, `palette.py`, `syzygy.tcss` |
 | `tests/` | Mirrors `src/syzygy/` layout |
 
 ## Workflow
 
-1. Read the relevant section of `IMPLEMENTATION_PLAN.md` for your task
-   before writing code. If your task isn't in `TASKS.md` yet, it's
-   probably too large — ask, or break it down first.
+1. Read your task's entry in `TASKS.md` before writing code (for M0–M9
+   work, `IMPLEMENTATION_PLAN.md` instead). If your task isn't in
+   `TASKS.md` yet, it's probably too large — ask, or break it down first.
 2. Inspect the existing code in the module you're touching (and its
    tests) before editing — don't assume; read it.
 3. Implement. Keep domain logic out of `syzygy.tui` and prompt-building
@@ -193,7 +199,26 @@ reveal → reading, plus chart and a list-only archive), the CLI
 `knowledge ingest`/`status`, `model status`/`configure`/`use`, `tui`,
 `doctor`; bare `syzygy` launches the TUI).
 
+Added since (M10–M15, `TASKS.md`): birthplace geocoding on profile
+creation, in-TUI model setup including a local-server form with a live
+probe (`tui/screens/model_setup.py`), profile deletion in both interfaces,
+bundled card art and brand assets rendered as terminal half-blocks
+(`tui/widgets/pixel_art.py`, `card_art.py`, `brand.py`), the palette in one
+place (`tui/palette.py`, kept in step with `syzygy.tcss` by a test), a
+dev-only reroll gated on `SYZYGY_DEV` (`syzygy.dev`), the shipped
+knowledge index of citations and vectors (`knowledge/artifact.py`,
+`knowledge/embedding.py`, ADR 0003), the namespaced settings document
+(`syzygy.settings` — add a preference as a *section*, never by writing the
+whole file), and the looping theme behind the optional `audio` extra
+(`syzygy.audio`, which degrades to `SilentTheme` on every failure).
+
 Not yet implemented (see `TASKS.md` for the ordered list, and don't
 assume a stub exists just because a directory is mentioned in
-`IMPLEMENTATION_PLAN.md`): the full archive with statistics, the glyph
-capability detection and "terminal too small" state.
+`IMPLEMENTATION_PLAN.md`): the layout/density pass (M12.5), the Cinzel
+display treatment (M12.3), today's-sky screen and LLM chart summaries
+(M13.1/M13.2), and the whole animation system (M14, specified in
+`docs/animation.md`).
+
+**Where the current work is written down.** `IMPLEMENTATION_PLAN.md`
+covers M0–M9 and is history now; anything from M10 onward is specified in
+`TASKS.md`. Read the milestone there before implementing.

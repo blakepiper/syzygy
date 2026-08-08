@@ -56,6 +56,17 @@ The luminance threshold is safe because the source is monochrome pixel
 art: 96% of its pixels are within a few units of pure black or pure
 white.
 
+## The theme (`resources/audio/theme.mp3`)
+
+Not a derived asset: the MP3 in the package *is* the master, so there is
+nothing to regenerate and no source file at the repository root. It is the
+project author's own work, so there is no third-party licensing to clear
+for AGPL redistribution.
+
+It is 3.5 MB, which is most of the wheel. Playback is
+`syzygy.audio`, behind the optional `audio` extra; the app runs silent
+without it.
+
 ## Sizes
 
 Keep the committed PNGs modest. `pixel_art` caps rendering at

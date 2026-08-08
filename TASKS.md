@@ -10,8 +10,9 @@ history; it is not repeated here. This file now tracks a fresh batch of
 bugs and gaps found in day-to-day use of v0.1, filed 2026-08-08.
 
 **M10 is complete.** M11–M15 come from a second hands-on review of the
-running app (`feedback.md`, filed 2026-08-08) plus the animation design
-spec at `animation.md`. They are ordered so that each milestone unblocks
+running app (filed 2026-08-08; its items are quoted inline below, so the
+scratch file itself is gone) plus the animation design spec at
+`docs/animation.md`. They are ordered so that each milestone unblocks
 the next: fix what makes the app untestable (M11), settle the visual
 language and screen layout (M12), fill the missing content surfaces
 (M13), then animate a UI whose look and layout have stopped moving (M14),
@@ -241,14 +242,14 @@ separate, separately-billed API key. Label this screen "API key," not
 
 ## M11 — Unblock the app: bugs that prevent testing anything else
 
-Everything in `feedback.md` downstream of this milestone is hard to
+Everything in the review downstream of this milestone is hard to
 evaluate while profile creation, the model-setup screen, retry, and card
 art are broken, and while there is no way to see a second card without
 waiting a day. Do M11 first, in order.
 
 ### M11.1 — Profile creation is broken (blocks onboarding testing)
 
-`feedback.md`: "I can't test the onboarding flow of setting up a local
+Reported: "I can't test the onboarding flow of setting up a local
 model or OpenAI/Claude API key because profile creation is bugged." No
 symptom was recorded, and the M10.1 geocoding work (`profile_create.py`
 `_review` → `_resolve_birthplace` → `_finish_review`) is the most recent
@@ -323,7 +324,7 @@ before assuming.
 
 ### M11.2 — Delete a profile
 
-`feedback.md`: "There is no way to delete a profile."
+Reported: "There is no way to delete a profile."
 `syzygy.storage.profiles` has `insert_profile`/`get_profile`/
 `list_profiles` and no delete; `ProfileSelectScreen` is list-and-pick
 only.
@@ -385,7 +386,7 @@ only.
 
 ### M11.3 — `[M]` model setup: selecting llama.cpp does nothing
 
-`feedback.md`: "User should be able to set up llama.cpp by pressing 'm'
+Reported: "User should be able to set up llama.cpp by pressing 'm'
 … Right now it just says 'not reachable, no API key needed' so when you
 select it nothing happens." Two distinct problems in
 `src/syzygy/tui/screens/model_setup.py`: the row is *informational* about
@@ -457,7 +458,7 @@ description.
 
 ### M11.4 — `[R]` retry still does not work
 
-`feedback.md`: "'r' to retry still seems to not work" — M10.3 fixed a
+Reported: "'r' to retry still seems to not work" — M10.3 fixed a
 case-sensitivity gap (`"r,R"`) and added `tests/tui/test_retry.py`, and
 those tests pass, so the remaining failure is something the M10.3 probe
 did not model. M10.3a was closed without a real-terminal repro (no
@@ -534,7 +535,7 @@ available in this environment, the same limitation noted in M10.3a.
 
 ### M11.5 — Card art does not display correctly
 
-`feedback.md`: "Tarot card art in the terminal does not display
+Reported: "Tarot card art in the terminal does not display
 correctly." `src/syzygy/tui/widgets/card_art.py` renders via
 `rich_pixels.Pixels.from_image(image, resize=size)` half-blocks, and its
 own docstring says the on-screen size was left to be revisited "once
@@ -611,7 +612,7 @@ styling work starts" — this is that task.
 
 ### M11.6 — Dev-only reroll (testing affordance)
 
-`feedback.md`: "let's create a 'reroll' function in the main display that
+Reported: "let's create a 'reroll' function in the main display that
 allows the user to reroll today's card and recalculate the reading. So
 that I can test the animation over and over again."
 
@@ -670,13 +671,13 @@ or the `UNIQUE` constraint.
 
 ## M12 — Visual identity and use of space
 
-`feedback.md` items 5, 6, 10, 11, 18, 20. Land this before M14: the
+Review items 5, 6, 10, 11, 18, 20. Land this before M14: the
 animation work in M14 targets these layouts, and redesigning under
 finished animations means doing both twice.
 
 ### M12.1 — Retire the gold accent for white
 
-`feedback.md`: "Everywhere that is currently piss yellow in the TUI
+Reported: "Everywhere that is currently piss yellow in the TUI
 should be switched to white." That is `$syz-gold: #cf9b3f` in
 `src/syzygy/tui/syzygy.tcss` (9 usages).
 
@@ -712,7 +713,7 @@ should be switched to white." That is `$syz-gold: #cf9b3f` in
 
 ### M12.2 — Logo and mascot
 
-`feedback.md`: "Use our logo.svg in the app" and "We now have a
+Reported: "Use our logo.svg in the app" and "We now have a
 mascot.png that we need to incorporate." The repo root has `logo.svg`,
 `logo-dark.svg`, `logo-light.svg` (tracked) and `mascot.png` (untracked),
 all outside the package.
@@ -767,7 +768,7 @@ all outside the package.
 
 ### M12.3 — Typography: Cinzel
 
-`feedback.md`: "Change the font to Cinzel."
+Reported: "Change the font to Cinzel."
 
 **Constraint worth stating up front:** a TUI cannot set the terminal's
 font — the font is the terminal emulator's, and no escape sequence lets
@@ -794,7 +795,7 @@ Cinzel"; it can be the three things that are actually achievable.
 
 ### M12.4 — Bigger wheel glyphs
 
-`feedback.md`: "The astrological symbols that rotate around in the wheel
+Reported: "The astrological symbols that rotate around in the wheel
 animation are too small — make them larger."
 
 - [x] M12.4a In `src/syzygy/tui/widgets/wheel.py`, the rim glyphs are
@@ -836,7 +837,7 @@ animation are too small — make them larger."
 
 ### M12.5 — Make the layout use the space
 
-`feedback.md`: "The current TUI does not make intelligent use of the
+Reported: "The current TUI does not make intelligent use of the
 space — the display feels largely empty. When thinking about the
 animations … factor that in." This is the layout half of the same
 problem M14 solves in motion, and it must come first.
@@ -868,13 +869,13 @@ problem M14 solves in motion, and it must come first.
 
 ## M13 — Missing content surfaces
 
-`feedback.md` items 8, 9, 17. All three add things the user can *read*;
+Review items 8, 9, 17. All three add things the user can *read*;
 they depend on M12's layout only loosely, but the new screens should be
 built to the M12.5 breakpoints rather than the old stacked layout.
 
 ### M13.1 — Today's cosmos (daily horoscope) screen
 
-`feedback.md`: "There needs to be a function from the main menu to view
+Reported: "There needs to be a function from the main menu to view
 today's 'cosmos' horoscope, in a similar way that the user can press 'c'
 to view their natal chart."
 
@@ -903,7 +904,7 @@ to view their natal chart."
 
 ### M13.2 — LLM summaries for the chart and the daily cosmos
 
-`feedback.md`: "Both natal chart and the daily horoscope should have an
+Reported: "Both natal chart and the daily horoscope should have an
 LLM summary that the user can read."
 
 - [ ] M13.2a Decide and write down the storage model before coding: a
@@ -936,7 +937,7 @@ LLM summary that the user can read."
 
 ### M13.3 — Ship the processed knowledge sources
 
-`feedback.md`: "Let's process the knowledge sources (the three books) and
+Reported: "Let's process the knowledge sources (the three books) and
 include them as committed artifacts in the repo that all users get
 (should be in machine readable, non-pdf form)." Today `syzygy knowledge
 ingest` runs per-user against PDFs that `.gitignore` excludes
@@ -1044,14 +1045,14 @@ require the user's own PDFs and `syzygy knowledge ingest`.
 
 ## M14 — The animation system
 
-`feedback.md` items 13, 14, 15, 16 (and 11, 20 as context), designed
-against `animation.md`. Do not start before M12 lands. Implement in the
-order below, which follows `animation.md` §40's phasing: the framework
+Review items 13, 14, 15, 16 (and 11, 20 as context), designed
+against `docs/animation.md`. Do not start before M12 lands. Implement in the
+order below, which follows `docs/animation.md` §40's phasing: the framework
 first, then the specific moments the user asked for.
 
 ### M14.1 — Animation framework
 
-- [ ] M14.1a Read `animation.md` §2, §29, §30, §33 before writing code.
+- [ ] M14.1a Read `docs/animation.md` §2, §29, §30, §33 before writing code.
       The mandatory separation is that animated values are never the
       source of truth: application state stays in `syzygy.domain`/storage,
       temporary visual state lives in the animation layer, and the app
@@ -1060,10 +1061,10 @@ first, then the specific moments the user asked for.
       under `syzygy.tui` — Textual types stay inside `syzygy.tui` per
       `AGENTS.md`, and no domain module may import it). Use Textual's
       existing animation/timer machinery where it fits rather than writing
-      a frame loop from scratch; `animation.md`'s architecture is the
+      a frame loop from scratch; `docs/animation.md`'s architecture is the
       contract to satisfy, not a mandate to reimplement what Textual
       already provides.
-- [ ] M14.1c Provide the primitives `animation.md` §7 lists that Syzygy
+- [ ] M14.1c Provide the primitives `docs/animation.md` §7 lists that Syzygy
       will actually use — reveal, pulse, flash, shake, dim/brighten, glyph
       morph, typewriter/decode, stagger — plus the easing set from §6
       (`easeOutCubic`, `easeInOutQuad`, `easeOutBack`, `easeInCubic`).
@@ -1087,11 +1088,11 @@ first, then the specific moments the user asked for.
 
 ### M14.2 — Startup animation and welcome screen
 
-`feedback.md`: "We need a startup animation, then a very cool welcome
+Reported: "We need a startup animation, then a very cool welcome
 screen with 'press any button to continue'."
 
 - [ ] M14.2a Startup sequence on app launch: a Level 3 emphasis event
-      (`animation.md` §36), 300–700 ms, using the logo/wordmark from
+      (`docs/animation.md` §36), 300–700 ms, using the logo/wordmark from
       M12.2/M12.3 — construct the wordmark rather than blitting it (border
       construction, glyph morph, brightness ramp).
 - [ ] M14.2b Redesign `WelcomeScreen` to fill the space (M12.5) and to end
@@ -1107,7 +1108,7 @@ screen with 'press any button to continue'."
 
 ### M14.3 — Self-selected transition
 
-`feedback.md`: "We need an animation for after the user selects a self."
+Reported: "We need an animation for after the user selects a self."
 
 - [ ] M14.3a On profile selection, animate SELF resolving into the
       alignment (`AlignmentWidget`'s `self_resolved`) rather than flipping
@@ -1122,7 +1123,7 @@ screen with 'press any button to continue'."
 
 ### M14.4 — Turning the wheel
 
-`feedback.md`: "We need a transition animation for when a user selects to
+Reported: "We need a transition animation for when a user selects to
 turn the wheel."
 
 - [ ] M14.4a Anticipation → transition → emphasis → settle (§1.2, §12) on
@@ -1144,7 +1145,7 @@ turn the wheel."
 
 ### M14.5 — Opening the reading
 
-`feedback.md`: "We need a transition animation for when a user opens
+Reported: "We need a transition animation for when a user opens
 today's reading."
 
 - [ ] M14.5a Reveal choreography on `RevealScreen` → `ReadingScreen`: the
@@ -1166,10 +1167,10 @@ today's reading."
 ### M14.6 — Consistency pass
 
 - [ ] M14.6a Sweep every screen and replace one-off timing hacks with the
-      semantic events from M14.1d (`animation.md` §40 Phase 5). Check
+      semantic events from M14.1d (`docs/animation.md` §40 Phase 5). Check
       `widgets/wheel.py` and `widgets/tarot_card.py` for existing bespoke
       timing that predates the framework.
-- [ ] M14.6b Verify against `animation.md` §42's definition of done, item
+- [ ] M14.6b Verify against `docs/animation.md` §42's definition of done, item
       by item, and record the result in this task — especially: no
       flicker, no input latency, no queued animations, and identical
       behavior with animation off.
@@ -1183,9 +1184,10 @@ today's reading."
 
 ### M15.1 — Looping theme music
 
-`feedback.md`: "We now have a theme song, called theme.mp3 that should
-play on a loop the whole time the application is running." `theme.mp3` is
-at the repo root and untracked.
+Reported: "We now have a theme song, called theme.mp3 that should
+play on a loop the whole time the application is running." It now lives at
+`src/syzygy/resources/audio/theme.mp3`; the working copy that was at the
+repository root has been removed as a byte-identical duplicate.
 
 - [x] M15.1a Choose the playback mechanism and record the reasoning. There
       is no audio in the stack today, and every option has a real cost:
