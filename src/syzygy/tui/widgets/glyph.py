@@ -6,15 +6,20 @@ a row of tofu boxes is a failed reading. Every symbol the interface draws
 goes through a `GlyphSet`, which resolves it to either the Unicode form or
 an ASCII fallback.
 
-Selection is deliberately crude for now - `SYZYGY_ASCII=1` in the
-environment forces the fallback set. Real terminal capability detection is
-Milestone 9 (`TASKS.md` M9.2); what matters at this milestone is that
-there is exactly one place to add it.
+`SYZYGY_ASCII=1` in the environment always forces the fallback set,
+overriding detection - useful for a font that reports UTF-8 support but
+still renders the occult glyphs as tofu. Absent that override,
+`default_glyphs` inspects the output stream's encoding (falling back to
+the process locale when the stream doesn't expose one, e.g. when stdout
+is piped) - DESIGN.md section 18.5: "the UI must survive fonts that lack
+specialized occult symbols."
 """
 
 from __future__ import annotations
 
+import locale
 import os
+import sys
 from dataclasses import dataclass
 
 from textual.widgets import Static
@@ -131,9 +136,30 @@ UNICODE_GLYPHS = GlyphSet(unicode=True)
 ASCII_GLYPHS = GlyphSet(unicode=False)
 
 
+def _stream_supports_unicode() -> bool:
+    """Best-effort check of whether the output stream can render our
+    glyphs, without ever raising - an encoding lookup failing is itself
+    evidence the environment is unusual enough to fall back on.
+    """
+    encoding = getattr(sys.stdout, "encoding", None)
+    if not encoding:
+        try:
+            encoding = locale.getpreferredencoding(False)
+        except Exception:
+            return False
+    return "utf" in encoding.lower()
+
+
 def default_glyphs() -> GlyphSet:
-    """The glyph set for this session. `SYZYGY_ASCII=1` forces fallbacks."""
-    return ASCII_GLYPHS if os.environ.get("SYZYGY_ASCII") == "1" else UNICODE_GLYPHS
+    """The glyph set for this session.
+
+    `SYZYGY_ASCII=1` always forces the fallback set; otherwise this is
+    real (if best-effort) terminal capability detection via the output
+    stream's encoding, not a blanket assumption of Unicode support.
+    """
+    if os.environ.get("SYZYGY_ASCII") == "1":
+        return ASCII_GLYPHS
+    return UNICODE_GLYPHS if _stream_supports_unicode() else ASCII_GLYPHS
 
 
 def format_degrees(longitude: float) -> str:

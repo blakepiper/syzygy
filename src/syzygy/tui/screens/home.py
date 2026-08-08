@@ -67,6 +67,7 @@ class HomeScreen(SyzygyScreen):
     def on_screen_resume(self) -> None:
         # Coming back from the wheel/reveal/reading flow: today's reading
         # may now exist, which changes the primary action.
+        super().on_screen_resume()
         self._refresh_reading_state()
 
     # -- SELF -------------------------------------------------------------

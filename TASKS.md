@@ -5,15 +5,10 @@ Ordered, ID'd checklist derived from `IMPLEMENTATION_PLAN.md`. Check off
 you deviated from the plan. Dependencies are noted inline; unless stated
 otherwise, tasks within a milestone are sequential.
 
-**Next recommended task: M7.7** (`providers/llama_cpp.py`), then the two
-hosted providers — the prompt contract, the context builder, and the
-knowledge base are all wired into `reading_service` now, so the remaining
-gap to a v0.1 is an actual model behind the interface. A provider is
-transport only: take `prompts.SYSTEM_PROMPT` +
-`prompts.build_user_prompt(context)`, constrain output with
-`prompts.RESPONSE_JSON_SCHEMA` where the API allows, validate into
-`InterpretationResult`, and on failure retry exactly once with
-`prompts.build_repair_prompt(...)` before raising.
+**All milestones (M0-M9) are complete.** v0.1's checklist is done; see
+`README.md`'s "Installation" section to actually run it. Anything further
+(a `syzygy reflect` history-analysis command, richer archive transit
+filters, packaged binaries) is a fast-follow, not a v0.1 gap.
 
 ---
 
@@ -262,7 +257,7 @@ as a single `card_appendix` section anchored to `the_fool` rather than
 force-split six ways; see the comment above
 `segment._BOT_APPENDIX_CARDS` in `src/syzygy/knowledge/segment.py`.
 
-## M7 — Interpretation
+## M7 — Interpretation — DONE
 
 - [x] M7.1 `src/syzygy/domain/interpretation.py` (context + result schemas)
 - [x] M7.2 `src/syzygy/interpretation/base.py` (`InterpretationProvider` protocol)
@@ -369,21 +364,101 @@ force-split six ways; see the comment above
         `FixtureProvider`" line M5/M7 shipped with. The TUI ritual itself
         is unchanged; it still only ever sees an `InterpretationProvider`.
 
-## M8 — Archive
+## M8 — Archive — DONE
 
-- [ ] M8.1 `src/syzygy/storage/readings.py`: `list_readings`,
-      `card_frequency`, `suit_frequency` — depends on M4.6
-- [ ] M8.2 `screens/archive.py` (full: list, detail, reopen, frequency view)
-      — depends on M8.1, M5.8
-- [ ] M8.3 Tests: reopening a past reading renders stored data verbatim
-      (no recalculation)
+- [x] M8.1 `src/syzygy/storage/readings.py`: `list_readings` (already
+      existed from M5.8), `card_frequency`, `suit_frequency` — depends on
+      M4.6. **Deviation**: the `readings` table has no `suit` column (only
+      `card_id`), so `suit_frequency` re-buckets `card_frequency`'s
+      per-card SQL aggregation using the deck's static suit metadata
+      (`sortes.deck.get_card`) rather than a second raw-SQL query.
+- [x] M8.2 `screens/archive.py` (full: list, detail, reopen, frequency
+      view) — depends on M8.1, M5.8. Detail/reopen already existed
+      (`ReadingScreen(interpret=False)`); added an `[F]`-toggled frequency
+      panel (card counts + suit/major-arcana totals) alongside the
+      existing list, explicitly labeled descriptive-only per DESIGN.md
+      section 15. Basic transit filters from the plan's original sketch
+      were not built - `list_readings` has no transit data to filter on
+      without joining back through `interpretation_context_json`, and
+      neither `IMPLEMENTATION_PLAN.md` §Milestone 8 nor this file's M8.2
+      description commit to that scope.
+- [x] M8.3 Tests: `tests/storage/test_readings.py` (card/suit frequency
+      counts, and that a card-less `PREPARED` reading is excluded);
+      `tests/tui/test_navigation.py` already covered "reopening a past
+      reading renders stored data verbatim" (M5.10's
+      `test_archive_reopens_a_reading_without_interpreting_it`) - added
+      `test_archive_frequency_toggle_shows_and_hides_counts` alongside it.
 
-## M9 — Polish and release
+## M9 — Polish and release — DONE
 
-- [ ] M9.1 Original visual theme (`syzygy.tcss`)
-- [ ] M9.2 Glyph capability/fallback layer (DESIGN.md §18.5)
-- [ ] M9.3 Compact terminal mode + "too small" state
-- [ ] M9.4 `syzygy doctor` grown to check knowledge base + provider config
-- [ ] M9.5 Install/packaging documentation
-- [ ] M9.6 License review of any dependency added since M0
-- [ ] M9.7 `docs/adr/` review for staleness
+- [x] M9.1 Original visual theme (`syzygy.tcss`) - reviewed against
+      DESIGN.md §18.1-18.4, no changes needed. The near-black/bone/gold/
+      lunar-blue/oxide/ember palette M5.9 shipped with matches §18.4's
+      suggested direction (and explicitly avoids the generic purple/blue
+      "mystical app" look §5.6/§18.4 warn against); the one ember accent
+      is reserved for chance/reveal/failure states (never anything the
+      machine calculated) and color is never the sole carrier of meaning
+      (transit badges also change weight, `.error`/warnings also change
+      label). Confirmed the same hex values are reused consistently by
+      the Rich-rendered custom widgets (`wheel.py`, `tarot_card.py`,
+      `alignment.py`, `reading_panel.py`, which can't reference TCSS
+      variables directly) rather than drifting to ad hoc colors.
+- [x] M9.2 Glyph capability/fallback layer (DESIGN.md §18.5). `default_glyphs`
+      now inspects the output stream's encoding (falling back to
+      `locale.getpreferredencoding` when the stream doesn't expose one),
+      rather than only ever selecting Unicode absent the `SYZYGY_ASCII=1`
+      override. `SYZYGY_ASCII=1` still always wins. New
+      `tests/tui/test_glyph.py`.
+- [x] M9.3 Compact terminal mode + "too small" state (DESIGN.md §18.6).
+      New `screens/too_small.py` (`TooSmallScreen`, floor 80x24) -
+      `SyzygyApp` pushes/pops it on `on_resize`/at startup as the terminal
+      crosses the floor; the covered screen is never torn down, so
+      mid-ritual state (e.g. an in-progress Wheel draw) survives a
+      shrink-then-grow round trip. Compact mode (100x32 ideal down to the
+      80x24 floor) is a `-compact` class `SyzygyScreen` sets on itself via
+      `on_screen_resume`/`on_resize` - one shared place, per the same
+      philosophy as the glyph layer - with a handful of padding overrides
+      in `syzygy.tcss`; `HomeScreen.on_screen_resume` now calls
+      `super().on_screen_resume()` to keep this working alongside its own
+      override. New `tests/tui/test_responsive.py`;
+      `test_ritual_flow.test_screens_survive_their_supported_sizes` now
+      only covers 100x32/80x24 (both fully supported without a gate) -
+      the below-floor case it used to include is covered there instead.
+- [x] M9.4 `syzygy doctor` grown to check knowledge base + provider config.
+      Factored `model status`'s body into `_print_provider_status`, reused
+      by both commands rather than duplicated. Both new sections are
+      informational only (an empty knowledge base or unconfigured
+      provider are supported states per M6/M7.12) and cannot fail
+      `doctor`'s exit code - only deck validation and the data directory
+      can. `tests/test_cli.py`'s doctor test now uses `isolated_app_paths`
+      (previously unnecessary, since doctor never touched storage before).
+- [x] M9.5 Install/packaging documentation. Expanded `README.md` with a
+      real "Installation" section (Python version requirement + how to
+      get a compatible interpreter, base install, both optional extras,
+      first-run walkthrough, provider setup, knowledge ingestion) ahead
+      of the existing "Development" section, which now installs all
+      extras rather than just `dev`. **Verified for real**, not just
+      written: built a wheel (`python -m build`), confirmed
+      `thoth_deck.yaml` and `syzygy.tcss` are actually bundled in it (a
+      packaging config mistake would silently omit them), and did a
+      clean-venv `pip install` of that wheel on a bare Python 3.13 with no
+      dev/providers/geocoding extras - `syzygy dev deck`, `syzygy doctor`,
+      and `syzygy --help` all worked, and `doctor`'s provider section
+      degraded to a clear "install the `providers` extra" message instead
+      of crashing when `httpx` was absent, confirming M9.4's ImportError
+      handling actually works outside the dev venv it was written in.
+- [x] M9.6 License review of any dependency added since M0. Checked every
+      runtime/build dependency's installed license metadata: `textual`,
+      `pydantic`, `platformdirs`, `pyyaml`, `httpx`, `keyring`, `geopy`,
+      `timezonefinder`, `hatchling` are all MIT/BSD-3-Clause (permissive,
+      always compatible per ADR 0001's policy); dev-only `pytest`, `ruff`,
+      `mypy` (MIT) and `pytest-asyncio` (Apache-2.0) are never distributed.
+      **Found a gap**: `pymupdf` (added in Milestone 6 for PDF ingestion)
+      is AGPL-3.0/commercial dual-licensed - copyleft, like Kerykeion -
+      and had never gotten the individual review ADR 0001's policy
+      requires. Compatible (same reasoning as Kerykeion), but undocumented
+      until now - see new `docs/adr/0002-pymupdf-agpl-license-review.md`.
+- [x] M9.7 `docs/adr/` review for staleness. ADR 0001 itself still holds
+      (no hosted/network mode exists, so its "no practical bite" claim is
+      still true) - its gap was the undocumented `pymupdf` dependency,
+      fixed by adding ADR 0002 rather than by rewriting ADR 0001.

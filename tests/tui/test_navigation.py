@@ -52,6 +52,31 @@ async def test_empty_archive(app: SyzygyApp, profile):
         assert "No readings yet." in text_of(q(pilot, "#archive-summary", Static))
 
 
+async def test_archive_frequency_toggle_shows_and_hides_counts(services, profile):
+    async with SyzygyApp(services).run_test() as pilot:
+        await settle(pilot)
+        await turn_the_wheel(pilot)
+        card_id = pilot.app.screen.reading.card_draw.card_id
+        await pilot.press("escape")
+        await pilot.pause()
+
+        await pilot.press("a")
+        await settle(pilot)
+        assert isinstance(pilot.app.screen, ArchiveScreen)
+
+        from syzygy.sortes.deck import get_card
+
+        await pilot.press("f")
+        await pilot.pause()
+        counts_text = text_of(q(pilot, "#archive-frequency", Static))
+        assert get_card(card_id).full_name in counts_text
+
+        await pilot.press("f")
+        await pilot.pause()
+        panel = q(pilot, "#archive-frequency-panel")
+        assert "hidden" in panel.classes
+
+
 async def test_archive_reopens_a_reading_without_interpreting_it(services, profile):
     """A past reading is rendered from storage, never regenerated."""
     async with SyzygyApp(services).run_test() as pilot:

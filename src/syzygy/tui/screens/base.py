@@ -17,14 +17,38 @@ if TYPE_CHECKING:
     from syzygy.tui.app import SyzygyApp
 
 
+#: DESIGN.md section 18.6's ideal terminal size. At or above this, a
+#: screen renders at full size; below it (but still at or above the
+#: compact floor in `syzygy.tui.screens.too_small`), screens get a
+#: `-compact` class to trim padding/decoration rather than truncating.
+IDEAL_WIDTH = 100
+IDEAL_HEIGHT = 32
+
+
 class SyzygyScreen(Screen[None]):
-    """A screen with typed access back to the Syzygy application."""
+    """A screen with typed access back to the Syzygy application.
+
+    Also owns compact-mode detection (DESIGN.md section 18.6) in one
+    place, via `on_screen_resume`/`on_resize`, rather than each screen
+    checking its own size. A subclass that overrides `on_screen_resume`
+    must call `super().on_screen_resume()` to keep this working.
+    """
 
     @property
     def syzygy(self) -> SyzygyApp:
         # `App` is generic over its return type only, so the concrete app
         # type has to be asserted here rather than parameterized.
         return cast("SyzygyApp", self.app)
+
+    def on_screen_resume(self) -> None:
+        self._update_compact_class()
+
+    def on_resize(self) -> None:
+        self._update_compact_class()
+
+    def _update_compact_class(self) -> None:
+        compact = self.size.width < IDEAL_WIDTH or self.size.height < IDEAL_HEIGHT
+        self.set_class(compact, "-compact")
 
 
 class TitleBar(Static):

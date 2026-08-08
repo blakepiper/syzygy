@@ -252,6 +252,61 @@ def test_an_empty_knowledge_base_still_produces_a_reading(conn):
     assert reading.interpretation_context.knowledge_chunks == []
 
 
+def test_card_and_suit_frequency_count_committed_draws(conn):
+    profile = _profile()
+    insert_profile(conn, profile)
+
+    _commit_reading_with_card(conn, profile, "2026-08-01", "the_fool")
+    _commit_reading_with_card(conn, profile, "2026-08-02", "two_of_wands")
+    _commit_reading_with_card(conn, profile, "2026-08-03", "two_of_wands")
+    _commit_reading_with_card(conn, profile, "2026-08-04", "ace_of_wands")
+
+    assert readings.card_frequency(conn, profile.id) == {
+        "two_of_wands": 2,
+        "ace_of_wands": 1,
+        "the_fool": 1,
+    }
+    assert readings.suit_frequency(conn, profile.id) == {"wands": 3, "major": 1}
+
+
+def test_frequency_ignores_readings_that_never_reached_a_committed_card(conn):
+    profile = _profile()
+    insert_profile(conn, profile)
+
+    # PREPARED, with no card_id yet.
+    readings.create_prepared(
+        conn,
+        profile_id=profile.id,
+        consultation_local_date="2026-08-05",
+        consultation_local_timestamp=FIXED_NOW.isoformat(),
+        consultation_utc_timestamp=FIXED_NOW,
+        consultation_timezone="UTC",
+    )
+
+    assert readings.card_frequency(conn, profile.id) == {}
+    assert readings.suit_frequency(conn, profile.id) == {}
+
+
+def _commit_reading_with_card(conn, profile, local_date: str, card_id: str) -> None:
+    from syzygy.domain.tarot import TarotDraw
+
+    reading = readings.create_prepared(
+        conn,
+        profile_id=profile.id,
+        consultation_local_date=local_date,
+        consultation_local_timestamp=FIXED_NOW.isoformat(),
+        consultation_utc_timestamp=FIXED_NOW,
+        consultation_timezone="UTC",
+    )
+    draw = TarotDraw(
+        card_id=card_id,
+        drawn_at_utc=FIXED_NOW,
+        sortes_version="sortes-v1",
+        entropy_digest="digest",
+    )
+    readings.commit_draw(conn, reading.id, draw)
+
+
 def _todays_card_id() -> str:
     """The card `_run` will draw - same collector inputs, same card."""
     collector = EntropyCollector(session_nonce=b"x", os_random=_fixed_os_random_factory(7))

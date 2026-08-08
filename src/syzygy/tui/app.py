@@ -16,6 +16,7 @@ from __future__ import annotations
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from textual.app import App
 
@@ -31,8 +32,12 @@ from syzygy.tui.screens.chart import ChartScreen
 from syzygy.tui.screens.home import HomeScreen
 from syzygy.tui.screens.profile_create import ProfileCreateScreen
 from syzygy.tui.screens.profile_select import ProfileSelectScreen
+from syzygy.tui.screens.too_small import MIN_HEIGHT, MIN_WIDTH, TooSmallScreen
 from syzygy.tui.screens.welcome import WelcomeScreen
 from syzygy.tui.widgets.glyph import GlyphSet, default_glyphs
+
+if TYPE_CHECKING:
+    from textual import events
 
 
 @dataclass
@@ -103,6 +108,7 @@ class SyzygyApp(App[None]):
         "home": HomeScreen,
         "chart": ChartScreen,
         "archive": ArchiveScreen,
+        "too_small": TooSmallScreen,
     }
 
     def __init__(
@@ -125,6 +131,28 @@ class SyzygyApp(App[None]):
             self.push_screen("home")
         else:
             self.push_screen("profile_select")
+        self._update_size_gate(self.size.width, self.size.height)
+
+    def on_resize(self, event: events.Resize) -> None:
+        self._update_size_gate(event.size.width, event.size.height)
+
+    def _update_size_gate(self, width: int, height: int) -> None:
+        """Push/pop `TooSmallScreen` as the terminal crosses the compact
+        floor (DESIGN.md section 18.6). The screen it covers is never torn
+        down - popping restores it exactly, so a mid-ritual state like an
+        in-progress Wheel draw survives a shrink-then-grow round trip.
+        """
+        current = self.screen
+        too_small = width < MIN_WIDTH or height < MIN_HEIGHT
+        if too_small and not isinstance(current, TooSmallScreen):
+            self.push_screen("too_small")
+        elif not too_small and isinstance(current, TooSmallScreen):
+            self.pop_screen()
+        elif too_small and isinstance(current, TooSmallScreen):
+            # Already showing - update the reported size rather than
+            # re-pushing. A freshly pushed screen sets its own initial
+            # text from `on_mount`, once it has actually mounted.
+            current.update_size(width, height)
 
     def set_profile(self, profile: Profile) -> None:
         self.profile = profile

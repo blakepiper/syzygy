@@ -12,11 +12,18 @@ def test_dev_deck_lists_78_cards(capsys):
     assert "78 cards total." in out
 
 
-def test_doctor_exits_zero(capsys):
+def test_doctor_exits_zero(isolated_app_paths, capsys):
     exit_code = main(["doctor"])
     assert exit_code == 0
     out = capsys.readouterr().out
     assert "deck    OK" in out
+    # Knowledge base and provider config are informational (DESIGN.md
+    # section 15/13.3's "no model configured" and "no source ingested"
+    # are both supported states) - doctor reports them, but neither can
+    # fail its exit code.
+    assert "not ingested" in out
+    assert "llama_cpp" in out
+    assert "active provider: fixture" in out
 
 
 def test_help_flag_prints_usage(capsys):

@@ -30,6 +30,23 @@ Screen {
     display: none;
 }
 
+/* Compact mode (DESIGN.md section 18.6): below the ideal 100x32 but at
+ * or above the 80x24 floor, `SyzygyScreen` sets `-compact` on itself.
+ * Padding shrinks; layout and content do not change shape, so nothing
+ * here can hide information, only the whitespace around it.
+ */
+
+.-compact .title-bar,
+.-compact .lede,
+.-compact .muted {
+    padding: 0 1;
+}
+
+.-compact #chart-body,
+.-compact #archive-frequency {
+    padding: 0 1;
+}
+
 .title-bar {
     width: 1fr;
     padding: 0 2;
@@ -270,4 +287,15 @@ TarotCardWidget {
 
 #chart-body {
     padding: 1 2;
+}
+
+#archive-frequency {
+    padding: 1 2;
+}
+
+/* Too small */
+
+#too-small-message {
+    text-align: center;
+    color: $syz-gold;
 }

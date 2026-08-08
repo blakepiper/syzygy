@@ -225,13 +225,13 @@ async def test_failed_interpretation_retries_the_same_card(services, profile, co
         assert screen.reading.card_draw.card_id == drawn_card
 
 
-@pytest.mark.parametrize("size", [(100, 32), (80, 24), (60, 18)])
+@pytest.mark.parametrize("size", [(100, 32), (80, 24)])
 async def test_screens_survive_their_supported_sizes(app: SyzygyApp, profile, size):
-    """Ideal, compact, and below-compact terminals (DESIGN.md 18.6).
+    """Ideal and compact terminals (DESIGN.md 18.6) both stay fully usable
+    end to end - no screen raises or loses its primary action.
 
-    A dedicated "terminal too small" state is Milestone 9; what must hold
-    now is that no screen raises or loses its primary action when the
-    terminal shrinks.
+    Below-compact sizes (< 80x24) are Milestone 9's dedicated "terminal
+    too small" state, covered separately in `test_responsive.py`.
     """
     async with app.run_test(size=size) as pilot:
         await settle(pilot)
@@ -243,8 +243,3 @@ async def test_screens_survive_their_supported_sizes(app: SyzygyApp, profile, si
         # The Wheel renders at whatever size it is given.
         wheel = q(pilot, "#wheel")
         assert wheel.size.width > 0
-
-        await pilot.app.screen.workers.wait_for_complete()
-        await pilot.resize_terminal(70, 20)
-        await pilot.pause()
-        assert q(pilot, "#wheel").size.width > 0

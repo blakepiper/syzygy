@@ -31,7 +31,13 @@ Commands implemented so far:
   and the active selection lives in a small local settings file
   (`syzygy.interpretation.providers.selection`) - `default_services`
   reads that selection to decide what `reading_service` actually calls.
-- `syzygy doctor` - basic environment/health check.
+- `syzygy doctor` - environment/health check: deck validation, the data
+  directory, knowledge-base ingestion status per source, and provider
+  configuration (the same report `model status` gives). Knowledge base
+  and provider config are informational only - an empty knowledge base
+  or an unconfigured provider are both supported states (the ritual falls
+  back to `FixtureProvider` and to no source passages), so neither can
+  fail `doctor`'s exit code.
 
 Everything else in DESIGN.md section 20's command list is a later
 milestone's job; add subcommands there as their underlying features land,
@@ -318,7 +324,10 @@ def _settings_path() -> Path:
     return default_app_paths().settings_path
 
 
-def _cmd_model_status(_args: argparse.Namespace) -> int:
+def _print_provider_status() -> None:
+    """Shared by `model status` and `doctor` - which providers are usable
+    right now, and which one a reading would actually use.
+    """
     import asyncio
     import os
 
@@ -345,7 +354,7 @@ def _cmd_model_status(_args: argparse.Namespace) -> int:
     selection = load_selection(_settings_path())
     if selection is None:
         print("\nactive provider: fixture (default - select one with `syzygy model use`)")
-        return 0
+        return
 
     _, fallback_reason = resolve_selected_provider(selection)
     label = selection.provider_id + (f" ({selection.model_id})" if selection.model_id else "")
@@ -353,6 +362,10 @@ def _cmd_model_status(_args: argparse.Namespace) -> int:
         print(f"\nactive provider: {label} - CURRENTLY FALLING BACK TO FIXTURE: {fallback_reason}")
     else:
         print(f"\nactive provider: {label}")
+
+
+def _cmd_model_status(_args: argparse.Namespace) -> int:
+    _print_provider_status()
     return 0
 
 
@@ -444,8 +457,53 @@ def _cmd_doctor(_args: argparse.Namespace) -> int:
     except OSError as exc:
         print(f"data dir FAILED: {exc}")
         ok = False
+        # Nothing below here can be checked without a data directory.
+        return 1
+
+    print()
+    _doctor_knowledge_base()
+    print()
+    _doctor_providers()
 
     return 0 if ok else 1
+
+
+def _doctor_knowledge_base() -> None:
+    """Informational only: an empty knowledge base is a supported state
+    (a reading still completes with `knowledge_chunks=[]`), so nothing
+    here can fail `doctor`'s exit code - it just tells the user what's
+    ingested.
+    """
+    from syzygy.knowledge.ingest import SOURCE_TYPES
+    from syzygy.knowledge.store import count_chunks, get_source_by_type
+
+    conn = _open_profile_db()
+    try:
+        any_ingested = False
+        for source_type in SOURCE_TYPES:
+            source = get_source_by_type(conn, source_type)
+            if source is None:
+                print(f"knowledge {source_type:26s} not ingested")
+                continue
+            any_ingested = True
+            chunk_count = count_chunks(conn, source.id)
+            print(f"knowledge {source_type:26s} {chunk_count:4d} chunks")
+        if not any_ingested:
+            print("(no source ingested yet - readings still work with no source passages;")
+            print(" see `syzygy knowledge ingest`)")
+    finally:
+        conn.close()
+
+
+def _doctor_providers() -> None:
+    """Informational only, same reasoning as `_doctor_knowledge_base` - an
+    unconfigured provider is a supported state (`default_services` falls
+    back to `FixtureProvider`), so this cannot fail `doctor`'s exit code.
+    """
+    try:
+        _print_provider_status()
+    except ImportError as exc:
+        print(f"provider check skipped: {exc} (install the `providers` extra)")
 
 
 def _add_birth_data_args(parser: argparse.ArgumentParser) -> None:

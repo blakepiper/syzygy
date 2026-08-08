@@ -125,6 +125,44 @@ def list_readings(
     return [_row_to_reading(row) for row in conn.execute(sql, params).fetchall()]
 
 
+def card_frequency(conn: sqlite3.Connection, profile_id: str) -> dict[str, int]:
+    """`card_id` -> number of this profile's readings that drew it.
+
+    Descriptive counts only (DESIGN.md section 15) - no statistical framing
+    is added here or implied by the ordering. Any reading past `DRAWN` has
+    a committed `card_id`, regardless of whether interpretation ever
+    succeeded, so a card that was drawn still counts even if the model
+    call failed. Ordered most-frequent-first, `card_id` ascending to break
+    ties, so callers get a stable, deterministic ordering.
+    """
+    rows = conn.execute(
+        "SELECT card_id, COUNT(*) AS n FROM readings "
+        "WHERE profile_id = ? AND card_id IS NOT NULL "
+        "GROUP BY card_id ORDER BY n DESC, card_id ASC",
+        (profile_id,),
+    ).fetchall()
+    return {row["card_id"]: row["n"] for row in rows}
+
+
+def suit_frequency(conn: sqlite3.Connection, profile_id: str) -> dict[str, int]:
+    """Suit label (`"major"` or a `Suit` value) -> reading count.
+
+    The `readings` table has no `suit` column - only `card_id` - so this
+    re-buckets `card_frequency`'s per-card counts using the deck's static
+    suit metadata (`syzygy.sortes.deck.get_card`) rather than adding a
+    denormalized column. Ordered most-frequent-first, label ascending to
+    break ties.
+    """
+    from syzygy.sortes.deck import get_card
+
+    totals: dict[str, int] = {}
+    for card_id, count in card_frequency(conn, profile_id).items():
+        card = get_card(card_id)
+        label = card.suit.value if card.suit is not None else "major"
+        totals[label] = totals.get(label, 0) + count
+    return dict(sorted(totals.items(), key=lambda item: (-item[1], item[0])))
+
+
 def create_prepared(
     conn: sqlite3.Connection,
     *,
