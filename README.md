@@ -4,8 +4,6 @@
   <img alt="Syzygy" src="logo-light.svg" width="100%">
 </picture>
 
-# Syzygy
-
 A local-first terminal application for a daily divination ritual combining:
 
 - **Self** — your saved natal chart
