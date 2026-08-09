@@ -58,6 +58,14 @@ _FILENAME_HINTS: dict[str, str] = {
     "ziegler_mirror_of_soul": "mirror_of_the_soul",
 }
 
+#: What each source's file is called in `docs/KNOWLEDGE_SOURCES.md`, for
+#: an interface that has to tell someone what to go and find. A file named
+#: anything else still ingests - `--source-type` exists for exactly that -
+#: but these are the names auto-detection recognises.
+EXPECTED_FILENAMES: dict[str, str] = {
+    source_type: f"{hint}.pdf" for source_type, hint in _FILENAME_HINTS.items()
+}
+
 _SEGMENTERS: dict[str, Callable[[pymupdf.Document], list[Section]]] = {
     "book_of_thoth": segment_book_of_thoth,
     "duquette_companion": segment_duquette,
@@ -67,6 +75,63 @@ _SEGMENTERS: dict[str, Callable[[pymupdf.Document], list[Section]]] = {
 
 class UnknownSourceTypeError(ValueError):
     """Raised when a `source_type` can't be auto-detected or isn't recognized."""
+
+
+class SourceFileMismatchError(ValueError):
+    """The file offered is not the edition this build's citations describe."""
+
+
+def known_file_hashes() -> dict[str, str]:
+    """`source_type -> sha256` for the editions this build knows.
+
+    Read from the shipped artifact rather than restated here, so there is
+    exactly one record of which file each citation's page numbers refer to
+    (`docs/KNOWLEDGE_SOURCES.md` section 2 documents the same hashes; the
+    artifact is what was actually built from them). A build with no
+    artifact knows no hashes, and `verify_known_source_file` says so
+    rather than waving an unverifiable file through.
+    """
+    from syzygy.knowledge.artifact import load_bundled_artifact
+
+    try:
+        artifact = load_bundled_artifact()
+    except Exception:  # noqa: BLE001 - an unparseable artifact knows nothing
+        return {}
+    if artifact is None:
+        return {}
+    return {source.source_type: source.file_hash for source in artifact.sources}
+
+
+def verify_known_source_file(path: Path, *, source_type: str | None = None) -> tuple[str, str]:
+    """`(source_type, sha256)` for a file that is the edition we expect.
+
+    Raises `SourceFileMismatchError` otherwise. The interface uses this
+    (M18.1c) because the page ranges in every shipped citation are that
+    edition's pagination: ingesting a different scan under the same
+    `source_type` would quietly make every "pages 106-110" in the app
+    point somewhere else. `syzygy knowledge ingest` deliberately does not
+    call it - the CLI stays the route for anyone who knows their copy
+    differs and accepts what that means.
+    """
+    resolved = source_type or detect_source_type(path)
+    if resolved not in _SEGMENTERS:
+        raise UnknownSourceTypeError(
+            f"unknown source_type {resolved!r} (expected one of {SOURCE_TYPES})"
+        )
+    expected = known_file_hashes().get(resolved)
+    if expected is None:
+        raise SourceFileMismatchError(
+            f"this build ships no citations for {resolved!r}, so a file cannot be "
+            f"checked against a known edition"
+        )
+    actual = hashlib.sha256(path.read_bytes()).hexdigest()
+    if actual != expected:
+        raise SourceFileMismatchError(
+            f"{path.name} is not the edition of {resolved!r} these citations describe "
+            f"(sha256 {actual[:12]}…, expected {expected[:12]}…). Its page numbers "
+            f"would not match. Use `syzygy knowledge ingest` if you accept that."
+        )
+    return resolved, actual
 
 
 def detect_source_type(path: Path) -> str:
@@ -118,13 +183,22 @@ def ingest(
     *,
     now: datetime,
     source_type: str | None = None,
+    on_progress: Callable[[str], None] | None = None,
 ) -> IngestResult:
+    """Ingest one PDF. `on_progress` is called with a short phase label
+    between the stages that take real time (hashing, opening, segmenting,
+    storing) so a caller with a screen can say what is happening; a
+    caller without one passes nothing and this behaves exactly as before.
+    """
+    report = on_progress or (lambda _phase: None)
+
     resolved_type = source_type or detect_source_type(pdf_path)
     if resolved_type not in _SEGMENTERS:
         raise UnknownSourceTypeError(
             f"unknown source_type {resolved_type!r} (expected one of {SOURCE_TYPES})"
         )
 
+    report("hashing the file")
     file_hash = hashlib.sha256(pdf_path.read_bytes()).hexdigest()
     version = INGESTION_VERSIONS[resolved_type]
 
@@ -142,12 +216,15 @@ def ingest(
     ):
         return IngestResult(source_type=resolved_type, skipped=True, chunk_count=0, card_count=0)
 
+    report("reading the PDF")
     doc = pymupdf.open(pdf_path)
     try:
+        report("segmenting into card sections")
         sections = _SEGMENTERS[resolved_type](doc)
     finally:
         doc.close()
 
+    report("chunking")
     source_id = str(uuid.uuid4())
     chunks: list[KnowledgeChunk] = []
     card_ids: set[str] = set()
@@ -179,6 +256,7 @@ def ingest(
         ingestion_version=version,
         created_at_utc=now,
     )
+    report(f"storing {len(chunks)} chunks")
     replace_source(conn, source, chunks)
     return IngestResult(
         source_type=resolved_type,

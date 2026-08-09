@@ -310,7 +310,7 @@ of a CLI incantation buried in the docs.
       empty, say so in one plain sentence — Syzygy ships the references but not
       the book text, and the text isn't installed — and name the action that
       changes it. One sentence, no lecture.
-- [ ] M18.1c Make ingestion reachable from the interface. Add a source-material
+- [x] M18.1c Make ingestion reachable from the interface. Add a source-material
       screen (or a section of the existing model-setup route) that reports
       which of the three sources are ingested, explains that the user supplies
       their own copies, shows the expected filenames/locations from
@@ -318,7 +318,7 @@ of a CLI incantation buried in the docs.
       progress. It must never download a book, and must refuse a file whose
       hash does not match a known source rather than ingesting something
       arbitrary.
-- [ ] M18.1d Surface the state before the reading, not only after it: home
+- [x] M18.1d Surface the state before the reading, not only after it: home
       shows a one-line, dismissible note when no source text is ingested, and
       `syzygy doctor` distinguishes "citations only (normal)" from "ingestion
       present but broken". A citation-only install is not a failing

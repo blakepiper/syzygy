@@ -20,6 +20,7 @@ from textual.widgets import Button, Footer, Static
 from syzygy.dev import DEV_MODE_ENV_VAR, dev_mode_enabled, discard_todays_reading
 from syzygy.domain.astrology import RankedTransit, sign_for_longitude
 from syzygy.domain.reading import Reading, ReadingStatus
+from syzygy.knowledge.status import any_full_text, source_note_dismissed, source_statuses
 from syzygy.storage.reading_service import rank_current_transits
 from syzygy.tui.screens.base import SyzygyScreen, TitleBar
 from syzygy.tui.screens.model_setup import ProviderStatus, load_status
@@ -40,6 +41,7 @@ class HomeScreen(SyzygyScreen):
         ("a", "archive", "archive"),
         ("p", "profiles", "profiles"),
         ("m", "model", "model"),
+        ("k", "sources", "source material"),
     ]
 
     def __init__(self) -> None:
@@ -85,7 +87,16 @@ class HomeScreen(SyzygyScreen):
                 yield Static("CHANCE", classes="column-heading")
                 yield Static("", id="home-status", classes="muted")
                 yield Static("", id="home-model-status", classes="muted", markup=False)
-                yield Static("", id="home-dev", classes="error", markup=False)
+                # M18.1d. Shown before the draw rather than discovered
+                # afterwards in the `[I]` view - a citation-only install is
+                # a supported state, so this states it once and can be
+                # switched off for good from the source-material screen.
+                yield Static("", id="home-sources", classes="muted hidden", markup=False)
+                # Starts hidden: with `SYZYGY_DEV` unset this line has
+                # nothing to say, and an empty `Static` still costs a row -
+                # a row the CHANCE column does not have to spare at the
+                # compact floor (`tests/tui/test_layout.py`).
+                yield Static("", id="home-dev", classes="error hidden", markup=False)
                 with Center(id="home-action"):
                     yield Button(TURN_THE_WHEEL, id="primary-action", variant="primary")
                 # M17.3a: the mascot as a companion, where there are rows
@@ -107,7 +118,30 @@ class HomeScreen(SyzygyScreen):
         self._refresh_reading_state()
         self._load_sky()
         self._load_model_status()
+        self._render_source_note()
         self._enable_dev_affordances()
+
+    # -- source material (M18.1d) ------------------------------------------
+
+    def _render_source_note(self) -> None:
+        """One line, or nothing at all.
+
+        Deliberately quiet: an install with citations and no passages is
+        the normal shape of a fresh clone, not a fault, so this says what
+        is true and where to change it and never uses an error style.
+        """
+        note = self.query_one("#home-sources", Static)
+        try:
+            statuses = source_statuses(self.syzygy.services.conn)
+        except Exception:  # noqa: BLE001 - never take home down over a note
+            note.add_class("hidden")
+            return
+        settings_path = self.syzygy.services.settings_path
+        if any_full_text(statuses) or source_note_dismissed(settings_path):
+            note.add_class("hidden")
+            return
+        note.remove_class("hidden")
+        note.update("No source passages installed  ·  [K] source material")
 
     # -- dev-only reroll (M11.6) -------------------------------------------
 
@@ -122,6 +156,7 @@ class HomeScreen(SyzygyScreen):
         if not dev_mode_enabled():
             return
         self._bindings.bind("x", "dev_reroll", "DEV: reroll")
+        self.query_one("#home-dev").remove_class("hidden")
         self.query_one("#home-dev", Static).update(
             f"DEV MODE ({DEV_MODE_ENV_VAR} is set)  ·  [X] discard today's reading and redraw"
         )
@@ -171,6 +206,7 @@ class HomeScreen(SyzygyScreen):
         self.query_one("#primary-action", Button).disabled = False
         self._refresh_reading_state()
         self._load_model_status()
+        self._render_source_note()
 
     # -- SELF -------------------------------------------------------------
 
@@ -373,6 +409,9 @@ class HomeScreen(SyzygyScreen):
 
     def action_model(self) -> None:
         self.app.push_screen("model_setup")
+
+    def action_sources(self) -> None:
+        self.app.push_screen("source_material")
 
     def refresh_reading(self) -> None:
         """Re-read today's reading from storage (used after a draw)."""

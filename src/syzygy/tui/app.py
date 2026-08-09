@@ -42,6 +42,7 @@ from syzygy.tui.screens.local_setup import LocalSetupScreen
 from syzygy.tui.screens.model_setup import ModelSetupScreen
 from syzygy.tui.screens.profile_create import ProfileCreateScreen
 from syzygy.tui.screens.profile_select import ProfileSelectScreen
+from syzygy.tui.screens.source_material import SourceMaterialScreen
 from syzygy.tui.screens.startup import StartupScreen
 from syzygy.tui.screens.too_small import MIN_HEIGHT, MIN_WIDTH, TooSmallScreen
 from syzygy.tui.screens.welcome import WelcomeScreen
@@ -200,6 +201,7 @@ class SyzygyApp(App[None]):
         "archive": ArchiveScreen,
         "model_setup": ModelSetupScreen,
         "local_setup": LocalSetupScreen,
+        "source_material": SourceMaterialScreen,
         "too_small": TooSmallScreen,
     }
 

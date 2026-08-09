@@ -38,6 +38,7 @@ from typing import Any, Final
 PROVIDER_SECTION: Final = "provider"
 AUDIO_SECTION: Final = "audio"
 ANIMATION_SECTION: Final = "animations"
+KNOWLEDGE_SECTION: Final = "knowledge"
 
 
 def load_document(path: Path) -> dict[str, Any]:
