@@ -14,8 +14,8 @@ from textual.containers import Horizontal, VerticalScroll
 from textual.widgets import Footer, Static
 
 from syzygy.domain.astrology import sign_for_longitude
-from syzygy.domain.interpretation import InterpretationKind, SummaryResult
-from syzygy.storage.summaries import NATAL_SCOPE_DATE, get_summary
+from syzygy.domain.interpretation import SummaryResult
+from syzygy.storage.profiles import get_natal_summary, get_profile
 from syzygy.storage.summary_service import natal_summary
 from syzygy.tui.screens.base import SyzygyScreen, TitleBar
 from syzygy.tui.widgets.glyph import format_degrees
@@ -87,11 +87,8 @@ class ChartScreen(SyzygyScreen):
                 f"{aspect.body_b} ({aspect.orb_degrees:.2f}°)"
             )
         aspects_body.update("\n".join(aspect_lines))
-        cached = get_summary(
-            self.syzygy.services.conn,
-            profile.id,
-            InterpretationKind.NATAL_SUMMARY,
-            NATAL_SCOPE_DATE,
+        cached = profile.natal_summary or get_natal_summary(
+            self.syzygy.services.conn, profile.id
         )
         if cached is not None:
             self._show_summary(cached)
@@ -109,13 +106,17 @@ class ChartScreen(SyzygyScreen):
         if profile is None:
             return
         services = self.syzygy.services
+        now = services.clock.now_utc()
         try:
             result = await natal_summary(
-                services.conn, profile, services.provider, services.clock.now_utc()
+                services.conn, profile, services.provider, now
             )
         except Exception as exc:
             self._summary_failed(f"{type(exc).__name__}: {exc}")
             return
+        persisted_profile = get_profile(services.conn, profile.id)
+        if persisted_profile is not None:
+            self.syzygy.set_profile(persisted_profile)
         self._show_summary(result)
 
     def _show_summary(self, result: SummaryResult) -> None:

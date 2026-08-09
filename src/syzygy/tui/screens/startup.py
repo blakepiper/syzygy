@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING
 
 from textual import events
 from textual.app import ComposeResult
-from textual.containers import Center, Middle
+from textual.containers import Middle, Vertical
 from textual.widgets import Static
 
 from syzygy.storage.profiles import list_profiles
@@ -69,10 +69,9 @@ class StartupScreen(SyzygyScreen):
 
     def compose(self) -> ComposeResult:
         with Middle():
-            with Center():
+            with Vertical(id="startup-brand"):
                 yield Static("", id="startup-mark", classes="startup-mark")
                 yield Logo(id="startup-logo")
-            with Center():
                 yield Mascot(id="startup-mascot")
 
     def on_mount(self) -> None:

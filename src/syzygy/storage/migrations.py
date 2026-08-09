@@ -208,6 +208,33 @@ _MIGRATIONS: list[tuple[int, str, str]] = [
             ON oracle_consultations (profile_id, asked_at_utc DESC);
         """,
     ),
+    (
+        8,
+        "profiles: own the persistent natal-chart summary",
+        """
+        ALTER TABLE profiles ADD COLUMN natal_summary_json TEXT;
+
+        UPDATE profiles
+        SET natal_summary_json = (
+            SELECT result_json
+            FROM interpretive_summaries
+            WHERE interpretive_summaries.profile_id = profiles.id
+              AND kind = 'natal_summary'
+              AND scope_date = ''
+            LIMIT 1
+        )
+        WHERE EXISTS (
+            SELECT 1
+            FROM interpretive_summaries
+            WHERE interpretive_summaries.profile_id = profiles.id
+              AND kind = 'natal_summary'
+              AND scope_date = ''
+        );
+
+        DELETE FROM interpretive_summaries
+        WHERE kind = 'natal_summary' AND scope_date = '';
+        """,
+    ),
 ]
 
 

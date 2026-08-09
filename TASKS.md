@@ -223,6 +223,18 @@ staged `RevealScreen` remains unchanged.
 
 ---
 
+### Post-M19 quick fixes
+
+- [x] Render the dense monochrome mascot as terminal Braille line art rather
+      than low-resolution colour half-blocks, and align startup/welcome logo,
+      mascot, and copy in one centered lockup.
+- [x] Move generated natal-chart summaries from the generic summary cache onto
+      the saved `Profile`; migration 8 preserves existing generated summaries,
+      and reloads/restarts reuse them without another provider call. Daily
+      cosmos summaries remain date-scoped cache entries.
+
+---
+
 ## M20 — I Ching
 
 Do not start this before M19 ships — it reuses the Oracle's flow, storage, and

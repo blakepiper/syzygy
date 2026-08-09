@@ -148,6 +148,20 @@ class Mascot(BrandImage):
         super().on_mount()
         self._apply_state()
 
+    def _content(self) -> RenderableType:
+        """Render the detailed monochrome mascot as crisp Braille line art."""
+        size = self.size
+        if not size.width or not size.height:
+            return Text("")
+        try:
+            fitted = pixel_art.fit_braille_size(
+                MASCOT_PATH, size.width, size.height, max_columns=self._max_columns
+            )
+            art = None if fitted is None else pixel_art.render_braille(MASCOT_PATH, fitted)
+        except Exception:  # noqa: BLE001 - decorative fallback
+            return Text("")
+        return Text("") if art is None else Align.center(art)
+
     def set_state(self, state: MascotState) -> None:
         """Move to `state`, as a class `syzygy.tcss` styles."""
         self.state = state

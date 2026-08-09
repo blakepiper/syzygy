@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from textual import events, work
 from textual.app import ComposeResult
-from textual.containers import Center, Horizontal, Middle, Vertical
+from textual.containers import Middle, Vertical
 from textual.widgets import Footer, Static
 
 from syzygy.storage.profiles import list_profiles
@@ -41,19 +41,17 @@ class WelcomeScreen(SyzygyScreen):
 
     def compose(self) -> ComposeResult:
         with Middle():
-            with Center():
+            with Vertical(id="welcome-brand"):
                 yield Logo(id="welcome-logo")
-            with Center():
-                with Horizontal(id="welcome-columns"):
-                    yield Mascot(id="welcome-mascot")
-                    with Vertical(id="welcome-body"):
-                        yield Static("No self is configured.", classes="lede")
-                        yield Static(
-                            "SELF · COSMOS · CHANCE\nThe alignment waits for you.",
-                            classes="muted",
-                        )
-                        yield Static("", id="welcome-model-nudge", classes="muted", markup=False)
-                        yield Static("", id="welcome-keys", classes="keys", markup=False)
+                yield Mascot(id="welcome-mascot")
+                with Vertical(id="welcome-body"):
+                    yield Static("No self is configured.", classes="lede")
+                    yield Static(
+                        "SELF · COSMOS · CHANCE\nThe alignment waits for you.",
+                        classes="muted",
+                    )
+                    yield Static("", id="welcome-model-nudge", classes="muted", markup=False)
+                    yield Static("", id="welcome-keys", classes="keys", markup=False)
         yield Footer()
 
     def on_mount(self) -> None:

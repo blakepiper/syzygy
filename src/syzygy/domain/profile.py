@@ -7,6 +7,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict
 
 from syzygy.domain.astrology import BirthData, NatalChart
+from syzygy.domain.interpretation import SummaryResult
 
 
 class Profile(BaseModel):
@@ -22,5 +23,6 @@ class Profile(BaseModel):
     display_name: str
     birth_data: BirthData
     natal_chart: NatalChart
+    natal_summary: SummaryResult | None = None
     created_at_utc: datetime
     updated_at_utc: datetime

@@ -401,16 +401,25 @@ TarotCardWidget {
  * and the mascot both fall back to text or to nothing when the box is
  * too small for them, so these are budgets rather than frames. */
 
+#startup-brand,
+#welcome-brand {
+    width: 64;
+    height: auto;
+    align: center middle;
+}
+
 #startup-logo {
     width: 56;
-    height: 8;
+    height: 6;
+    margin: 0 4;
     content-align: center middle;
     color: $syz-accent;
 }
 
 #startup-mascot {
-    width: 22;
-    height: 16;
+    width: 26;
+    height: 20;
+    margin: 0 19;
 }
 
 .-compact #startup-logo {
@@ -473,20 +482,16 @@ Mascot.-mascot-complete {
  * when it is too small, so these are budgets rather than exact frames. */
 #welcome-logo {
     width: 56;
-    height: 8;
+    height: 6;
+    margin: 0 4;
     content-align: center middle;
     color: $syz-accent;
 }
 
-#welcome-columns {
-    width: auto;
-    height: auto;
-}
-
 #welcome-mascot {
-    width: 22;
-    height: 16;
-    margin: 0 3 0 0;
+    width: 26;
+    height: 20;
+    margin: 0 19;
 }
 
 .-compact #welcome-logo {
@@ -494,8 +499,7 @@ Mascot.-mascot-complete {
     height: 6;
 }
 
-/* At the compact floor the mascot's 22 columns are worth more to the
- * copy beside it. */
+/* At the compact floor the mascot's rows are better reserved for the copy. */
 .-compact #welcome-mascot {
     display: none;
 }
@@ -505,7 +509,9 @@ Mascot.-mascot-complete {
 #welcome-body {
     width: 56;
     height: auto;
-    padding: 1 0;
+    margin: 0 4;
+    padding: 0;
+    text-align: center;
 }
 
 /* Profile creation */

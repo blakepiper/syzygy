@@ -12,6 +12,7 @@ import io
 
 import pytest
 from rich.console import Console
+from rich.text import Text
 from rich_pixels import Pixels
 
 from syzygy.tui.widgets import pixel_art
@@ -52,6 +53,19 @@ def test_the_mascot_renders_as_an_image_at_the_sizes_the_welcome_screen_uses(col
     size = pixel_art.fit_size(MASCOT_PATH, columns, cell_rows)
     assert size is not None
     assert isinstance(pixel_art.render_pixels(MASCOT_PATH, size), Pixels)
+
+
+@pytest.mark.parametrize(("columns", "cell_rows"), [(26, 20), (20, 14), (32, 24)])
+def test_the_mascot_uses_detailed_braille_line_art(columns, cell_rows):
+    size = pixel_art.fit_braille_size(MASCOT_PATH, columns, cell_rows)
+    assert size is not None
+    rendered = pixel_art.render_braille(MASCOT_PATH, size)
+    assert isinstance(rendered, Text)
+    glyphs = {character for character in rendered.plain if "\u2800" <= character <= "\u28ff"}
+    # A silhouette/blob would use only full blocks. The source's wheel,
+    # face, robe and negative spaces produce a varied dot vocabulary.
+    assert len(glyphs) >= 12
+    assert " " in rendered.plain
 
 
 def test_assets_keep_their_aspect_ratio():
@@ -124,11 +138,12 @@ async def test_the_welcome_screen_shows_both_assets_at_a_roomy_size(services):
         assert logo.size.width > 0 and logo.size.height > 0
         assert mascot.size.width > 0 and mascot.size.height > 0
 
-        # And the copy beside the mascot still has room to be read - an
-        # auto-width body inside an auto-width Horizontal collapses to a
-        # few columns, which is invisible rather than merely cramped.
+        # The centered lockup gives the copy the same readable measure as
+        # the logo above it rather than offsetting it beside the mascot.
         body = app.screen.query_one("#welcome-body")
         assert body.size.width >= 40
+        assert logo.region.x == body.region.x
+        assert mascot.region.center[0] == logo.region.center[0]
 
 
 async def test_the_welcome_screen_drops_the_mascot_at_the_compact_floor(services):

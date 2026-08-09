@@ -18,7 +18,8 @@ from syzygy.interpretation.prompts import (
     COSMOS_SUMMARY_PROMPT_VERSION,
     NATAL_SUMMARY_PROMPT_VERSION,
 )
-from syzygy.storage.summaries import NATAL_SCOPE_DATE, get_summary, save_summary
+from syzygy.storage.profiles import get_natal_summary, save_natal_summary
+from syzygy.storage.summaries import get_summary, save_summary
 
 
 def _local_now(profile: Profile, now_utc: datetime) -> datetime:
@@ -31,9 +32,7 @@ async def natal_summary(
     provider: InterpretationProvider,
     now_utc: datetime,
 ) -> SummaryResult:
-    cached = get_summary(
-        conn, profile.id, InterpretationKind.NATAL_SUMMARY, NATAL_SCOPE_DATE
-    )
+    cached = profile.natal_summary or get_natal_summary(conn, profile.id)
     if cached is not None:
         return cached
     local = _local_now(profile, now_utc)
@@ -44,7 +43,7 @@ async def natal_summary(
         NATAL_SUMMARY_PROMPT_VERSION,
     )
     result = await provider.summarize(context)
-    save_summary(conn, profile.id, context, result, now_utc)
+    save_natal_summary(conn, profile.id, result, now=now_utc)
     return result
 
 

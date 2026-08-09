@@ -1,9 +1,10 @@
 # Brand assets
 
 Syzygy's logo and mascot ship inside the package
-(`src/syzygy/resources/brand/`) and are rendered into terminal half-block
-pixels by `syzygy.tui.widgets.brand`, the same way card art is
-(`syzygy.tui.widgets.pixel_art`).
+(`src/syzygy/resources/brand/`). The colour logo uses terminal half-block
+pixels; the detailed monochrome mascot uses a 2×4-dot Braille renderer so its
+wheel, face, and robe retain negative space at terminal sizes instead of
+collapsing into an interpolated blob (`syzygy.tui.widgets.pixel_art`).
 
 ## Where they appear
 
@@ -12,7 +13,11 @@ Two assets, no more. M17 added *placements*, not artwork:
 | Asset | Shown on | Notes |
 |---|---|---|
 | `logo.png` | the opening sequence (`tui/screens/startup.py`), the welcome screen | falls back to `brand.ASCII_WORDMARK` when the box is too small |
-| `mascot.png` | the opening sequence, the welcome screen, and the home screen at `-wide`/`-tall` | falls back to nothing at all; it has no text form |
+| `mascot.png` | the opening sequence, the welcome screen, and the home screen at `-wide`/`-tall` | rendered as monochrome Braille line art; falls back to nothing at all |
+
+On startup and welcome, both assets belong to one centered 64-column lockup.
+The logo, mascot, and welcome copy share an axis and explicit spacing; do not
+position them as unrelated full-width regions.
 
 The home companion has three states (`brand.MascotState`: waiting,
 drawing, complete), and each is a CSS treatment of the same PNG rather
@@ -85,7 +90,7 @@ available.
 
 ## Sizes
 
-Keep the committed PNGs modest. `pixel_art` caps rendering at
-`MAX_COLUMNS` (40) for portrait images and `brand.MAX_LOGO_COLUMNS` (64)
-for the wide wordmark, so resolution beyond a few hundred pixels is
-weight in the wheel that nothing can display.
+Keep the committed PNGs modest. `pixel_art` caps portrait rendering at
+`MAX_COLUMNS` (40) and `brand.MAX_LOGO_COLUMNS` (64) for the wide wordmark.
+The mascot samples two source pixels across and four down per terminal cell;
+the logo and card illustrations retain the half-cell colour path.

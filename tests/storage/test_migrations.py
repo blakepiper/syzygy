@@ -53,6 +53,74 @@ def test_oracle_has_its_own_non_unique_indexed_table(conn):
     assert not any(row["unique"] for row in indexes if row["origin"] != "pk")
 
 
+def test_profiles_own_a_persistent_natal_summary(conn):
+    apply_all(conn)
+    columns = {row["name"] for row in conn.execute("PRAGMA table_info(profiles)")}
+    assert "natal_summary_json" in columns
+
+
+def test_migration_8_moves_an_existing_natal_cache_onto_its_profile(tmp_path):
+    from syzygy.domain.interpretation import SummaryResult
+    from syzygy.storage import migrations
+
+    connection = connect(tmp_path / "pre-summary-profile.db")
+    migrations._ensure_migrations_table(connection)
+    try:
+        for version, description, sql in migrations._MIGRATIONS:
+            if version > 7:
+                break
+            connection.executescript(sql)
+            connection.execute(
+                "INSERT INTO schema_migrations (version, description) VALUES (?, ?)",
+                (version, description),
+            )
+        connection.execute(
+            """
+            INSERT INTO profiles (
+                id, name, birth_date, birth_time, birth_place_label,
+                birth_latitude, birth_longitude, birth_timezone, house_system,
+                zodiac_type, astrology_engine, astrology_engine_version,
+                chart_schema_version, natal_chart_json, created_at, updated_at
+            ) VALUES (
+                'p1', 'Blake', '1990-01-01', '12:00:00', 'Here', 0, 0, 'UTC',
+                'placidus', 'tropical', 'fixture', '1', 'natal-v1', '{}',
+                '2026-08-09T12:00:00+00:00', '2026-08-09T12:00:00+00:00'
+            )
+            """
+        )
+        result = SummaryResult(
+            headline="Already generated",
+            body="This must survive the ownership migration.",
+            provider_id="fixture",
+            model_id="fixture-v1",
+            prompt_version="natal-summary-v1",
+        )
+        connection.execute(
+            """
+            INSERT INTO interpretive_summaries (
+                profile_id, kind, scope_date, context_json, result_json,
+                provider_id, model_id, prompt_version, created_at
+            ) VALUES ('p1', 'natal_summary', '', '{}', ?, 'fixture',
+                      'fixture-v1', 'natal-summary-v1', '2026-08-09T12:00:00+00:00')
+            """,
+            (result.model_dump_json(),),
+        )
+
+        apply_all(connection)
+
+        row = connection.execute(
+            "SELECT natal_summary_json FROM profiles WHERE id = 'p1'"
+        ).fetchone()
+        assert SummaryResult.model_validate_json(row["natal_summary_json"]) == result
+        old_rows = connection.execute(
+            "SELECT COUNT(*) FROM interpretive_summaries "
+            "WHERE profile_id = 'p1' AND kind = 'natal_summary'"
+        ).fetchone()[0]
+        assert old_rows == 0
+    finally:
+        connection.close()
+
+
 def test_apply_all_is_idempotent(conn):
     apply_all(conn)
     version_after_first = current_version(conn)

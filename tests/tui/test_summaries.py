@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from syzygy.domain.interpretation import InterpretationContext, SummaryResult
 from syzygy.interpretation.providers.fixture import FixtureProvider
+from syzygy.storage.profiles import get_profile
 from syzygy.storage.reading_service import rank_current_transits
 from syzygy.storage.summary_service import cosmos_summary, natal_summary
 
@@ -35,6 +36,12 @@ async def test_natal_summary_is_cached_for_the_profile_and_never_draws(services,
     assert first == second
     assert provider.calls == 1
     assert first.provider_id == "fixture"
+    reloaded = get_profile(services.conn, profile.id)
+    assert reloaded is not None
+    assert reloaded.natal_summary == first
+    assert services.conn.execute(
+        "SELECT COUNT(*) FROM interpretive_summaries WHERE kind = 'natal_summary'"
+    ).fetchone()[0] == 0
     assert services.conn.execute("SELECT COUNT(*) FROM readings").fetchone()[0] == 0
 
 

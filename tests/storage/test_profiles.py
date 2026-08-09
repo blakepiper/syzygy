@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 import pytest
 
 from syzygy.domain.astrology import BirthData, NatalAspect, NatalChart, NatalPlacement
+from syzygy.domain.interpretation import SummaryResult
 from syzygy.domain.profile import Profile
 from syzygy.storage.database import connect
 from syzygy.storage.migrations import apply_all
@@ -13,6 +14,7 @@ from syzygy.storage.profiles import (
     get_profile,
     insert_profile,
     list_profiles,
+    save_natal_summary,
 )
 
 
@@ -80,6 +82,24 @@ def test_natal_chart_round_trips_exactly(conn):
     insert_profile(conn, profile)
     fetched = get_profile(conn, profile.id)
     assert fetched.natal_chart == profile.natal_chart
+
+
+def test_generated_natal_summary_round_trips_as_part_of_the_profile(conn):
+    profile = _profile()
+    insert_profile(conn, profile)
+    result = SummaryResult(
+        headline="A durable pattern",
+        body="This summary belongs to the saved natal chart.",
+        provider_id="fixture",
+        model_id="fixture-v1",
+        prompt_version="natal-summary-v1",
+    )
+
+    save_natal_summary(conn, profile.id, result, now=profile.updated_at_utc)
+    fetched = get_profile(conn, profile.id)
+
+    assert fetched is not None
+    assert fetched.natal_summary == result
 
 
 # -- M11.2: deletion -----------------------------------------------------

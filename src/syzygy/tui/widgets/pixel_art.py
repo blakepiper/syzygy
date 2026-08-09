@@ -31,7 +31,10 @@ from functools import cache
 from importlib import resources
 
 from PIL import Image
+from rich.text import Text
 from rich_pixels import Pixels
+
+from syzygy.tui import palette
 
 #: The smallest art worth drawing. Below this an illustration is an
 #: unreadable smear and whatever text accompanies it carries the meaning
@@ -102,6 +105,32 @@ def fit_size(
     return None
 
 
+def fit_braille_size(
+    relative_path: str,
+    columns: int,
+    cell_rows: int,
+    *,
+    max_columns: int = MAX_COLUMNS,
+) -> tuple[int, int] | None:
+    """Fit line art as terminal cells for a 2×4-dot Braille renderer.
+
+    Half-block pixels give a cell only two vertical samples. That is ideal
+    for colour illustrations, but dense monochrome line art collapses into
+    a grey mass at mascot sizes. Braille carries eight binary samples per
+    cell and preserves the drawing's negative space.
+    """
+    ratio = aspect_ratio(relative_path)
+    if ratio is None or columns < MIN_COLUMNS or cell_rows < MIN_CELL_ROWS:
+        return None
+    width = (min(columns, max_columns) // WIDTH_STEP) * WIDTH_STEP
+    while width >= MIN_COLUMNS:
+        rows = round(width * ratio / 2)
+        if rows <= cell_rows:
+            return width, max(1, rows)
+        width -= WIDTH_STEP
+    return None
+
+
 @cache
 def render_pixels(relative_path: str, size: tuple[int, int]) -> Pixels | None:
     """The bundled image at `relative_path` rendered as half-block pixels
@@ -120,3 +149,44 @@ def render_pixels(relative_path: str, size: tuple[int, int]) -> Pixels | None:
             return Pixels.from_image(image, resize=size)
     except (FileNotFoundError, OSError):
         return None
+
+
+_BRAILLE_BITS = (
+    (0, 0, 0x01),
+    (0, 1, 0x02),
+    (0, 2, 0x04),
+    (1, 0, 0x08),
+    (1, 1, 0x10),
+    (1, 2, 0x20),
+    (0, 3, 0x40),
+    (1, 3, 0x80),
+)
+
+
+@cache
+def render_braille(relative_path: str, size: tuple[int, int]) -> Text | None:
+    """Render monochrome line art into a `size`-cell Braille canvas."""
+    columns, rows = size
+    try:
+        package_files = resources.files(_RESOURCE_PACKAGE)
+        with package_files.joinpath(relative_path).open("rb") as raw, Image.open(raw) as image:
+            rgba = image.convert("RGBA").resize(
+                (columns * 2, rows * 4), Image.Resampling.LANCZOS
+            )
+    except (FileNotFoundError, OSError):
+        return None
+
+    pixel = rgba.load()
+    lines: list[str] = []
+    for cell_y in range(rows):
+        chars: list[str] = []
+        for cell_x in range(columns):
+            bits = 0
+            for dx, dy, bit in _BRAILLE_BITS:
+                red, green, blue, alpha = pixel[cell_x * 2 + dx, cell_y * 4 + dy]
+                luminance = (red * 299 + green * 587 + blue * 114) // 1000
+                if luminance * alpha // 255 >= 105:
+                    bits |= bit
+            chars.append(chr(0x2800 + bits) if bits else " ")
+        lines.append("".join(chars).rstrip())
+    return Text("\n".join(lines), style=palette.ACCENT)

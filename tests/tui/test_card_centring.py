@@ -198,7 +198,7 @@ async def test_undecodable_brand_art_degrades_to_nothing(services, monkeypatch):
     def explode(*_args, **_kwargs):
         raise ValueError("truncated PNG")
 
-    monkeypatch.setattr(pixel_art, "render_pixels", explode)
+    monkeypatch.setattr(pixel_art, "render_braille", explode)
     app = SyzygyApp(services)
 
     class _MascotScreen(Screen):

@@ -134,8 +134,8 @@ async def test_an_undecodable_asset_degrades_to_nothing(services, profile, monke
     def explode(*_args, **_kwargs):
         raise OSError("no such resource")
 
-    monkeypatch.setattr(pixel_art, "render_pixels", explode)
-    monkeypatch.setattr(pixel_art, "fit_size", explode)
+    monkeypatch.setattr(pixel_art, "render_braille", explode)
+    monkeypatch.setattr(pixel_art, "fit_braille_size", explode)
 
     app = SyzygyApp(services)
     async with app.run_test(size=WIDE) as pilot:
