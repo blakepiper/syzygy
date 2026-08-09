@@ -24,6 +24,18 @@ def test_apply_all_creates_expected_tables(conn):
     assert {"profiles", "readings", "knowledge_sources", "knowledge_chunks"} <= tables
 
 
+def test_readings_carry_a_retrieved_citations_column(conn):
+    """Migration 6 (M18.1a). Nullable and appended, so a reading committed
+    before it reopens as a reading with no citations rather than a
+    validation error."""
+    apply_all(conn)
+    columns = {
+        row["name"]: row for row in conn.execute("PRAGMA table_info(readings)").fetchall()
+    }
+    assert "retrieved_citations_json" in columns
+    assert columns["retrieved_citations_json"]["notnull"] == 0
+
+
 def test_apply_all_is_idempotent(conn):
     apply_all(conn)
     version_after_first = current_version(conn)

@@ -2,8 +2,8 @@ from datetime import UTC, datetime
 
 import pytest
 
-from syzygy.domain.knowledge import KnowledgeChunk, KnowledgeSource
-from syzygy.knowledge.retrieve import retrieve_for_card, search
+from syzygy.domain.knowledge import KnowledgeChunk, KnowledgeSource, RetrievedCitation
+from syzygy.knowledge.retrieve import retrieve_for_card, search, search_vectors
 from syzygy.knowledge.store import replace_source
 from syzygy.storage.database import connect
 from syzygy.storage.migrations import apply_all
@@ -85,6 +85,48 @@ def test_retrieve_for_card_tier_0_only_unaffected_by_absent_tier_1(conn):
 
 def test_retrieve_for_card_unknown_card_returns_empty(conn):
     assert retrieve_for_card(conn, "nonexistent_card") == []
+
+
+def test_every_hit_carries_its_source_type_and_tier(conn):
+    """M18.1a. `chunk.source_id` is a row id, so without this a caller
+    cannot tell a canonical hit from a supplementary one."""
+    bot = _source("book_of_thoth", "src-bot")
+    replace_source(conn, bot, [_chunk(bot.id, "the_fool", "Tier 0 text")])
+    ziegler = _source("ziegler_mirror_of_soul", "src-zieg")
+    replace_source(conn, ziegler, [_chunk(ziegler.id, "the_fool", "Tier 1 text")])
+
+    hits = retrieve_for_card(conn, "the_fool")
+    assert [hit.source_type for hit in hits] == ["book_of_thoth", "ziegler_mirror_of_soul"]
+
+    citations = [RetrievedCitation.from_hit(hit) for hit in hits]
+    assert [citation.tier for citation in citations] == [0, 1]
+    assert all(citation.text_available for citation in citations)
+
+
+def test_a_citation_only_chunk_reports_its_text_as_unavailable(conn):
+    bot = _source("book_of_thoth", "src-bot")
+    replace_source(conn, bot, [_chunk(bot.id, "the_fool", "")])
+
+    citation = RetrievedCitation.from_hit(retrieve_for_card(conn, "the_fool")[0])
+    assert citation.text_available is False
+    assert citation.tier == 0
+    assert citation.reference == "the_fool (pages 1-1)"
+
+
+def test_search_results_carry_their_source_type(conn):
+    bot = _source("book_of_thoth", "src-bot")
+    replace_source(conn, bot, [_chunk(bot.id, "the_fool", "attributed to the letter Aleph")])
+
+    assert search(conn, "Aleph")[0].source_type == "book_of_thoth"
+
+
+def test_vector_search_results_carry_their_source_type(conn):
+    duquette = _source("duquette_companion", "src-duq")
+    replace_source(conn, duquette, [_chunk(duquette.id, "the_fool", "wandering holy folly")])
+
+    hits = search_vectors(conn, "wandering holy folly")
+    assert hits
+    assert hits[0].source_type == "duquette_companion"
 
 
 def test_search_finds_matching_chunk_by_text(conn):

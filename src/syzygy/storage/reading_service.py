@@ -25,7 +25,7 @@ from syzygy.astrology.policy import TransitAspectPolicy
 from syzygy.astrology.ranking import TransitRanker
 from syzygy.clock import Clock
 from syzygy.domain.astrology import RankedTransit, TransitSnapshot
-from syzygy.domain.knowledge import KnowledgeChunk, KnowledgeHit
+from syzygy.domain.knowledge import KnowledgeChunk, KnowledgeHit, RetrievedCitation
 from syzygy.domain.profile import Profile
 from syzygy.domain.reading import Reading, ReadingStatus
 from syzygy.interpretation.base import InterpretationProvider
@@ -133,7 +133,15 @@ def draw_todays_reading(
         # without source passages, and the prompt says so explicitly rather
         # than implying Crowley grounding that was never retrieved
         # (docs/old/DESIGN.md section 23).
-        chunks = _select_knowledge_chunks(retrieve_for_card(conn, card.id))
+        #
+        # Retrieval runs once and its result forks (M18.1a): the chunks
+        # that carry passages go into the context and reach the provider,
+        # while every hit - passages or citations alone - is recorded on
+        # the reading so the `[I]` view can say where this card is
+        # discussed even on an install that has ingested nothing.
+        hits = retrieve_for_card(conn, card.id)
+        chunks = _select_knowledge_chunks(hits)
+        citations = [RetrievedCitation.from_hit(hit) for hit in hits]
         context = build_context(
             profile=profile,
             card=card,
@@ -149,6 +157,7 @@ def draw_todays_reading(
             snapshot=snapshot,
             selected=ranked,
             context=context,
+            citations=citations,
             now=clock.now_utc(),
         )
 

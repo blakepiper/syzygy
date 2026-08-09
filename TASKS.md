@@ -295,7 +295,7 @@ of a CLI incantation buried in the docs.
 **Invariant that must survive this milestone:** citation-only chunks reach the
 *user*, never a *provider*. `_select_knowledge_chunks`' filter stays.
 
-- [ ] M18.1a Persist what retrieval found, separately from what the provider
+- [x] M18.1a Persist what retrieval found, separately from what the provider
       was given. Add the retrieved citations to the `Reading` (new column via
       an append-only migration, never an edit to a merged one), *not* to
       `InterpretationContext` — that type is the provider's entire input

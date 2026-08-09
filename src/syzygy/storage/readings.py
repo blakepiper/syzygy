@@ -23,10 +23,12 @@ from pydantic import TypeAdapter
 
 from syzygy.domain.astrology import RankedTransit, TransitSnapshot
 from syzygy.domain.interpretation import InterpretationContext, InterpretationResult
+from syzygy.domain.knowledge import RetrievedCitation
 from syzygy.domain.reading import ALLOWED_TRANSITIONS, Reading, ReadingStatus
 from syzygy.domain.tarot import TarotDraw
 
 _ranked_transits_adapter = TypeAdapter(list[RankedTransit])
+_citations_adapter = TypeAdapter(list[RetrievedCitation])
 
 
 class IllegalReadingTransition(Exception):
@@ -67,6 +69,13 @@ def _row_to_reading(row: sqlite3.Row) -> Reading:
     if row["interpretation_json"] is not None:
         interpretation = InterpretationResult.model_validate_json(row["interpretation_json"])
 
+    # A reading committed before migration 6 has no citations column value
+    # at all. That is an older reading, not a broken one - it reopens with
+    # an empty list, exactly as a reading whose retrieval found nothing.
+    retrieved_citations: list[RetrievedCitation] = []
+    if row["retrieved_citations_json"] is not None:
+        retrieved_citations = _citations_adapter.validate_json(row["retrieved_citations_json"])
+
     return Reading(
         id=row["id"],
         profile_id=row["profile_id"],
@@ -78,6 +87,7 @@ def _row_to_reading(row: sqlite3.Row) -> Reading:
         card_draw=card_draw,
         transit_snapshot=transit_snapshot,
         interpretation_context=interpretation_context,
+        retrieved_citations=retrieved_citations,
         provider_id=row["provider_id"],
         model_id=row["model_id"],
         interpretation=interpretation,
@@ -258,8 +268,16 @@ def commit_context(
     snapshot: TransitSnapshot,
     selected: list[RankedTransit],
     context: InterpretationContext,
+    citations: list[RetrievedCitation] | None = None,
     now: datetime,
 ) -> Reading:
+    """Commit the reading's inputs.
+
+    `context` is what the provider will be given; `citations` is what
+    retrieval found, which is a superset and is stored separately on
+    purpose (M18.1a) - a citation whose passage is not installed belongs
+    in front of the user and must never reach a prompt.
+    """
     return _advance(
         conn,
         reading_id,
@@ -269,6 +287,7 @@ def commit_context(
         transit_snapshot_json=snapshot.model_dump_json(),
         selected_transits_json=_ranked_transits_adapter.dump_json(selected).decode("utf-8"),
         interpretation_context_json=context.model_dump_json(),
+        retrieved_citations_json=_citations_adapter.dump_json(citations or []).decode("utf-8"),
     )
 
 

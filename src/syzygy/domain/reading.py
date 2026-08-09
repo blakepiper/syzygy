@@ -17,10 +17,11 @@ from __future__ import annotations
 from datetime import datetime
 from enum import StrEnum
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from syzygy.domain.astrology import TransitSnapshot
 from syzygy.domain.interpretation import InterpretationContext, InterpretationResult
+from syzygy.domain.knowledge import RetrievedCitation
 from syzygy.domain.tarot import TarotDraw
 
 
@@ -84,6 +85,14 @@ class Reading(BaseModel):
     card_draw: TarotDraw | None = None
     transit_snapshot: TransitSnapshot | None = None
     interpretation_context: InterpretationContext | None = None
+
+    #: Everywhere this card is discussed, as retrieval found it - including
+    #: the chunks whose passages were not available to send (M18.1a). This
+    #: is the reading's record, not the provider's input: it is what the
+    #: `[I]` view shows, and it is populated on every install because the
+    #: bundled artifact carries citations for all 78 cards. Readings drawn
+    #: before migration 6 simply have none.
+    retrieved_citations: list[RetrievedCitation] = Field(default_factory=list)
 
     provider_id: str | None = None
     model_id: str | None = None

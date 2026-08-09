@@ -171,6 +171,13 @@ _MIGRATIONS: list[tuple[int, str, str]] = [
         );
         """,
     ),
+    (
+        6,
+        "readings: add retrieved_citations_json - what retrieval found, not what was sent (M18.1a)",
+        """
+        ALTER TABLE readings ADD COLUMN retrieved_citations_json TEXT;
+        """,
+    ),
 ]
 
 

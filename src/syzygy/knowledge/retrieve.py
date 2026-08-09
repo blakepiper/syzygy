@@ -20,9 +20,19 @@ from __future__ import annotations
 
 import sqlite3
 
-from syzygy.domain.knowledge import KnowledgeChunk, KnowledgeHit
+from syzygy.domain.knowledge import TIER_0_SOURCE_TYPE, KnowledgeChunk, KnowledgeHit
 
-_TIER_0_SOURCE_TYPE = "book_of_thoth"
+
+def _source_type(row: sqlite3.Row) -> str | None:
+    """`source_type` when the query joined for it, `None` when it did not.
+
+    `sqlite3.Row` has no `.get`, and a `KeyError` here would be a query
+    that forgot the join rather than anything the caller can act on.
+    """
+    try:
+        return str(row["source_type"])
+    except (IndexError, KeyError):
+        return None
 
 
 def _row_to_chunk(row: sqlite3.Row) -> KnowledgeChunk:
@@ -46,7 +56,7 @@ def retrieve_for_card(conn: sqlite3.Connection, card_id: str) -> list[KnowledgeH
     original section/chunk order), then Tier 1 chunks grouped by source."""
     rows = conn.execute(
         """
-        SELECT knowledge_chunks.*
+        SELECT knowledge_chunks.*, knowledge_sources.source_type AS source_type
         FROM knowledge_chunks
         JOIN knowledge_sources ON knowledge_sources.id = knowledge_chunks.source_id
         WHERE knowledge_chunks.card_id = ?
@@ -56,10 +66,15 @@ def retrieve_for_card(conn: sqlite3.Connection, card_id: str) -> list[KnowledgeH
             knowledge_chunks.section_id,
             knowledge_chunks.chunk_index
         """,
-        (card_id, _TIER_0_SOURCE_TYPE),
+        (card_id, TIER_0_SOURCE_TYPE),
     ).fetchall()
     return [
-        KnowledgeHit(chunk=_row_to_chunk(row), retrieval_method="structural", score=None)
+        KnowledgeHit(
+            chunk=_row_to_chunk(row),
+            retrieval_method="structural",
+            score=None,
+            source_type=_source_type(row),
+        )
         for row in rows
     ]
 
@@ -70,9 +85,11 @@ def search(conn: sqlite3.Connection, query: str, limit: int = 10) -> list[Knowle
     plain free-text search should not include FTS5 special characters."""
     rows = conn.execute(
         """
-        SELECT knowledge_chunks.*, bm25(knowledge_chunks_fts) AS fts_score
+        SELECT knowledge_chunks.*, knowledge_sources.source_type AS source_type,
+               bm25(knowledge_chunks_fts) AS fts_score
         FROM knowledge_chunks_fts
         JOIN knowledge_chunks ON knowledge_chunks.rowid = knowledge_chunks_fts.rowid
+        JOIN knowledge_sources ON knowledge_sources.id = knowledge_chunks.source_id
         WHERE knowledge_chunks_fts MATCH ?
         ORDER BY fts_score
         LIMIT ?
@@ -80,7 +97,12 @@ def search(conn: sqlite3.Connection, query: str, limit: int = 10) -> list[Knowle
         (query, limit),
     ).fetchall()
     return [
-        KnowledgeHit(chunk=_row_to_chunk(row), retrieval_method="fts", score=row["fts_score"])
+        KnowledgeHit(
+            chunk=_row_to_chunk(row),
+            retrieval_method="fts",
+            score=row["fts_score"],
+            source_type=_source_type(row),
+        )
         for row in rows
     ]
 
@@ -117,7 +139,13 @@ def search_vectors(conn: sqlite3.Connection, query: str, limit: int = 10) -> lis
         if score <= 0:
             continue
         row = conn.execute(
-            "SELECT * FROM knowledge_chunks WHERE id = ?", (chunk_id,)
+            """
+            SELECT knowledge_chunks.*, knowledge_sources.source_type AS source_type
+            FROM knowledge_chunks
+            JOIN knowledge_sources ON knowledge_sources.id = knowledge_chunks.source_id
+            WHERE knowledge_chunks.id = ?
+            """,
+            (chunk_id,),
         ).fetchone()
         if row is not None:
             hits.append(
@@ -125,6 +153,7 @@ def search_vectors(conn: sqlite3.Connection, query: str, limit: int = 10) -> lis
                     chunk=_row_to_chunk(row),
                     retrieval_method="semantic",
                     score=float(score),
+                    source_type=_source_type(row),
                 )
             )
     return hits

@@ -241,6 +241,68 @@ def test_only_the_top_few_chunks_of_each_source_reach_the_context(conn):
     )
 
 
+def test_citation_only_chunks_are_recorded_on_the_reading_but_never_sent(conn):
+    """M18.1a. The bare-install case: every chunk is a citation, so the
+    provider gets nothing and the reading still knows where to look."""
+    profile = _profile()
+    insert_profile(conn, profile)
+    card_id = _todays_card_id()
+    _ingest_chunks(conn, card_id, "book_of_thoth", count=2, with_text=False)
+
+    reading = _run(conn, profile)
+
+    assert reading.interpretation_context is not None
+    assert reading.interpretation_context.knowledge_chunks == []
+    assert [citation.chunk_id for citation in reading.retrieved_citations] == [
+        f"book_of_thoth-{card_id}-0",
+        f"book_of_thoth-{card_id}-1",
+    ]
+    assert all(not citation.text_available for citation in reading.retrieved_citations)
+    assert all(citation.tier == 0 for citation in reading.retrieved_citations)
+
+
+def test_retrieved_citations_cover_every_hit_not_only_the_ones_sent(conn):
+    """M18.1a/M18.1f. The per-source cap trims what the model sees; it must
+    not trim what the user is told retrieval found."""
+    profile = _profile()
+    insert_profile(conn, profile)
+    card_id = _todays_card_id()
+    total = MAX_KNOWLEDGE_CHUNKS_PER_SOURCE + 4
+    _ingest_chunks(conn, card_id, "book_of_thoth", count=total)
+    _ingest_chunks(conn, card_id, "duquette_companion", count=total)
+
+    reading = _run(conn, profile)
+
+    assert reading.interpretation_context is not None
+    assert len(reading.interpretation_context.knowledge_chunks) == (
+        2 * MAX_KNOWLEDGE_CHUNKS_PER_SOURCE
+    )
+    assert len(reading.retrieved_citations) == 2 * total
+    tiers = Counter(citation.tier for citation in reading.retrieved_citations)
+    assert tiers == {0: total, 1: total}
+    # Tier 0 first, the same ordering retrieval returned.
+    assert [citation.tier for citation in reading.retrieved_citations[:total]] == [0] * total
+    assert all(
+        citation.retrieval_method == "structural" for citation in reading.retrieved_citations
+    )
+    # Every chunk the provider was given also appears as a citation.
+    sent = {chunk.id for chunk in reading.interpretation_context.knowledge_chunks}
+    assert sent <= {citation.chunk_id for citation in reading.retrieved_citations}
+
+
+def test_retrieved_citations_survive_a_reopen(conn):
+    profile = _profile()
+    insert_profile(conn, profile)
+    card_id = _todays_card_id()
+    _ingest_chunks(conn, card_id, "book_of_thoth", count=2, with_text=False)
+
+    reading = _run(conn, profile)
+    reopened = readings.get_by_id(conn, reading.id)
+
+    assert reopened is not None
+    assert reopened.retrieved_citations == reading.retrieved_citations
+
+
 def test_an_empty_knowledge_base_still_produces_a_reading(conn):
     profile = _profile()
     insert_profile(conn, profile)
@@ -250,6 +312,7 @@ def test_an_empty_knowledge_base_still_produces_a_reading(conn):
     assert reading.status == ReadingStatus.COMPLETE
     assert reading.interpretation_context is not None
     assert reading.interpretation_context.knowledge_chunks == []
+    assert reading.retrieved_citations == []
 
 
 def test_card_and_suit_frequency_count_committed_draws(conn):
@@ -313,7 +376,14 @@ def _todays_card_id() -> str:
     return draw_card(collector, now=FIXED_NOW).card_id
 
 
-def _ingest_chunks(conn, card_id: str, source_type: str, *, count: int) -> None:
+def _ingest_chunks(
+    conn, card_id: str, source_type: str, *, count: int, with_text: bool = True
+) -> None:
+    """Install `count` chunks for one card.
+
+    `with_text=False` is the citation-only shape every install ships
+    (M13.3): real rows, real page ranges, empty passages.
+    """
     replace_source(
         conn,
         KnowledgeSource(
@@ -335,7 +405,7 @@ def _ingest_chunks(conn, card_id: str, source_type: str, *, count: int) -> None:
                 page_start=100 + index,
                 page_end=100 + index,
                 chunk_index=index,
-                text=f"{source_type} passage {index} for {card_id}.",
+                text=f"{source_type} passage {index} for {card_id}." if with_text else "",
                 text_hash=f"text-hash-{source_type}-{index}",
             )
             for index in range(count)
