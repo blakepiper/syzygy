@@ -1,4 +1,4 @@
-"""`default_glyphs` terminal capability detection (DESIGN.md section 18.5,
+"""`default_glyphs` terminal capability detection (docs/old/DESIGN.md section 18.5,
 `TASKS.md` M9.2) - `SYZYGY_ASCII=1` always wins; otherwise selection
 follows the output stream's encoding (falling back to the process locale
 when the stream doesn't expose one).

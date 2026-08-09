@@ -1,6 +1,6 @@
 """Explicit, ordered SQLite schema migrations.
 
-No migration framework library - DESIGN.md section 16.2: "For a small
+No migration framework library - docs/old/DESIGN.md section 16.2: "For a small
 local application, avoid introducing an ORM solely for migrations unless
 implementation complexity later justifies it." Each migration is a plain
 SQL string, applied in order, tracked in `schema_migrations`. Migrations
@@ -11,7 +11,7 @@ possible for the database itself.
 
 Large nested structures (a full natal chart, a full transit snapshot, an
 interpretation context) are stored as JSON columns rather than normalized
-across many tables, per ARCHITECTURE_HANDOFF.md section 25: "Do not
+across many tables, per docs/old/ARCHITECTURE_HANDOFF.md section 25: "Do not
 prematurely normalize every astrological coordinate into relational
 tables." Every such JSON blob carries its own schema version inside the
 serialized payload (via the corresponding Pydantic model's version

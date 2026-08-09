@@ -1,7 +1,7 @@
-"""Daily reading orchestration (DESIGN.md §5.1, IMPLEMENTATION_PLAN.md §4.2).
+"""Daily reading orchestration (docs/old/DESIGN.md §5.1, docs/old/IMPLEMENTATION_PLAN.md §4.2).
 
 `get_or_create_todays_reading` is where the ordering invariant from
-DESIGN.md section 5.1 actually lives in code: profile -> astrology ->
+docs/old/DESIGN.md section 5.1 actually lives in code: profile -> astrology ->
 entropy ritual -> card draw -> lock reading inputs -> retrieve knowledge
 -> LLM interpretation -> save interpretation. Each stage is committed to
 storage (`syzygy.storage.readings`) before the next one runs, so a crash
@@ -41,7 +41,7 @@ from syzygy.storage import readings
 #: structural lookup returns a card's whole section, which for a Major
 #: Arcana card can run to several thousand words per source - more than a
 #: daily reading needs and more than a local model comfortably holds.
-#: Capping per source (rather than overall) keeps DESIGN.md section 12.2's
+#: Capping per source (rather than overall) keeps docs/old/DESIGN.md section 12.2's
 #: "include only the top few" without letting Tier 0's own length crowd the
 #: Tier 1 companions out entirely; retrieval order is otherwise preserved,
 #: so Tier 0 still comes first.
@@ -56,7 +56,7 @@ def _select_knowledge_chunks(hits: list[KnowledgeHit]) -> list[KnowledgeChunk]:
     pages say, and a citation rendered under the prompt's "SOURCE
     PASSAGES" heading with nothing beneath it is worse than no source at
     all - it invites the model to invent the contents, which is exactly
-    the failure `DESIGN.md` section 23 forbids ("never imply Crowley
+    the failure `docs/old/DESIGN.md` section 23 forbids ("never imply Crowley
     grounding that was not actually retrieved"). An install with no
     ingested PDFs therefore supplies no passages and the prompt says so
     plainly, exactly as it did before the artifact existed.
@@ -102,12 +102,12 @@ def draw_todays_reading(
     and commit the transit snapshot and interpretation context.
 
     Deliberately synchronous and provider-free: no model call may happen
-    before this has returned (DESIGN.md §5.1), and the caller (the TUI's
+    before this has returned (docs/old/DESIGN.md §5.1), and the caller (the TUI's
     reveal sequence) needs the committed card *before* interpretation
     starts. Returns a reading in `CONTEXT_READY` or later; a reading that
     is already past those stages is returned untouched.
     """
-    local_now = clock.now_utc().astimezone()  # system local timezone (DESIGN.md §10)
+    local_now = clock.now_utc().astimezone()  # system local timezone (docs/old/DESIGN.md §10)
     local_date = local_now.date().isoformat()
 
     reading = readings.get_today(conn, profile.id, local_date)
@@ -132,7 +132,7 @@ def draw_todays_reading(
         # An empty knowledge base is not an error: the reading proceeds
         # without source passages, and the prompt says so explicitly rather
         # than implying Crowley grounding that was never retrieved
-        # (DESIGN.md section 23).
+        # (docs/old/DESIGN.md section 23).
         chunks = _select_knowledge_chunks(retrieve_for_card(conn, card.id))
         context = build_context(
             profile=profile,
@@ -184,7 +184,7 @@ async def interpret_reading(
     except Exception:
         # Provider failure is not an application error: preserve the
         # oracle state and let the caller show a recoverable error
-        # (DESIGN.md §13.4) - never propagate, never redraw.
+        # (docs/old/DESIGN.md §13.4) - never propagate, never redraw.
         return readings.fail_interpretation(conn, reading.id, now=clock.now_utc())
     return readings.complete_interpretation(conn, reading.id, result, now=clock.now_utc())
 

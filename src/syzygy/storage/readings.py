@@ -1,4 +1,4 @@
-"""State-machine-respecting reading storage (IMPLEMENTATION_PLAN.md §4.2).
+"""State-machine-respecting reading storage (docs/old/IMPLEMENTATION_PLAN.md §4.2).
 
 Two layers of enforcement, per AGENTS.md:
 1. The `UNIQUE(profile_id, consultation_local_date)` constraint on the
@@ -112,7 +112,7 @@ def list_readings(
     """One profile's readings, most recent local date first.
 
     The archive's list view (Milestone 5) needs only this much; the
-    frequency/statistics queries in DESIGN.md section 15 are Milestone 8.
+    frequency/statistics queries in docs/old/DESIGN.md section 15 are Milestone 8.
     """
     sql = (
         "SELECT * FROM readings WHERE profile_id = ? "
@@ -128,7 +128,7 @@ def list_readings(
 def card_frequency(conn: sqlite3.Connection, profile_id: str) -> dict[str, int]:
     """`card_id` -> number of this profile's readings that drew it.
 
-    Descriptive counts only (DESIGN.md section 15) - no statistical framing
+    Descriptive counts only (docs/old/DESIGN.md section 15) - no statistical framing
     is added here or implied by the ordering. Any reading past `DRAWN` has
     a committed `card_id`, regardless of whether interpretation ever
     succeeded, so a card that was drawn still counts even if the model

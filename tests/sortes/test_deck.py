@@ -37,7 +37,7 @@ def test_deck_court_structure_is_4x4():
 
 
 def test_no_card_has_an_orientation_field():
-    # v0.1 draws upright cards only (DESIGN.md 8.1). If a future change
+    # v0.1 draws upright cards only (docs/old/DESIGN.md 8.1). If a future change
     # adds reversals, it must not be by bolting a field onto TarotCard.
     from syzygy.domain.tarot import TarotCard
 

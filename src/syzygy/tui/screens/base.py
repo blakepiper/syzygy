@@ -26,13 +26,13 @@ if TYPE_CHECKING:
 #:                        over; no layout is expected to work down there.
 #:   80x24 - 99x31        `-compact`. Same content, same shape, trimmed
 #:                        padding. Nothing may be hidden that carries
-#:                        information (DESIGN.md section 18.6).
+#:                        information (docs/old/DESIGN.md section 18.6).
 #:   100x32 - 119 wide    the regular tier, no class. One column.
 #:   120 wide and up      `-wide`. Screens go multi-column: the space
 #:                        exists, so it gets used rather than padded
 #:                        around (M12.5).
 #:
-#: DESIGN.md section 18.6's ideal terminal size. At or above this, a
+#: docs/old/DESIGN.md section 18.6's ideal terminal size. At or above this, a
 #: screen renders at full size; below it (but still at or above the
 #: compact floor in `syzygy.tui.screens.too_small`), screens get a
 #: `-compact` class to trim padding/decoration rather than truncating.
@@ -59,7 +59,7 @@ TALL_HEIGHT = 48
 class SyzygyScreen(Screen[None]):
     """A screen with typed access back to the Syzygy application.
 
-    Also owns layout-tier detection (DESIGN.md section 18.6, M12.5d) in
+    Also owns layout-tier detection (docs/old/DESIGN.md section 18.6, M12.5d) in
     one place, via `on_screen_resume`/`on_resize`, rather than each screen
     measuring itself. A subclass that overrides `on_screen_resume` must
     call `super().on_screen_resume()` to keep this working.

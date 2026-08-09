@@ -59,7 +59,7 @@ def test_tie_break_falls_back_to_input_order_on_exact_score_tie():
 
 
 def test_slow_planet_to_personal_point_outranks_same_orb_moon_aspect():
-    # DESIGN.md 9.5: "Moon contacts should not crowd out every slower
+    # docs/old/DESIGN.md 9.5: "Moon contacts should not crowd out every slower
     # transit." At the same absolute orb, the Moon's much tighter policy
     # cap (1.5 degrees) makes its orb_closeness ratio harsher than a body
     # with no special cap, so a slow planet can still win despite Moon's

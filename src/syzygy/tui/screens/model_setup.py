@@ -27,7 +27,7 @@ from textual.widgets import Button, Footer, Input, Label, ListItem, ListView, St
 
 from syzygy.tui.screens.base import SyzygyScreen, TitleBar
 
-#: Hosted providers need a separately-billed API key (DESIGN.md 13.2/13.3).
+#: Hosted providers need a separately-billed API key (docs/old/DESIGN.md 13.2/13.3).
 #: `llama_cpp` needs none, and `fixture` needs nothing at all.
 _HOSTED_PROVIDER_LABELS = {"openai": "OpenAI", "anthropic": "Anthropic"}
 _HOSTED_ENV_VARS = {"openai": "OPENAI_API_KEY", "anthropic": "ANTHROPIC_API_KEY"}

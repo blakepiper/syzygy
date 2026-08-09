@@ -103,9 +103,9 @@ syzygy knowledge status
 
 ## Documentation
 
-- [`DESIGN.md`](DESIGN.md) — product design and rationale
+- [`docs/old/DESIGN.md`](docs/old/DESIGN.md) — product design and rationale
 - [`AGENTS.md`](AGENTS.md) — operating manual for coding agents working in this repository
-- [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md) — implementation-specific architecture, milestone by milestone
+- [`docs/old/IMPLEMENTATION_PLAN.md`](docs/old/IMPLEMENTATION_PLAN.md) — implementation-specific architecture, milestone by milestone
 - [`TASKS.md`](TASKS.md) — the ordered task checklist
 - [`docs/THOTH_INGESTION_MAP.md`](docs/THOTH_INGESTION_MAP.md) — structure of the bundled Book of Thoth PDF
 - [`docs/KNOWLEDGE_SOURCES.md`](docs/KNOWLEDGE_SOURCES.md) — the knowledge-base source tiers and where to get the source PDFs

@@ -1,6 +1,6 @@
 """Profile creation: birth facts in, saved natal chart out.
 
-Two phases, because DESIGN.md section 6.1 requires the user to review the
+Two phases, because docs/old/DESIGN.md section 6.1 requires the user to review the
 resolved birthplace values *before* the chart is calculated: the form,
 then a confirmation panel. Latitude/longitude/timezone can be typed by
 hand, or - if left blank and a place label is given, and the `geocoding`
@@ -10,7 +10,7 @@ EDIT before CONFIRM; manual entry keeps working exactly the same with or
 without the extra installed.
 
 The chart itself is calculated exactly once here and then saved
-(DESIGN.md section 6.2); nothing later recalculates it silently.
+(docs/old/DESIGN.md section 6.2); nothing later recalculates it silently.
 """
 
 from __future__ import annotations
@@ -191,7 +191,7 @@ class ProfileCreateScreen(SyzygyScreen):
         exception types, and anything that escaped here would leave the
         form stranded behind a disabled REVIEW button and a "Resolving…"
         message that never resolves (M11.1c). Geocoding must never be able
-        to block profile creation - `DESIGN.md` section 23.
+        to block profile creation - `docs/old/DESIGN.md` section 23.
         """
         try:
             resolved = resolve_birthplace(place_label)
@@ -302,7 +302,7 @@ class ProfileCreateScreen(SyzygyScreen):
     def _failed(self, message: str) -> None:
         if not self.is_mounted:
             return
-        # DESIGN.md section 23: show the failing input, keep the data.
+        # docs/old/DESIGN.md section 23: show the failing input, keep the data.
         self._show_form()
         self.query_one("#confirm", Button).disabled = False
         self.query_one("#edit", Button).disabled = False

@@ -8,7 +8,7 @@ send a model - belongs to the layers below and is only rendered here.
 Collaborators are injected rather than constructed inside screens so that
 tests can run the whole ritual against a fixture astrology engine and the
 `FixtureProvider`, with no network, no API key, and no ephemeris work
-(IMPLEMENTATION_PLAN.md Milestone 5).
+(docs/old/IMPLEMENTATION_PLAN.md Milestone 5).
 """
 
 from __future__ import annotations
@@ -68,7 +68,7 @@ def default_services(database_path: Path | str | None = None) -> SyzygyServices:
     whichever `InterpretationProvider` `syzygy model use` last selected.
 
     The ritual must stay navigable and coherent with no model configured
-    (DESIGN.md Milestone 5, ARCHITECTURE_HANDOFF.md section 34), so this
+    (docs/old/DESIGN.md Milestone 5, docs/old/ARCHITECTURE_HANDOFF.md section 34), so this
     never fails to produce a provider: `resolve_selected_provider` falls
     back to `FixtureProvider` for a missing selection, a missing API key,
     or any other reason the saved choice can't be built, and this prints
@@ -191,7 +191,7 @@ class SyzygyApp(App[None]):
 
     def _update_size_gate(self, width: int, height: int) -> None:
         """Push/pop `TooSmallScreen` as the terminal crosses the compact
-        floor (DESIGN.md section 18.6). The screen it covers is never torn
+        floor (docs/old/DESIGN.md section 18.6). The screen it covers is never torn
         down - popping restores it exactly, so a mid-ritual state like an
         in-progress Wheel draw survives a shrink-then-grow round trip.
         """

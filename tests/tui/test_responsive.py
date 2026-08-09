@@ -1,4 +1,4 @@
-"""The "terminal too small" state (DESIGN.md section 18.6, `TASKS.md`
+"""The "terminal too small" state (docs/old/DESIGN.md section 18.6, `TASKS.md`
 M9.3): below the compact floor of 80x24, `SyzygyApp` shows a dedicated
 static state instead of a broken layout, and returns to whatever screen
 was active - without losing its state - once the terminal grows back.
@@ -64,7 +64,7 @@ async def test_too_small_state_does_not_lose_progress_mid_wheel(app: SyzygyApp, 
 
 async def test_compact_class_applies_between_the_floor_and_the_ideal_size(app: SyzygyApp, profile):
     """Below the 100x32 ideal but at/above the 80x24 floor: `-compact` is
-    set, no too-small gate appears (DESIGN.md 18.6).
+    set, no too-small gate appears (docs/old/DESIGN.md 18.6).
     """
     async with app.run_test(size=(MIN_WIDTH, MIN_HEIGHT)) as pilot:
         await settle(pilot)

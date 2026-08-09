@@ -1,7 +1,7 @@
 """Local-first application paths.
 
 All Syzygy state lives under one `platformdirs` user-data directory. Nothing
-in this module talks to a network or a cloud account (DESIGN.md section
+in this module talks to a network or a cloud account (docs/old/DESIGN.md section
 16, section 17).
 """
 

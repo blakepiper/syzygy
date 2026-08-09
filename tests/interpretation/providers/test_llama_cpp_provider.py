@@ -1,10 +1,10 @@
-"""Tests for the local llama.cpp provider (IMPLEMENTATION_PLAN.md §7.3).
+"""Tests for the local llama.cpp provider (docs/old/IMPLEMENTATION_PLAN.md §7.3).
 
 No real server is started - `httpx.MockTransport` stands in for
 `llama-server`'s `/v1/chat/completions` route (via the provider's
 test-only `transport` constructor argument), so these tests exercise the
 provider's own request shaping, response parsing, and single-repair-retry
-behaviour (DESIGN.md section 13.4) without a network dependency.
+behaviour (docs/old/DESIGN.md section 13.4) without a network dependency.
 """
 
 from __future__ import annotations

@@ -1,7 +1,7 @@
 """Loads and validates the canonical 78-card Thoth deck.
 
 `src/syzygy/resources/thoth_deck.yaml` is the single source of truth for
-card data (DESIGN.md section 8.2). This module only loads and validates
+card data (docs/old/DESIGN.md section 8.2). This module only loads and validates
 it; it does not know anything about drawing or randomness (see
 `syzygy.sortes.draw` for that).
 """

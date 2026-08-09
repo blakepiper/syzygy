@@ -1,4 +1,4 @@
-"""The natal chart inspector (DESIGN.md section 6.2's "detailed chart
+"""The natal chart inspector (docs/old/DESIGN.md section 6.2's "detailed chart
 inspector remains available separately").
 
 Renders the saved chart verbatim. Nothing here recalculates: a profile's

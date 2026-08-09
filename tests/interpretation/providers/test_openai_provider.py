@@ -1,4 +1,4 @@
-"""Tests for the OpenAI provider (IMPLEMENTATION_PLAN.md §7.3).
+"""Tests for the OpenAI provider (docs/old/IMPLEMENTATION_PLAN.md §7.3).
 
 `httpx.MockTransport` stands in for `api.openai.com`, injected via the
 provider's test-only `transport=` argument - no real network call.

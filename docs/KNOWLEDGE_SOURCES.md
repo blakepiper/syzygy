@@ -3,7 +3,7 @@
 `docs/THOTH_INGESTION_MAP.md` covers *The Book of Thoth* in exhaustive
 detail because it is the **canonical, primary source** — it is what
 `src/syzygy/resources/thoth_deck.yaml`'s correspondences are grounded
-against, and it is the source Tier 1 structural retrieval (`DESIGN.md`
+against, and it is the source Tier 1 structural retrieval (`docs/old/DESIGN.md`
 section 11.2) always checks first for the drawn card.
 
 Two companion sources were added to `docs/` after that document was
@@ -42,7 +42,7 @@ Tier 1 (supplementary)  DuQuette, Ziegler
                           "correspondence" the app treats as fact
 ```
 
-This mirrors `DESIGN.md` section 11's own two-tier retrieval design
+This mirrors `docs/old/DESIGN.md` section 11's own two-tier retrieval design
 (deterministic structural lookup first, semantic/lexical second) — tiering
 *sources* is an orthogonal, additional axis on top of that, not a
 replacement for it. A single drawn card's context can pull: the Tier 0
@@ -54,7 +54,7 @@ considered.
 ### 1.2 Distribution
 
 None of the three source PDFs are committed to this repository — see
-`.gitignore` (`docs/*.pdf`). This matches `DESIGN.md` section 11.1 ("The
+`.gitignore` (`docs/*.pdf`). This matches `docs/old/DESIGN.md` section 11.1 ("The
 repository should not contain the complete book text unless distribution
 rights are clearly established") and section 22's redistribution-rights
 note.
@@ -93,7 +93,7 @@ processing the same file this document was written against, the same way
 should use for `knowledge_sources.source_type` — no schema change was
 needed for multi-source support: `syzygy.domain.knowledge.KnowledgeSource`
 already has a free-text `source_type` field and per-source `file_hash`
-(`DESIGN.md` section 16.1's `knowledge_sources` table already models
+(`docs/old/DESIGN.md` section 16.1's `knowledge_sources` table already models
 "one of possibly several sources").
 
 ## 3. DuQuette — *Understanding Aleister Crowley's Thoth Tarot*
@@ -128,7 +128,7 @@ is reliably a short (~15-45 character) line, isolated as its own block,
 positioned first or last on the page, adjacent to an isolated 1-3 digit
 page number — detect and strip *by position and length*, not by string
 match. Do not attempt to "fix" the OCR text into correct spelling
-(`DESIGN.md` section 11.2's normalization rule — don't rewrite spelling —
+(`docs/old/DESIGN.md` section 11.2's normalization rule — don't rewrite spelling —
 applies at least as strongly here as it does to the primary source's minor
 transcription artifacts).
 
@@ -270,7 +270,7 @@ way `docs/THOTH_INGESTION_MAP.md` section 10 did for the primary source).
 
 ## 5. What this changes in the ingestion pipeline
 
-See `IMPLEMENTATION_PLAN.md` Milestone 6 for the updated task breakdown.
+See `docs/old/IMPLEMENTATION_PLAN.md` Milestone 6 for the updated task breakdown.
 In short: `syzygy.knowledge.segment` needs source-specific heading
 detectors (the three sources use three different heading conventions),
 `syzygy.knowledge.normalize` needs a position/length-based header-stripping
@@ -280,5 +280,5 @@ return Tier 0 chunks first, then Tier 1 chunks from whichever companion
 sources have been ingested — a source that hasn't been ingested simply
 contributes nothing, so ingesting DuQuette and/or Ziegler is optional and
 additive, never required for the app to function (consistent with
-`DESIGN.md` section 23's "knowledge unavailable" failure mode already
+`docs/old/DESIGN.md` section 23's "knowledge unavailable" failure mode already
 covering the "no companion sources ingested" case for free).

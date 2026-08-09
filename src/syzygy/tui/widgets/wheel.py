@@ -3,8 +3,8 @@
 This widget is presentation and entropy *collection* only. It does not
 know how many cards exist, does not sample anything, and cannot pick a
 card - it records interaction events into an injected
-`EntropyCollector` and posts messages upward (ARCHITECTURE_HANDOFF.md
-section 31, DESIGN.md section 7.1). The screen above it hands the
+`EntropyCollector` and posts messages upward (docs/old/ARCHITECTURE_HANDOFF.md
+section 31, docs/old/DESIGN.md section 7.1). The screen above it hands the
 collector to `syzygy.sortes.draw.draw_card` on release. Keeping selection
 out of here is what makes the draw testable without a terminal, and what
 guarantees the Wheel can never become a themed "Randomize" button.
@@ -205,11 +205,11 @@ class WheelWidget(Widget, can_focus=True):
             # Quit (`SyzygyApp.BINDINGS`, M10.2) must keep working here
             # too - left unstopped so it bubbles to the app's binding
             # instead of being consumed as entropy. The pool is always
-            # OS-random-primary (DESIGN.md section 7.2), so losing one
+            # OS-random-primary (docs/old/DESIGN.md section 7.2), so losing one
             # key's contribution changes nothing about unbiased selection.
             return
         elif event.is_printable:
-            # DESIGN.md section 7.1: other key presses may contribute
+            # docs/old/DESIGN.md section 7.1: other key presses may contribute
             # entropy. Named keys (escape, tab, ...) are left alone so the
             # screen's own bindings keep working.
             event.stop()
@@ -282,7 +282,7 @@ class WheelWidget(Widget, can_focus=True):
             place(round(center_x), "▼", _POINTER)
 
         # The hub. Three points converging is the app's whole thesis
-        # (DESIGN.md section 35), so the centre is a mark, not a hole.
+        # (docs/old/DESIGN.md section 35), so the centre is a mark, not a hole.
         if y == round(center_y):
             hub_style = _HUB_RELEASED if self.released else _HUB
             place(round(center_x), "◉" if self.released else "◇", hub_style)

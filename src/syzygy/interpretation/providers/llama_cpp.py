@@ -1,10 +1,10 @@
 """Local inference via an OpenAI-compatible `llama-server` endpoint
-(DESIGN.md section 13.2).
+(docs/old/DESIGN.md section 13.2).
 
 Talks over plain `httpx` rather than an SDK - `llama-server`'s
-`/v1/chat/completions` route is the interoperability surface DESIGN.md
+`/v1/chat/completions` route is the interoperability surface docs/old/DESIGN.md
 section 13.2 asks for, and it needs nothing heavier than an HTTP client.
-Binds to localhost by default (DESIGN.md section 28); a user pointing
+Binds to localhost by default (docs/old/DESIGN.md section 28); a user pointing
 Syzygy at a non-default `base_url` has opted into that themselves.
 """
 
@@ -31,7 +31,7 @@ from syzygy.interpretation.providers.structured_output import (
     parse_summary,
 )
 
-#: Localhost only, per DESIGN.md section 28 - a user must deliberately pass
+#: Localhost only, per docs/old/DESIGN.md section 28 - a user must deliberately pass
 #: a different `base_url` to send anything off-machine.
 DEFAULT_BASE_URL: Final = "http://127.0.0.1:8080/v1"
 DEFAULT_TIMEOUT_SECONDS: Final = 120.0
@@ -74,7 +74,7 @@ class LlamaCppProvider:
                 raw = await self._complete(client, messages)
                 # A second failure is not caught here - it propagates, the
                 # reading service marks INTERPRETATION_FAILED, and the card
-                # and transit snapshot are left untouched (DESIGN.md 13.4).
+                # and transit snapshot are left untouched (docs/old/DESIGN.md 13.4).
                 return parse_and_validate(
                     raw, context=context, provider_id=self.provider_id, model_id=self.model_id
                 )
@@ -145,7 +145,7 @@ async def probe(
 ) -> bool:
     """Is a `llama-server` actually listening at `base_url`?
 
-    For `syzygy model status` (IMPLEMENTATION_PLAN.md §7.3, M7.10) - unlike
+    For `syzygy model status` (docs/old/IMPLEMENTATION_PLAN.md §7.3, M7.10) - unlike
     the hosted providers, there is no API key to check, only "is anything
     there". Any failure (connection refused, timeout, non-2xx) means no.
     """

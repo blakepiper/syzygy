@@ -1,4 +1,4 @@
-"""Tests for the versioned prompt contract (IMPLEMENTATION_PLAN.md §7.3).
+"""Tests for the versioned prompt contract (docs/old/IMPLEMENTATION_PLAN.md §7.3).
 
 The prompt's *prose* is not asserted line by line - it is meant to be
 edited. What is asserted is the contract around it: the version string,
@@ -163,7 +163,7 @@ def test_luminaries_are_rendered_once_as_anchors():
 
 
 def test_prompt_contains_nothing_the_context_does_not_carry():
-    # The context is the entire input surface (DESIGN.md §12/§13.3): birth
+    # The context is the entire input surface (docs/old/DESIGN.md §12/§13.3): birth
     # place and coordinates live on the profile and must never be sent.
     prompt = build_user_prompt(_context())
 
@@ -181,7 +181,7 @@ def test_an_empty_sky_is_stated_rather_than_omitted():
 
 
 def test_absent_source_material_is_stated_rather_than_omitted():
-    # DESIGN.md §23: never let the model imply Crowley grounding it never got.
+    # docs/old/DESIGN.md §23: never let the model imply Crowley grounding it never got.
     prompt = build_user_prompt(_context(chunks=[]))
 
     assert "none supplied" in prompt

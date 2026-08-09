@@ -3,12 +3,12 @@
 These are Syzygy-owned shapes. Nothing here may be a Kerykeion type -
 `syzygy.astrology.kerykeion_backend` is responsible for converting
 Kerykeion's own models into these before anything else in the app sees
-them (ARCHITECTURE_HANDOFF.md section 12).
+them (docs/old/ARCHITECTURE_HANDOFF.md section 12).
 
 v0.1 scope reminders encoded by what is (and isn't) here:
-- geocentric, tropical, Placidus by default (DESIGN.md section 9.2);
+- geocentric, tropical, Placidus by default (docs/old/DESIGN.md section 9.2);
 - no relocated houses, no current Ascendant/MC, no current-location data
-  anywhere in `TransitSnapshot` (DESIGN.md section 3.2) - there is no
+  anywhere in `TransitSnapshot` (docs/old/DESIGN.md section 3.2) - there is no
   latitude/longitude field on anything in this module except `BirthData`.
 """
 
@@ -18,7 +18,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-# The ten bodies used for transit analysis (DESIGN.md section 9.3). Natal
+# The ten bodies used for transit analysis (docs/old/DESIGN.md section 9.3). Natal
 # charts may additionally carry Ascendant/Midheaven placements.
 TRANSIT_BODIES: tuple[str, ...] = (
     "Sun", "Moon", "Mercury", "Venus", "Mars",
@@ -51,7 +51,7 @@ def sign_for_longitude(longitude: float) -> str:
 class BirthData(BaseModel):
     """Exact birth facts required to calculate a natal chart.
 
-    Saved on the profile permanently (DESIGN.md section 3.1) so a chart
+    Saved on the profile permanently (docs/old/DESIGN.md section 3.1) so a chart
     is never silently recalculated from different inputs later.
     """
 
@@ -133,7 +133,7 @@ class RankedTransit(BaseModel):
 class TransitSnapshot(BaseModel):
     """The complete geocentric transit picture at one instant, evaluated
     against one natal chart. Always saved in full on the reading, even
-    though only a ranked subset is sent to the LLM (DESIGN.md section 9.5).
+    though only a ranked subset is sent to the LLM (docs/old/DESIGN.md section 9.5).
     """
 
     model_config = ConfigDict(frozen=True)

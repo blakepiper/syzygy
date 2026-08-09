@@ -32,7 +32,7 @@ from syzygy.knowledge.store import get_source_by_type, has_full_text, replace_so
 if TYPE_CHECKING:
     import sqlite3
 
-# DESIGN.md section 11.3 step 5: "roughly 600-1,200 tokens". Token counts
+# docs/old/DESIGN.md section 11.3 step 5: "roughly 600-1,200 tokens". Token counts
 # are approximated as word counts (close enough for a chunk-size target;
 # no tokenizer dependency is worth adding for this).
 _TARGET_WORDS_MAX = 900

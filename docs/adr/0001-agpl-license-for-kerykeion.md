@@ -5,7 +5,7 @@
 
 ## Context
 
-`DESIGN.md` section 22 flags a licensing constraint that must be resolved
+`docs/old/DESIGN.md` section 22 flags a licensing constraint that must be resolved
 before application code is built deeply around the astrology backend:
 
 > The initial astrology backend selection creates a licensing constraint
@@ -13,8 +13,8 @@ before application code is built deeply around the astrology backend:
 > license is incompatible, resolve that before building application code
 > deeply around the backend.
 
-Kerykeion (the preferred astrology library, per `DESIGN.md` §9.1 and
-`ARCHITECTURE_HANDOFF.md` §12) is licensed **AGPL-3.0**, confirmed directly
+Kerykeion (the preferred astrology library, per `docs/old/DESIGN.md` §9.1 and
+`docs/old/ARCHITECTURE_HANDOFF.md` §12) is licensed **AGPL-3.0**, confirmed directly
 from its `pyproject.toml`, `LICENSE` file, and PyPI classifiers as of
 version 5.12.9 (2026-08-07). The maintainer states explicitly that a
 project importing Kerykeion directly should be open-sourced under a
@@ -37,20 +37,20 @@ This is the simplest available resolution:
   than trying to carve out a compatible-but-different license for the rest
   of the codebase.
 - The alternative — swapping the astrology backend to a permissively
-  licensed library — was rejected. `ARCHITECTURE_HANDOFF.md` §12 and
-  `DESIGN.md` §9.1 are explicit that Kerykeion is the preferred backend and
+  licensed library — was rejected. `docs/old/ARCHITECTURE_HANDOFF.md` §12 and
+  `docs/old/DESIGN.md` §9.1 are explicit that Kerykeion is the preferred backend and
   that re-litigating "does the astrology library work" is not a good use of
   implementation effort. No investigation surfaced a concrete technical
   reason to avoid Kerykeion (its API is clean, offline-capable, and
   Pydantic-based — see `docs/adr/0002-kerykeion-adapter-notes.md` if later
-  created, or `IMPLEMENTATION_PLAN.md` Milestone 2 for adapter details).
+  created, or `docs/old/IMPLEMENTATION_PLAN.md` Milestone 2 for adapter details).
 
 ## Consequences
 
 - `LICENSE` at the repository root is the verbatim GNU AGPL-3.0 text.
 - `pyproject.toml` declares `license = "AGPL-3.0-or-later"`.
 - If Syzygy ever grows a hosted/network-accessible mode (explicitly out of
-  scope for v0.1 per `DESIGN.md` §31), the AGPL network clause will apply
+  scope for v0.1 per `docs/old/DESIGN.md` §31), the AGPL network clause will apply
   and users interacting with it over a network must be offered the
   corresponding source.
 - Any future dependency must be checked for AGPL compatibility before

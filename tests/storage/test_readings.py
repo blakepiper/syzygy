@@ -1,6 +1,6 @@
 """Same-day idempotency, retry-without-redraw, and crash-recovery for
 `syzygy.storage.reading_service.get_or_create_todays_reading`
-(IMPLEMENTATION_PLAN.md §4.3 - the literal ARCHITECTURE_HANDOFF.md §23
+(docs/old/IMPLEMENTATION_PLAN.md §4.3 - the literal docs/old/ARCHITECTURE_HANDOFF.md §23
 test: "kill the flow after DRAWN, restart, prove the same card
 survives").
 """

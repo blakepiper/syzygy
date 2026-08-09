@@ -12,7 +12,7 @@ Two invariants shape what is (and is not) here:
   and hands back a decided order; the screen renders that order and never
   scores, sorts or filters anything itself (AGENTS.md: Syzygy owns transit
   significance, and it owns it in one place).
-- **No current-location astrology** (DESIGN.md section 3.2). A
+- **No current-location astrology** (docs/old/DESIGN.md section 3.2). A
   `TransitSnapshot` carries transiting positions and aspects to natal
   points, and that is all this screen has to draw from - there is no
   current latitude/longitude, no current houses, and no current
@@ -84,7 +84,7 @@ class CosmosScreen(SyzygyScreen):
             snapshot, ranked = rank_current_transits(
                 profile, services.astrology, services.clock.now_utc()
             )
-        except Exception as exc:  # DESIGN.md section 23: never continue silently
+        except Exception as exc:  # docs/old/DESIGN.md section 23: never continue silently
             self.app.call_from_thread(self._failed, f"{type(exc).__name__}: {exc}")
             return
         self.app.call_from_thread(self._resolved, snapshot, ranked)

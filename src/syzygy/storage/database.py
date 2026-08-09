@@ -1,8 +1,8 @@
 """SQLite connection management.
 
 One SQLite file per installation (`AppPaths.database_path`, see
-`syzygy.config`). No ORM - DESIGN.md section 16.2 and
-ARCHITECTURE_HANDOFF.md section 25 both call for explicit SQL over an ORM
+`syzygy.config`). No ORM - docs/old/DESIGN.md section 16.2 and
+docs/old/ARCHITECTURE_HANDOFF.md section 25 both call for explicit SQL over an ORM
 for a project this size.
 """
 

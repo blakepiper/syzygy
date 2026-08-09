@@ -1,9 +1,9 @@
 # AGENTS.md — Syzygy operating manual
 
 Compact, durable rules for any coding agent working in this repository.
-This is not the design doc — read `DESIGN.md` for product intent and
+This is not the design doc — read `docs/old/DESIGN.md` for product intent and
 rationale, and `TASKS.md` for how the milestone you are working on should
-be built (`IMPLEMENTATION_PLAN.md` holds the same for M0–M9, which are
+be built (`docs/old/IMPLEMENTATION_PLAN.md` holds the same for M0–M9, which are
 done). This file is what you should already have loaded before touching
 code.
 
@@ -17,7 +17,7 @@ never selects or changes the card, and can never cause a reroll.
 ```
 
 If a task you're given seems to require the model to decide a fact instead
-of receiving one, stop and re-read `DESIGN.md` section 5.2 — that's almost
+of receiving one, stop and re-read `docs/old/DESIGN.md` section 5.2 — that's almost
 certainly a design violation, not a shortcut.
 
 ## Invariants you must not violate
@@ -33,7 +33,7 @@ certainly a design violation, not a shortcut.
 - **Upright cards only.** There is no `orientation`/`reversed` field
   anywhere in `syzygy.domain.tarot`. Do not add one. Do not add reversal
   logic, multi-card spreads, or alternative decks — out of scope for v0.1
-  (`DESIGN.md` section 31).
+  (`docs/old/DESIGN.md` section 31).
 - **All 78 cards, equal probability, real entropy.** `syzygy.sortes.draw`
   uses OS randomness mixed with interaction entropy via rejection
   sampling — never `random.random()`, never plain modulo over a raw byte.
@@ -47,7 +47,7 @@ certainly a design violation, not a shortcut.
 - **Syzygy owns transit significance, not the astrology library and not
   the LLM.** Orb filtering lives in `syzygy.astrology.policy`
   (implemented). Ranking lives in `syzygy.astrology.ranking` (not yet
-  implemented — see `IMPLEMENTATION_PLAN.md` Milestone 2). The LLM
+  implemented — see `docs/old/IMPLEMENTATION_PLAN.md` Milestone 2). The LLM
   receives only the already-ranked top few aspects, never the full
   snapshot and never a request to judge importance itself.
 - **`InterpretationContext` is the entire input surface for a provider**
@@ -88,7 +88,7 @@ certainly a design violation, not a shortcut.
 - **No LangChain, LlamaIndex, hosted vector DB, agent framework, dependency
   injection container, or web framework.** If you think you need one,
   you're probably over-engineering a small local app — re-read
-  `ARCHITECTURE_HANDOFF.md` section 11 first.
+  `docs/old/ARCHITECTURE_HANDOFF.md` section 11 first.
 - **Every dependency must be AGPL-3.0 compatible** (permissive licenses are
   always fine; other copyleft licenses need review) — see
   `docs/adr/0001-agpl-license-for-kerykeion.md`.
@@ -97,14 +97,14 @@ certainly a design violation, not a shortcut.
 
 | Path | What lives here |
 |---|---|
-| `DESIGN.md` | Product design and rationale — read when product intent is unclear |
+| `docs/old/DESIGN.md` | Product design and rationale — read when product intent is unclear |
 | `TASKS.md` | The ordered task checklist and the spec for M10 onward — find your task here, check it off when done |
-| `IMPLEMENTATION_PLAN.md` | Concrete architecture per milestone for M0–M9. History; current work is in `TASKS.md` |
+| `docs/old/IMPLEMENTATION_PLAN.md` | Concrete architecture per milestone for M0–M9. History; current work is in `TASKS.md` |
 | `docs/animation.md` | The animation design spec M14 is written against — read before touching motion |
 | `docs/BRAND_ASSETS.md` | How the bundled logo/mascot PNGs and the theme MP3 are produced and where they live |
 | `docs/THOTH_INGESTION_MAP.md` | Verified facts about `docs/book_of_thoth.pdf`'s structure (Tier 0), for the M6 ingestion parser |
 | `docs/KNOWLEDGE_SOURCES.md` | Multi-source tier policy + what may and may not be committed from the books |
-| `docs/adr/` | Architecture decision records for deviations from `DESIGN.md`'s provisional recommendations |
+| `docs/adr/` | Architecture decision records for deviations from `docs/old/DESIGN.md`'s provisional recommendations |
 | `src/syzygy/domain/` | Pure Pydantic contracts. No Textual, no Kerykeion, no provider SDK imports — ever |
 | `src/syzygy/astrology/` | `AstrologyEngine` protocol, Syzygy's orb policy, the Kerykeion adapter and ranker |
 | `src/syzygy/sortes/` | Deck loading, entropy collection, the unbiased draw |
@@ -121,7 +121,7 @@ certainly a design violation, not a shortcut.
 ## Workflow
 
 1. Read your task's entry in `TASKS.md` before writing code (for M0–M9
-   work, `IMPLEMENTATION_PLAN.md` instead). If your task isn't in
+   work, `docs/old/IMPLEMENTATION_PLAN.md` instead). If your task isn't in
    `TASKS.md` yet, it's probably too large — ask, or break it down first.
 2. Inspect the existing code in the module you're touching (and its
    tests) before editing — don't assume; read it.
@@ -230,6 +230,6 @@ grow did.
 All tasks through M15 are implemented. M12.3 (a Cinzel display treatment)
 was dropped rather than deferred — `TASKS.md` records why.
 
-**Where the current work is written down.** `IMPLEMENTATION_PLAN.md`
+**Where the current work is written down.** `docs/old/IMPLEMENTATION_PLAN.md`
 covers M0–M9 and is history now; anything from M10 onward is specified in
 `TASKS.md`. Read the milestone there before implementing.

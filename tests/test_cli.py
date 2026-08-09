@@ -17,7 +17,7 @@ def test_doctor_exits_zero(isolated_app_paths, capsys):
     assert exit_code == 0
     out = capsys.readouterr().out
     assert "deck    OK" in out
-    # Knowledge base and provider config are informational (DESIGN.md
+    # Knowledge base and provider config are informational (docs/old/DESIGN.md
     # section 15/13.3's "no model configured" and "no source passages"
     # are both supported states) - doctor reports them, but neither can
     # fail its exit code.
@@ -30,7 +30,7 @@ def test_doctor_exits_zero(isolated_app_paths, capsys):
 
 
 def test_help_flag_prints_usage(capsys):
-    # `syzygy` with no arguments launches the TUI (DESIGN.md section 20),
+    # `syzygy` with no arguments launches the TUI (docs/old/DESIGN.md section 20),
     # so usage is reached through --help rather than through no arguments.
     with pytest.raises(SystemExit) as exc_info:
         main(["--help"])

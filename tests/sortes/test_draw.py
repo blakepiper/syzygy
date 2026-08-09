@@ -71,7 +71,7 @@ def test_draw_card_records_sortes_version():
 
 
 def test_draw_distribution_is_approximately_uniform():
-    # Loose statistical smoke test (DESIGN.md 25.3): not a proof of
+    # Loose statistical smoke test (docs/old/DESIGN.md 25.3): not a proof of
     # randomness, just a guard against a gross implementation bias (e.g.
     # accidentally using modulo without rejection sampling).
     import os

@@ -5,7 +5,7 @@ animating while a model is working and a stale in-flight call is cancelled
 if the user retries. Failure here is not an application error - the card
 and the astrology are already committed, so the screen offers a retry
 against the same stored context and never re-enters the Wheel
-(DESIGN.md section 23).
+(docs/old/DESIGN.md section 23).
 """
 
 from __future__ import annotations

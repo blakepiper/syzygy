@@ -1,4 +1,4 @@
-"""Choosing which self is being read for (DESIGN.md section 3.1).
+"""Choosing which self is being read for (docs/old/DESIGN.md section 3.1).
 
 Also where a self is *destroyed*: deleting a profile takes every reading
 made for it (M11.2), so it is a two-phase action here - select, then
@@ -150,7 +150,7 @@ class ProfileSelectScreen(SyzygyScreen):
         was_active = self._is_active(profile)
         try:
             delete_profile(self.syzygy.services.conn, profile.id)
-        except Exception as exc:  # DESIGN.md section 23: never fail silently
+        except Exception as exc:  # docs/old/DESIGN.md section 23: never fail silently
             self.query_one("#delete-error", Static).update(
                 f"Could not delete {profile.display_name} - {type(exc).__name__}: {exc}"
             )

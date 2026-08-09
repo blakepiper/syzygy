@@ -35,7 +35,7 @@ def test_digest_changes_when_session_nonce_changes():
 
 def test_zero_events_still_produces_a_digest():
     # OS randomness alone must be sufficient - the wheel is a real
-    # entropy contribution, not a required one (DESIGN.md 7.2).
+    # entropy contribution, not a required one (docs/old/DESIGN.md 7.2).
     collector = EntropyCollector(session_nonce=b"nonce", os_random=_fixed_os_random)
     assert collector.event_count == 0
     digest = collector.digest()

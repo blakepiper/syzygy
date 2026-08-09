@@ -1,4 +1,4 @@
-/* Syzygy's visual identity (DESIGN.md section 18).
+/* Syzygy's visual identity (docs/old/DESIGN.md section 18).
  *
  * A near-black field, warm bone text, bright white for the calculated
  * (astrology, correspondences), lunar blue for the structural, oxidized
@@ -80,7 +80,7 @@ Screen {
  *   -compact   below 100x32, at or above the 80x24 floor. Padding
  *              shrinks; layout and content do not change shape, so
  *              nothing here can hide information, only the whitespace
- *              around it (DESIGN.md section 18.6).
+ *              around it (docs/old/DESIGN.md section 18.6).
  *   (none)     100x32 to 119 columns. One column, full height.
  *   -wide      120 columns and up. Screens go multi-column.
  *

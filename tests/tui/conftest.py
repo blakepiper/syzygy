@@ -2,7 +2,7 @@
 
 The whole ritual is exercised against a canned `AstrologyEngine` and the
 `FixtureProvider`: no ephemeris work, no network, no API key, no model
-(IMPLEMENTATION_PLAN.md Milestone 5). The fixture engine lives here rather
+(docs/old/IMPLEMENTATION_PLAN.md Milestone 5). The fixture engine lives here rather
 than in `src/` deliberately - shipping a fake astrology backend inside the
 application would be a way for fabricated positions to reach a real
 reading.

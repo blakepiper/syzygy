@@ -46,7 +46,7 @@ dependencies = [
 # commands continue to work without maintaining duplicate constraints.
 geocoding = []
 audio = []
-# Remote LLM providers (DESIGN.md 13.3) - not needed for the fixture
+# Remote LLM providers (docs/old/DESIGN.md 13.3) - not needed for the fixture
 # provider or local-inference path.
 providers = [
     "httpx>=0.27",

@@ -1,4 +1,4 @@
-"""Glyph capability/fallback layer (DESIGN.md section 18.5).
+"""Glyph capability/fallback layer (docs/old/DESIGN.md section 18.5).
 
 Views must not hard-code Unicode astrological symbols: plenty of terminal
 fonts have no planetary or zodiacal glyphs, and a reading that renders as
@@ -11,7 +11,7 @@ overriding detection - useful for a font that reports UTF-8 support but
 still renders the occult glyphs as tofu. Absent that override,
 `default_glyphs` inspects the output stream's encoding (falling back to
 the process locale when the stream doesn't expose one, e.g. when stdout
-is piped) - DESIGN.md section 18.5: "the UI must survive fonts that lack
+is piped) - docs/old/DESIGN.md section 18.5: "the UI must survive fonts that lack
 specialized occult symbols."
 """
 

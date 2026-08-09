@@ -1,4 +1,4 @@
-"""First launch, with no self configured (DESIGN.md section 6.1)."""
+"""First launch, with no self configured (docs/old/DESIGN.md section 6.1)."""
 
 from __future__ import annotations
 

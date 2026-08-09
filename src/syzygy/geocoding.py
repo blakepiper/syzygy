@@ -1,6 +1,6 @@
 """Birthplace geocoding: a free-text place label -> coordinates + timezone.
 
-Onboarding convenience only (DESIGN.md section 6.1, AGENTS.md) - never
+Onboarding convenience only (docs/old/DESIGN.md section 6.1, AGENTS.md) - never
 part of astrological calculation. `geopy` and `timezonefinder` ship in the
 main install but remain lazy imports inside `resolve_birthplace`, so a
 damaged dependency cannot prevent the rest of the application from starting.
@@ -39,7 +39,7 @@ def resolve_birthplace(place_label: str) -> ResolvedPlace:
     Raises `GeocodingUnavailable` if a runtime dependency cannot be imported,
     or `GeocodingFailed` for any other resolution failure. Callers must
     treat both as non-fatal - manual latitude/longitude/timezone entry is
-    always the fallback (DESIGN.md section 6.1).
+    always the fallback (docs/old/DESIGN.md section 6.1).
     """
     try:
         from geopy.geocoders import Nominatim

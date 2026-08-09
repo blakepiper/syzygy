@@ -1,4 +1,4 @@
-"""The reveal (DESIGN.md section 14, ARCHITECTURE_HANDOFF.md section 33).
+"""The reveal (docs/old/DESIGN.md section 14, docs/old/ARCHITECTURE_HANDOFF.md section 33).
 
 The card is already committed to storage by the time this screen exists -
 the sequence below is presentation of a fixed result, in the fixed order

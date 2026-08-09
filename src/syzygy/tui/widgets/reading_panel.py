@@ -1,10 +1,10 @@
 """The reading itself, in its three views.
 
 Esoteric and Conventional are two registers of one synthesis, not two
-readings (DESIGN.md section 4.2), so they are views over the same stored
+readings (docs/old/DESIGN.md section 4.2), so they are views over the same stored
 `InterpretationResult` rather than separately fetched content. The third
 view - INPUTS - shows the exact facts the model was given, which is a
-product requirement, not a debug affordance (DESIGN.md section 14.3).
+product requirement, not a debug affordance (docs/old/DESIGN.md section 14.3).
 
 Every view renders stored data verbatim. Reopening a reading never
 recalculates astrology and never re-runs a provider.
@@ -120,7 +120,7 @@ def _inputs_text(reading: Reading, glyphs: GlyphSet) -> Text:
                 style=_BODY,
             )
     else:
-        # DESIGN.md section 23: never imply Crowley grounding that was not
+        # docs/old/DESIGN.md section 23: never imply Crowley grounding that was not
         # actually retrieved.
         text.append("  no source chunks were supplied to the model\n", style=_MUTED)
 
@@ -149,7 +149,7 @@ def _pending_text(
         text.append("INTERPRETATION IN PROGRESS…\n", style=_MUTED)
         return text
     if reading.status == ReadingStatus.INTERPRETATION_FAILED:
-        # The exact copy DESIGN.md section 23 specifies: the oracle stands
+        # The exact copy docs/old/DESIGN.md section 23 specifies: the oracle stands
         # even when the interpreter does not.
         text.append("THE ALIGNMENT IS FIXED.\n", style=_WARNING)
         text.append("INTERPRETATION IS UNAVAILABLE.\n\n", style=_WARNING)

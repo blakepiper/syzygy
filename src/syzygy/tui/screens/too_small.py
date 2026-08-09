@@ -1,4 +1,4 @@
-"""The "terminal too small" state (DESIGN.md section 18.6, `TASKS.md`
+"""The "terminal too small" state (docs/old/DESIGN.md section 18.6, `TASKS.md`
 M9.3): below the compact floor of 80x24, do not let a screen render
 broken or truncated - show a clean, static message instead.
 
@@ -16,7 +16,7 @@ from textual.widgets import Static
 
 from syzygy.tui.screens.base import SyzygyScreen
 
-#: DESIGN.md section 18.6's suggested compact floor - below this, layouts
+#: docs/old/DESIGN.md section 18.6's suggested compact floor - below this, layouts
 #: are not guaranteed to render usably.
 MIN_WIDTH = 80
 MIN_HEIGHT = 24

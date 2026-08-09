@@ -1,7 +1,7 @@
 """A single significant transit, as a modifier attached to the card.
 
 Astrology behaves like modifiers around the card, not as the subject
-(DESIGN.md section 33's UX invariants) - hence a compact badge rather
+(docs/old/DESIGN.md section 33's UX invariants) - hence a compact badge rather
 than a table row. What counts as significant was already decided by
 `syzygy.astrology.policy` and `syzygy.astrology.ranking`; this widget only
 displays rank order it is given.
@@ -28,7 +28,7 @@ def format_transit(ranked: RankedTransit, glyphs: GlyphSet | None = None) -> str
 
 class TransitBadge(Static):
     """One ranked transit. `applying`/`separating` are exposed as CSS
-    classes so movement is never carried by color alone (DESIGN.md 18.4).
+    classes so movement is never carried by color alone (docs/old/DESIGN.md 18.4).
     """
 
     def __init__(

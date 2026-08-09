@@ -1,4 +1,4 @@
-"""The daily home screen (DESIGN.md section 6.3).
+"""The daily home screen (docs/old/DESIGN.md section 6.3).
 
 Shows the state of the alignment before chance enters it: SELF resolved
 from the saved chart, COSMOS resolved by calculating today's sky, CHANCE
@@ -223,7 +223,7 @@ class HomeScreen(SyzygyScreen):
         services = self.syzygy.services
         try:
             _, ranked = rank_current_transits(profile, services.astrology, services.clock.now_utc())
-        except Exception as exc:  # DESIGN.md section 23: never continue silently
+        except Exception as exc:  # docs/old/DESIGN.md section 23: never continue silently
             self.app.call_from_thread(self._sky_failed, f"{type(exc).__name__}: {exc}")
             return
         self.app.call_from_thread(self._sky_resolved, ranked)

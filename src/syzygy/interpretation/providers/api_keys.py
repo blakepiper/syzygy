@@ -1,10 +1,10 @@
-"""API key resolution and storage for hosted providers (DESIGN.md §13.3).
+"""API key resolution and storage for hosted providers (docs/old/DESIGN.md §13.3).
 
 Never read from or written to the Syzygy SQLite database. The OS keyring
 is the preferred store; a plain environment variable is an acceptable
 fallback (for headless use, CI, or a keyring-less system), checked only
 if the keyring has nothing for that provider. Keys are never logged or
-otherwise surfaced in diagnostics (DESIGN.md §28).
+otherwise surfaced in diagnostics (docs/old/DESIGN.md §28).
 """
 
 from __future__ import annotations

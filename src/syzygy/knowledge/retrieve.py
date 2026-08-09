@@ -1,8 +1,8 @@
 """Three-tier retrieval: exact `card_id` structural lookup, SQLite FTS5
 lexical search, and vector search over hashed lexical signatures
-(DESIGN.md section 11.2).
+(docs/old/DESIGN.md section 11.2).
 
-Structural lookup is tier-aware across sources (IMPLEMENTATION_PLAN.md
+Structural lookup is tier-aware across sources (docs/old/IMPLEMENTATION_PLAN.md
 Milestone 6): Tier 0 (`book_of_thoth`) chunks are always returned first,
 then any ingested Tier 1 (`duquette_companion`, `ziegler_mirror_of_soul`)
 chunks for the same card - a source that was never ingested simply

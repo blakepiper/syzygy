@@ -2,12 +2,12 @@
 produce.
 
 `InterpretationContext` is the entire input surface for a provider
-(DESIGN.md section 12, ARCHITECTURE_HANDOFF.md section 19). Provider
+(docs/old/DESIGN.md section 12, docs/old/ARCHITECTURE_HANDOFF.md section 19). Provider
 adapters build a prompt from this object; they never reach back into the
 database, the profile, or the astrology engine themselves.
 
 `InterpretationResult` is the required structured output shape
-(DESIGN.md section 13.4). Providers must produce exactly this - free-form
+(docs/old/DESIGN.md section 13.4). Providers must produce exactly this - free-form
 prose is never accepted as the internal representation.
 """
 
@@ -33,7 +33,7 @@ class InterpretationKind(StrEnum):
 class InterpretationContext(BaseModel):
     """A fully-resolved, serializable snapshot handed to a provider.
 
-    Deliberately excludes (DESIGN.md section 12.3): the full natal chart,
+    Deliberately excludes (docs/old/DESIGN.md section 12.3): the full natal chart,
     every transit, every minor body, the entire Book of Thoth, and any
     previous reading. Building a narrower context than "everything we
     have" is the context builder's job, not the provider's.
@@ -82,7 +82,7 @@ class ConventionalReading(BaseModel):
 
 class InterpretationResult(BaseModel):
     """The required structured output of any `InterpretationProvider`
-    (DESIGN.md section 13.4). Validated with Pydantic; a provider that
+    (docs/old/DESIGN.md section 13.4). Validated with Pydantic; a provider that
     cannot produce this shape has failed interpretation, not produced a
     degraded reading - see `syzygy.domain.reading.ReadingStatus`.
     """

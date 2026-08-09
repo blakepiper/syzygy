@@ -1,20 +1,20 @@
 """Syzygy command-line entry point.
 
 The TUI (`syzygy.tui`) is the primary interface, but every non-visual
-capability should be reachable and scriptable from here too (DESIGN.md
+capability should be reachable and scriptable from here too (docs/old/DESIGN.md
 section 20). This module only parses arguments and dispatches; it must not
 contain domain logic itself.
 
 Commands implemented so far:
 
 - `syzygy` (no arguments) or `syzygy tui` - launch the terminal interface
-  (DESIGN.md section 20's first listed command). `--no-audio` starts it
+  (docs/old/DESIGN.md section 20's first listed command). `--no-audio` starts it
   without the looping theme (M15); `[S]` toggles it in-app.
 - `syzygy dev deck` - enumerate the canonical 78-card deck (Milestone 1
   acceptance criterion).
 - `syzygy dev astrology` - compute a natal chart and current transits for
   manually-supplied birth data (Milestone 2 acceptance criterion,
-  DESIGN.md section 20). Takes birth data directly via flags rather than
+  docs/old/DESIGN.md section 20). Takes birth data directly via flags rather than
   a saved profile - it does not touch storage at all.
 - `syzygy dev reroll` - discard today's reading so the ritual can be
   walked again (M11.6). Destructive, and refuses to run unless
@@ -38,7 +38,7 @@ Commands implemented so far:
   `InterpretationProvider`s (Milestone 7.10 + the provider-selection
   wiring after it). Nothing reachable here writes to the readings
   database: hosted-provider API keys live in the OS keyring
-  (`syzygy.interpretation.providers.api_keys`, DESIGN.md section 13.3),
+  (`syzygy.interpretation.providers.api_keys`, docs/old/DESIGN.md section 13.3),
   and the active selection lives in a small local settings file
   (`syzygy.interpretation.providers.selection`) - `default_services`
   reads that selection to decide what `reading_service` actually calls.
@@ -50,7 +50,7 @@ Commands implemented so far:
   back to `FixtureProvider` and to no source passages), so neither can
   fail `doctor`'s exit code.
 
-Everything else in DESIGN.md section 20's command list is a later
+Everything else in docs/old/DESIGN.md section 20's command list is a later
 milestone's job; add subcommands there as their underlying features land,
 rather than stubbing them here with a "not implemented" message.
 """
@@ -476,7 +476,7 @@ def _cmd_knowledge_build_artifact(args: argparse.Namespace) -> int:
 
 
 #: The two hosted providers that need a stored credential; `llama_cpp`
-#: needs none (DESIGN.md section 13.2) so it is reported separately in
+#: needs none (docs/old/DESIGN.md section 13.2) so it is reported separately in
 #: `_cmd_model_status` and left out of `model configure`'s choices.
 _HOSTED_PROVIDERS = ("openai", "anthropic")
 _HOSTED_PROVIDER_ENV_VARS = {"openai": "OPENAI_API_KEY", "anthropic": "ANTHROPIC_API_KEY"}
@@ -552,7 +552,7 @@ def _cmd_model_configure(args: argparse.Namespace) -> int:
     import getpass
 
     # Never accepted as a positional/flag argument - that would land it in
-    # shell history and in the process list (DESIGN.md section 28: do not
+    # shell history and in the process list (docs/old/DESIGN.md section 28: do not
     # expose API keys in diagnostics).
     api_key = getpass.getpass(f"{args.provider} API key (input hidden): ")
     if not api_key:
@@ -598,7 +598,7 @@ def _cmd_model_use(args: argparse.Namespace) -> int:
         print(
             f"Selecting {args.provider} sends today's reading context (profile name, "
             "chart placements, the drawn card, ranked transits, source passages) to its "
-            "servers on every reading from now on (DESIGN.md section 13.3)."
+            "servers on every reading from now on (docs/old/DESIGN.md section 13.3)."
         )
 
     save_selection(settings_path, selection)
@@ -850,7 +850,7 @@ def main(argv: list[str] | None = None) -> int:
     if not hasattr(args, "func"):
         if args.command is None:
             # `syzygy` with no arguments opens the application, per
-            # DESIGN.md section 20 - the TUI is the primary interface, not
+            # docs/old/DESIGN.md section 20 - the TUI is the primary interface, not
             # a subcommand of a CLI.
             return _cmd_tui(args)
         parser.print_help()

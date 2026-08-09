@@ -4,14 +4,14 @@ One detector per source, per AGENTS.md's "per-source strategies" rule -
 docs/THOTH_INGESTION_MAP.md section 8 (Book of Thoth) and
 docs/KNOWLEDGE_SOURCES.md sections 3.2/4.2-4.3 (DuQuette, Ziegler) each
 describe a different heading convention. A section never crosses a
-detected heading boundary (DESIGN.md section 11.3 step 5) - chunking
+detected heading boundary (docs/old/DESIGN.md section 11.3 step 5) - chunking
 *within* a section is `ingest.py`'s job, not this module's.
 
-Card mapping never uses fuzzy/semantic matching (DESIGN.md section 11.3
+Card mapping never uses fuzzy/semantic matching (docs/old/DESIGN.md section 11.3
 step 4): Major Arcana headings are matched against
 `TarotCard.book_of_thoth_aliases` (falling back to a small per-source
 title-override table only for Ziegler's "The Priestess"/"The Magus"-style
-variant titles - documented locally here, per `IMPLEMENTATION_PLAN.md`
+variant titles - documented locally here, per `docs/old/IMPLEMENTATION_PLAN.md`
 Milestone 6, rather than growing the canonical deck file with
 non-canonical-source naming). Numbered Minor and Court cards need no
 alias table at all - their headings already spell out `<rank> of <suit>`/
@@ -253,7 +253,7 @@ def _build_sections(
 # unrelated glossary chapter). Excluded entirely from ingestion rather
 # than mapped per-card: its compressed, noisier restatement of material
 # already covered by the main per-card essays adds more retrieval noise
-# than value for a Tier 1 source (IMPLEMENTATION_PLAN.md Milestone 6
+# than value for a Tier 1 source (docs/old/IMPLEMENTATION_PLAN.md Milestone 6
 # explicitly allows this).
 DUQUETTE_QUICK_REFERENCE_PAGES = (275, 290)
 

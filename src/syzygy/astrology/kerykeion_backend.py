@@ -5,7 +5,7 @@ its `AspectModel`) is converted into `syzygy.domain.astrology` types
 before it leaves this module. Nothing outside `syzygy.astrology` may
 import `kerykeion` (AGENTS.md).
 
-Verified against Kerykeion 5.12.9 - see IMPLEMENTATION_PLAN.md section
+Verified against Kerykeion 5.12.9 - see docs/old/IMPLEMENTATION_PLAN.md section
 2.2 for the interactive inspection this module is built from, and the
 "Deviation" note below for one place this module's behavior differs from
 that section's literal description.
@@ -36,15 +36,15 @@ from syzygy.domain.astrology import (
 CHART_SCHEMA_VERSION = "chart-v1"
 
 #: Points requested on the natal subject: the ten transit bodies plus the
-#: two natal angles (IMPLEMENTATION_PLAN.md section 2.2). Deliberately
-#: excludes lunar nodes, Chiron, and Mean Lilith - DESIGN.md section 9.3.
+#: two natal angles (docs/old/IMPLEMENTATION_PLAN.md section 2.2). Deliberately
+#: excludes lunar nodes, Chiron, and Mean Lilith - docs/old/DESIGN.md section 9.3.
 NATAL_ACTIVE_POINTS: tuple[AstrologicalPoint, ...] = (
     *(cast(AstrologicalPoint, body) for body in TRANSIT_BODIES),
     "Ascendant",
     "Medium_Coeli",
 )
 
-#: House system identifier map. v0.1 only ever uses Placidus (DESIGN.md
+#: House system identifier map. v0.1 only ever uses Placidus (docs/old/DESIGN.md
 #: section 9.2) - this is intentionally not a general abstraction.
 _HOUSE_SYSTEM_IDENTIFIERS: dict[str, HousesSystemIdentifier] = {"placidus": "P"}
 
@@ -73,7 +73,7 @@ _MIDHEAVEN = "Midheaven"
 #: calculation. Deliberately wider than every cap in
 #: `syzygy.astrology.policy` (max 3.0, angle 2.0, Moon 1.5 degrees) so the
 #: "raw" snapshot this engine returns is not pre-filtered before the
-#: policy gets to see it - see DESIGN.md section 9.5 ("always retain the
+#: policy gets to see it - see docs/old/DESIGN.md section 9.5 ("always retain the
 #: complete transit snapshot"). `ActiveAspect.orb` is Kerykeion's own
 #: `int`-typed field, hence an int here rather than a float.
 _ENGINE_ASPECT_ORB_DEGREES = 8
@@ -171,7 +171,7 @@ class KerykeionAstrologyEngine:
     def calculate_transits(self, natal: NatalChart, instant: datetime) -> TransitSnapshot:
         natal_subject = _build_natal_subject(natal.birth_data)
 
-        # Deviation from IMPLEMENTATION_PLAN.md section 2.4's literal
+        # Deviation from docs/old/IMPLEMENTATION_PLAN.md section 2.4's literal
         # description: Kerykeion 5.12.9's `AspectsFactory.dual_chart_aspects`
         # resolves its effective `active_points` as the intersection of the
         # requested list with *both* subjects' own `active_points`
@@ -190,7 +190,7 @@ class KerykeionAstrologyEngine:
         # is discarded below, before conversion. Only the ten real
         # transiting bodies ever appear as `TransitAspect.transiting_body`,
         # preserving the "no current-location astrology" invariant
-        # (DESIGN.md section 3.2) - enforced here by a filter immediately
+        # (docs/old/DESIGN.md section 3.2) - enforced here by a filter immediately
         # after the library call, not by omission at construction time.
         transiting_active_points: list[AstrologicalPoint] = [
             *(cast(AstrologicalPoint, body) for body in TRANSIT_BODIES),

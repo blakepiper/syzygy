@@ -1,12 +1,12 @@
-"""The archive (DESIGN.md section 15): list, reopen, and card/suit
+"""The archive (docs/old/DESIGN.md section 15): list, reopen, and card/suit
 frequency counts.
 
 Reading detail reuses `ReadingScreen` with `interpret=False` - reopening a
 past reading is a pure read, rendered from stored data, never recalculated
-and never re-interpreted (DESIGN.md section 15.1). The frequency view is
+and never re-interpreted (docs/old/DESIGN.md section 15.1). The frequency view is
 descriptive counts only (`readings.card_frequency`/`suit_frequency`) - no
 LLM trend analysis and no implied statistical significance, per
-DESIGN.md section 15.
+docs/old/DESIGN.md section 15.
 """
 
 from __future__ import annotations

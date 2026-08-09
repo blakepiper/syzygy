@@ -27,7 +27,7 @@ from .conftest import FIXED_NOW
 
 
 class FailingProvider:
-    """Stands in for an unreachable model (DESIGN.md section 23)."""
+    """Stands in for an unreachable model (docs/old/DESIGN.md section 23)."""
 
     provider_id = "failing"
     model_id = "none"
@@ -170,7 +170,7 @@ async def test_inputs_view_shows_the_exact_model_inputs(app: SyzygyApp, profile)
         assert "Saturn" in body or "♄" in body
         assert "Pluto" not in body
         # No source chunks were retrieved, and the screen says so rather
-        # than implying Crowley grounding (DESIGN.md section 23).
+        # than implying Crowley grounding (docs/old/DESIGN.md section 23).
         assert "no source chunks" in body
 
 
@@ -227,7 +227,7 @@ async def test_failed_interpretation_retries_the_same_card(services, profile, co
 
 @pytest.mark.parametrize("size", [(100, 32), (80, 24)])
 async def test_screens_survive_their_supported_sizes(app: SyzygyApp, profile, size):
-    """Ideal and compact terminals (DESIGN.md 18.6) both stay fully usable
+    """Ideal and compact terminals (docs/old/DESIGN.md 18.6) both stay fully usable
     end to end - no screen raises or loses its primary action.
 
     Below-compact sizes (< 80x24) are Milestone 9's dedicated "terminal

@@ -1,8 +1,8 @@
 """The Wheel widget's event contract.
 
 The Wheel is a real interaction, not a themed "Randomize" button
-(DESIGN.md section 33's UX invariants), and it must remain incapable of
-choosing a card on its own (ARCHITECTURE_HANDOFF.md section 31). Both
+(docs/old/DESIGN.md section 33's UX invariants), and it must remain incapable of
+choosing a card on its own (docs/old/ARCHITECTURE_HANDOFF.md section 31). Both
 properties are asserted here rather than left to code review.
 """
 

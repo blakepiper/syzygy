@@ -5,7 +5,7 @@ exact-value here except where cross-checked against an independently
 computed reference (the DST-boundary test below uses Python's own
 `zoneinfo`, not Kerykeion, to compute the expected UTC offset). Everything
 else tests structural invariants: determinism, schema completeness, and
-the "no current-location astrology" boundary (DESIGN.md 3.2, 25.2).
+the "no current-location astrology" boundary (docs/old/DESIGN.md 3.2, 25.2).
 """
 
 from __future__ import annotations
@@ -150,7 +150,7 @@ def test_snapshot_records_instant_and_policy_version():
 
 
 def test_current_location_invariance(monkeypatch: pytest.MonkeyPatch):
-    """DESIGN.md 25.2: transiting body longitudes must not depend on the
+    """docs/old/DESIGN.md 25.2: transiting body longitudes must not depend on the
     engine's internal placeholder location for the transiting subject.
     """
     natal = ENGINE.calculate_natal(WASHINGTON_DC_BIRTH)

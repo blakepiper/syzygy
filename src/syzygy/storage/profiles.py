@@ -1,4 +1,4 @@
-"""Profile CRUD against the `profiles` table (IMPLEMENTATION_PLAN.md §4.2).
+"""Profile CRUD against the `profiles` table (docs/old/IMPLEMENTATION_PLAN.md §4.2).
 
 Straightforward CRUD, no ORM. `NatalChart` round-trips through the
 `natal_chart_json` column via its own `model_dump_json`/`model_validate_json`

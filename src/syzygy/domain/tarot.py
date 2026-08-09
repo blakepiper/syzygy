@@ -3,7 +3,7 @@
 Canonical card data lives in `src/syzygy/resources/thoth_deck.yaml` and is
 loaded by `syzygy.sortes.deck`. This module only defines the shapes.
 
-v0.1 draws upright cards only (DESIGN.md section 8.1) - there is
+v0.1 draws upright cards only (docs/old/DESIGN.md section 8.1) - there is
 deliberately no `orientation`/`reversed` field anywhere in this module.
 Do not add one; see AGENTS.md.
 """

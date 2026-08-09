@@ -1,9 +1,9 @@
 """The versioned prompt contract shared by every real provider.
 
-Everything a model is told - the rules from DESIGN.md section 13.5, the
+Everything a model is told - the rules from docs/old/DESIGN.md section 13.5, the
 rendering of an `InterpretationContext` into text, the required output
 shape, and the repair instruction used for the single retry of
-DESIGN.md section 13.4 - lives in this module and nowhere else. Provider
+docs/old/DESIGN.md section 13.4 - lives in this module and nowhere else. Provider
 adapters (`syzygy.interpretation.providers`) are transport only: they take
 these strings, send them over their SDK or HTTP endpoint, and validate the
 response into `InterpretationResult`. A provider that builds prompt text
@@ -392,7 +392,7 @@ def build_summary_repair_prompt(raw_output: str, error: str) -> str:
 
 
 def build_repair_prompt(raw_output: str, error: str) -> str:
-    """The single repair turn of DESIGN.md section 13.4.
+    """The single repair turn of docs/old/DESIGN.md section 13.4.
 
     A provider sends this after its first reply failed validation; if the
     second reply fails too, the provider raises and the reading is marked

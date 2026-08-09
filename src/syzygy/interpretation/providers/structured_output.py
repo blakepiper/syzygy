@@ -2,7 +2,7 @@
 
 Every hosted/local provider gets back a string from its transport (an SDK
 response object, an HTTP JSON body) and must turn it into a validated
-`InterpretationResult` or raise (DESIGN.md section 13.4). This is the one
+`InterpretationResult` or raise (docs/old/DESIGN.md section 13.4). This is the one
 place that logic lives, so all three real providers apply the exact same
 JSON-parsing tolerance and the exact same validation rule - a provider
 module itself stays pure transport, per `syzygy.interpretation.base`.
@@ -23,7 +23,7 @@ from syzygy.domain.interpretation import InterpretationContext, InterpretationRe
 
 #: Raised for both "not JSON" and "JSON but wrong shape" so callers can
 #: catch one exception type when deciding whether to attempt the single
-#: repair turn (DESIGN.md section 13.4).
+#: repair turn (docs/old/DESIGN.md section 13.4).
 ResponseValidationError = (json.JSONDecodeError, ValidationError)
 
 

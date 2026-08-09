@@ -1,7 +1,7 @@
 """The interpretation provider boundary.
 
 The rest of the application must not care which provider is active
-(DESIGN.md section 13.1). Every provider - fixture, local llama.cpp,
+(docs/old/DESIGN.md section 13.1). Every provider - fixture, local llama.cpp,
 OpenAI, Anthropic - implements exactly this protocol and receives exactly
 an `InterpretationContext`. A provider must never be given the profile,
 the database, or the astrology engine directly; if it needs a fact, that
@@ -30,7 +30,7 @@ class InterpretationProvider(Protocol):
 
         Must raise rather than return a partially-valid result if the
         underlying model output cannot be validated into
-        `InterpretationResult` - see DESIGN.md section 13.4 for the
+        `InterpretationResult` - see docs/old/DESIGN.md section 13.4 for the
         retry-once-then-fail policy, which lives in the caller (the
         reading service), not in individual providers.
         """

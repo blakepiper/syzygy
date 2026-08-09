@@ -20,7 +20,7 @@
 # - qabalah.path_number uses Golden Dawn numbering (paths 11-32 map
 #   Aleph-Tau in Hebrew alphabetical order onto the Tree of Life)
 # - No card has an 'orientation' field: v0.1 draws upright cards only
-#   (see DESIGN.md section 8.1); do not add reversal support here.
+#   (see docs/old/DESIGN.md section 8.1); do not add reversal support here.
 
 cards:
 - id: the_fool

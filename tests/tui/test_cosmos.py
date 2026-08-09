@@ -133,7 +133,7 @@ async def test_no_profile_says_so(services: SyzygyServices):
 
 
 async def test_a_failed_calculation_is_visible_not_silent(conn, profile):
-    """DESIGN.md section 23: an empty transit list and a broken ephemeris
+    """docs/old/DESIGN.md section 23: an empty transit list and a broken ephemeris
     must never look the same."""
 
     class BrokenEngine(FixtureAstrologyEngine):
@@ -171,7 +171,7 @@ async def test_an_empty_ranking_reads_as_a_quiet_sky(conn, profile):
 
 
 async def test_it_never_reaches_for_a_current_location(conn, profile):
-    """DESIGN.md section 3.2: only the natal chart uses a place. The engine
+    """docs/old/DESIGN.md section 3.2: only the natal chart uses a place. The engine
     is asked for transits against the saved chart at an instant and nothing
     else, and no current house, Ascendant or Midheaven is displayed.
     """

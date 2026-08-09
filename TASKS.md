@@ -2,7 +2,7 @@
 
 This is the ordered implementation plan for current work. Check off each item
 (`- [ ]` → `- [x]`) as it lands and leave a short note for any deliberate
-deviation. `IMPLEMENTATION_PLAN.md` is the detailed history for M0–M9;
+deviation. `docs/old/IMPLEMENTATION_PLAN.md` is the detailed history for M0–M9;
 completed work after that is summarized here rather than retained as hundreds
 of closed checklist items.
 

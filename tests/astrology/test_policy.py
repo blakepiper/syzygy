@@ -38,7 +38,7 @@ def test_transiting_moon_aspect_at_1_49_degrees_passes():
 
 def test_transiting_moon_aspect_at_1_51_degrees_fails():
     # Would pass the base 3.0 degree trine cap, but the Moon-specific
-    # 1.5 degree cap must override it (DESIGN.md 9.4).
+    # 1.5 degree cap must override it (docs/old/DESIGN.md 9.4).
     assert not POLICY.passes(_aspect(transiting_body="Moon", aspect="trine", orb_degrees=1.51))
 
 

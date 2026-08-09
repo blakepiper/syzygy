@@ -1,4 +1,4 @@
-"""The drawn card, as the screen's focal object (DESIGN.md section 18.2).
+"""The drawn card, as the screen's focal object (docs/old/DESIGN.md section 18.2).
 
 The card is reference data by the time it reaches this widget - it renders
 `syzygy.domain.tarot.TarotCard` exactly as the deck file defines it and

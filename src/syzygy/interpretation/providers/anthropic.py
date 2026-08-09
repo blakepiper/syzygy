@@ -1,4 +1,4 @@
-"""Hosted inference via the Anthropic Messages API (DESIGN.md §13.3).
+"""Hosted inference via the Anthropic Messages API (docs/old/DESIGN.md §13.3).
 
 Plain `httpx` against the REST endpoint, not the `anthropic` SDK, for the
 same reason as `syzygy.interpretation.providers.openai`: one request, one
@@ -83,7 +83,7 @@ class AnthropicProvider:
                 raw = await self._complete(client, messages, system=SYSTEM_PROMPT)
                 # A second failure propagates: the reading service marks
                 # INTERPRETATION_FAILED and leaves the card/snapshot alone
-                # (DESIGN.md §13.4).
+                # (docs/old/DESIGN.md §13.4).
                 return parse_and_validate(
                     raw, context=context, provider_id=self.provider_id, model_id=self.model_id
                 )

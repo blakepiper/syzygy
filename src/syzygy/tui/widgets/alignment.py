@@ -1,7 +1,7 @@
 """SELF - COSMOS - CHANCE, drawn as three points on one axis.
 
 The alignment is the app's status display and its central motif at once
-(DESIGN.md sections 6.3, 18.3): each point resolves in the ritual's fixed
+(docs/old/DESIGN.md sections 6.3, 18.3): each point resolves in the ritual's fixed
 order, and the connecting line only reaches as far as the last resolved
 point. It reports state; it never advances itself.
 """

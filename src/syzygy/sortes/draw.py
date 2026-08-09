@@ -1,6 +1,6 @@
 """Unbiased card selection from an entropy digest.
 
-DESIGN.md section 7.3 requires either a standard `randbelow`-style
+docs/old/DESIGN.md section 7.3 requires either a standard `randbelow`-style
 implementation or rejection sampling, explicitly ruling out naive modulo
 arithmetic over an unconstrained byte range (which would bias results
 towards low card indices, since 256 is not a multiple of 78). This module
@@ -54,7 +54,7 @@ def draw_card(collector: EntropyCollector, *, now: datetime) -> TarotDraw:
     resulting immutable `TarotDraw`.
 
     Callers are responsible for persisting the returned `TarotDraw`
-    immediately (DESIGN.md section 7.4) - this function has no side
+    immediately (docs/old/DESIGN.md section 7.4) - this function has no side
     effects of its own and does not touch storage.
 
     `now` is required, not defaulted to `datetime.now()` - `syzygy.clock`

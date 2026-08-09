@@ -11,7 +11,7 @@ from syzygy.domain.astrology import BirthData, NatalChart
 
 class Profile(BaseModel):
     """A person Syzygy can read for. Multiple profiles are supported
-    (DESIGN.md section 3.1). The natal chart is calculated once and
+    (docs/old/DESIGN.md section 3.1). The natal chart is calculated once and
     stored alongside the birth inputs that produced it - never
     recalculated silently on startup.
     """

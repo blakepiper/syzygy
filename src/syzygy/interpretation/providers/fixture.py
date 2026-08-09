@@ -1,6 +1,6 @@
 """A deterministic interpretation provider with no external dependencies.
 
-Per ARCHITECTURE_HANDOFF.md section 21/37, this should be the first
+Per docs/old/ARCHITECTURE_HANDOFF.md section 21/37, this should be the first
 provider implemented and is what the TUI, storage, and archive should be
 built and tested against before any real model integration exists. It
 never makes a network call, needs no API key, and costs no tokens.

@@ -95,7 +95,7 @@ require the user's own PDFs and `syzygy knowledge ingest`. Citation-only
 chunks are filtered out of the interpretation context
 (`reading_service._select_knowledge_chunks`): a citation rendered under
 the prompt's "SOURCE PASSAGES" heading with nothing beneath it invites the
-model to invent the contents, which is exactly what `DESIGN.md` section 23
+model to invent the contents, which is exactly what `docs/old/DESIGN.md` section 23
 forbids. So **for the reading itself, this changes nothing** for a user
 without the books — the prompt says "none supplied - do not imply you
 consulted a source text", as it did before.

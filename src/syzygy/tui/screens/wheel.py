@@ -1,10 +1,10 @@
-"""Turning the Wheel (DESIGN.md section 7).
+"""Turning the Wheel (docs/old/DESIGN.md section 7).
 
 The screen owns one `EntropyCollector` for one draw attempt, hands it to
 the widget to record interaction timing into, and on release passes it to
 `syzygy.storage.reading_service.draw_todays_reading` - which draws the
 card and commits it to storage before anything is shown or interpreted
-(DESIGN.md section 7.4). There is no branch here that draws twice, and no
+(docs/old/DESIGN.md section 7.4). There is no branch here that draws twice, and no
 way back to this screen once a card exists for today.
 """
 

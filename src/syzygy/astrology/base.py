@@ -2,12 +2,12 @@
 
 This is the only interface the rest of the application is allowed to
 depend on for astrological calculation. `syzygy.astrology.kerykeion_backend`
-(Milestone 2, not yet implemented - see IMPLEMENTATION_PLAN.md) is the
+(Milestone 2, not yet implemented - see docs/old/IMPLEMENTATION_PLAN.md) is the
 production implementation. Nothing outside `syzygy.astrology` may import
 `kerykeion` directly (AGENTS.md).
 
 Implementations are trusted to calculate correctly - Syzygy does not
-re-verify celestial mechanics (ARCHITECTURE_HANDOFF.md section 12). What
+re-verify celestial mechanics (docs/old/ARCHITECTURE_HANDOFF.md section 12). What
 Syzygy owns is everything downstream: which aspects count
 (`syzygy.astrology.policy`), how they're ranked (`syzygy.astrology.ranking`,
 Milestone 2), and how raw engine output is normalized into

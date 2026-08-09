@@ -1,6 +1,6 @@
 """Centralized time access.
 
-DESIGN.md section 10 and ARCHITECTURE_HANDOFF.md section 29 both require a
+docs/old/DESIGN.md section 10 and docs/old/ARCHITECTURE_HANDOFF.md section 29 both require a
 single, injectable source of "now" so that daily-reading logic and tests
 never call `datetime.now()` directly. Every subsystem that needs the
 current time should take a `Clock` rather than importing `datetime` and

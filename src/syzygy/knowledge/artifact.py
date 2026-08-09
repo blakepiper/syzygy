@@ -22,7 +22,7 @@ Loaded into a fresh database, this makes structural lookup
 its card is discussed. It does **not** put source passages in front of the
 model - there is no text to put there, and a citation with no text under a
 "SOURCE PASSAGES" heading is an invitation to fabricate the contents
-(`DESIGN.md` section 23: never imply Crowley grounding that was not
+(`docs/old/DESIGN.md` section 23: never imply Crowley grounding that was not
 retrieved). `reading_service` therefore filters textless chunks out of the
 interpretation context, and a user who wants grounded readings still runs
 `syzygy knowledge ingest` against their own copy of the books.

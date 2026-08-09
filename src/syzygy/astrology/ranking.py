@@ -1,5 +1,5 @@
 """Deterministic significance ranking for already-policy-filtered transit
-aspects (DESIGN.md section 9.5).
+aspects (docs/old/DESIGN.md section 9.5).
 
 Input here has already passed `syzygy.astrology.policy.TransitAspectPolicy`
 - this module never re-applies orb limits, it only scores and truncates.
@@ -17,10 +17,10 @@ from syzygy.domain.astrology import RankedTransit, TransitAspect
 #: Bump whenever the weights or formula below change.
 RANKING_VERSION = "transit-ranking-v1"
 
-#: How many top-scoring aspects `rank` returns at most (DESIGN.md 9.5).
+#: How many top-scoring aspects `rank` returns at most (docs/old/DESIGN.md 9.5).
 TOP_N = 6
 
-#: Named weights - see IMPLEMENTATION_PLAN.md section 2.5. Adjust only
+#: Named weights - see docs/old/IMPLEMENTATION_PLAN.md section 2.5. Adjust only
 #: with a documented reason, updated here.
 ASPECT_WEIGHT: dict[str, float] = {
     "conjunction": 1.0,
@@ -62,7 +62,7 @@ NOT_APPLYING_MODIFIER = 1.0
 #: aspect at that same absolute orb. That relative reading, not the body
 #: weight table alone, is what makes a slow-planet-to-personal-point
 #: aspect able to outrank a same-orb Moon aspect - see
-#: DESIGN.md section 9.5 ("Moon contacts should not crowd out every
+#: docs/old/DESIGN.md section 9.5 ("Moon contacts should not crowd out every
 #: slower transit") and `tests/astrology/test_ranking.py`.
 _POLICY = TransitAspectPolicy()
 

@@ -1,12 +1,12 @@
 """Entropy collection for the Wheel.
 
-DESIGN.md section 7.2 requires that production draws combine OS
+docs/old/DESIGN.md section 7.2 requires that production draws combine OS
 cryptographic randomness, high-resolution interaction timing, and a
 session nonce - and that the result never depends solely on user key
 timing. This module implements the mixing; `syzygy.sortes.draw` turns the
 resulting digest into an unbiased card index.
 
-The literal event sequence is never persisted (DESIGN.md section 7.2) -
+The literal event sequence is never persisted (docs/old/DESIGN.md section 7.2) -
 only the final digest (as `entropy_digest` on `TarotDraw`) leaves this
 module.
 """

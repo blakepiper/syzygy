@@ -1,5 +1,5 @@
 """Which `InterpretationProvider` a reading actually uses (Milestone 7
-wiring, IMPLEMENTATION_PLAN.md §7.3's "adding a new provider" note).
+wiring, docs/old/IMPLEMENTATION_PLAN.md §7.3's "adding a new provider" note).
 
 This is deliberately not part of `syzygy.domain` - it is application
 configuration, not a fact about a reading, and it lives in a small local
@@ -12,8 +12,8 @@ holds only a provider id, an optional model id, and an optional local
 `default_services`, the CLI) should use. It never raises: a selected
 hosted provider with no resolvable key, an unreachable local server
 setting, or a corrupt/missing settings file all fall back to
-`FixtureProvider` rather than blocking the ritual (DESIGN.md Milestone 5 /
-ARCHITECTURE_HANDOFF.md §34 - the app must stay usable with no model
+`FixtureProvider` rather than blocking the ritual (docs/old/DESIGN.md Milestone 5 /
+docs/old/ARCHITECTURE_HANDOFF.md §34 - the app must stay usable with no model
 configured). The fallback reason is returned as a string, not printed
 here, because printing is a caller's job, not this module's.
 """
@@ -44,7 +44,7 @@ SELECTABLE_PROVIDER_IDS: Final = (
 )
 
 #: Provider ids whose selection sends the interpretation context off the
-#: local machine (DESIGN.md §13.3) - a caller presenting `model use` to a
+#: local machine (docs/old/DESIGN.md §13.3) - a caller presenting `model use` to a
 #: person must disclose this before the first real call.
 HOSTED_PROVIDER_IDS: Final = (OPENAI_PROVIDER_ID, ANTHROPIC_PROVIDER_ID)
 

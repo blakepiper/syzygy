@@ -1,4 +1,4 @@
-"""Tests for hosted-provider API key resolution (DESIGN.md §13.3).
+"""Tests for hosted-provider API key resolution (docs/old/DESIGN.md §13.3).
 
 The real OS keyring is never touched here - a tiny in-memory fake stands
 in for `keyring.get_password`/`set_password`/`delete_password`, so these

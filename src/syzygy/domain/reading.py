@@ -1,7 +1,7 @@
 """The daily reading: the Syzygy alignment of Self + Cosmos + Chance, and
 its lifecycle.
 
-Core invariant (DESIGN.md section 7.4, ARCHITECTURE_HANDOFF.md section 23):
+Core invariant (docs/old/DESIGN.md section 7.4, docs/old/ARCHITECTURE_HANDOFF.md section 23):
 **the card is persisted immediately after the draw and before any model
 call.** A failed or retried interpretation must never cause a redraw. The
 `ReadingStatus` state machine exists to make that invariant checkable in
@@ -35,7 +35,7 @@ class ReadingStatus(StrEnum):
     `INTERPRETATION_FAILED` may transition back to `INTERPRETING` on a
     user-initiated retry. No state may transition back to `PREPARED` or
     `DRAWN` once a card exists - that would be a reroll, which is forbidden
-    (DESIGN.md section 5.3, section 7.4).
+    (docs/old/DESIGN.md section 5.3, section 7.4).
     """
 
     PREPARED = "prepared"

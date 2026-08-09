@@ -1,7 +1,7 @@
 """Book of Thoth knowledge-base domain models.
 
 See docs/THOTH_INGESTION_MAP.md for how these are populated from the PDF,
-and DESIGN.md section 11 for the two-tier (structural, then lexical)
+and docs/old/DESIGN.md section 11 for the two-tier (structural, then lexical)
 retrieval policy these support.
 """
 
@@ -28,7 +28,7 @@ class KnowledgeSource(BaseModel):
 class KnowledgeChunk(BaseModel):
     """A single retrievable, provenance-bearing unit of source text.
 
-    Never crosses a card/section boundary (DESIGN.md section 11.3 step 5).
+    Never crosses a card/section boundary (docs/old/DESIGN.md section 11.3 step 5).
 
     `text` may be empty. Installs that have not ingested the source PDFs
     still carry every chunk's *citation*, from the artifact bundled with

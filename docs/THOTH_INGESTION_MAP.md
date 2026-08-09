@@ -3,7 +3,7 @@
 **Purpose:** concrete, inspected facts about the actual file at
 `docs/book_of_thoth.pdf`, so the M6 ingestion parser (`src/syzygy/knowledge/`)
 can be built deterministically without re-discovering the PDF's structure
-from scratch. See `IMPLEMENTATION_PLAN.md` Milestone 6 for the code this
+from scratch. See `docs/old/IMPLEMENTATION_PLAN.md` Milestone 6 for the code this
 document feeds.
 
 This document covers the **Book of Thoth only** — the canonical, Tier 0
@@ -15,7 +15,7 @@ as a result — the Book of Thoth remains the sole source
 
 This document describes the file, not the book's content. Only short
 excerpts (a few lines) are quoted here for illustration, consistent with
-`DESIGN.md` §11.1 (do not redistribute large amounts of the book text).
+`docs/old/DESIGN.md` §11.1 (do not redistribute large amounts of the book text).
 
 ## 1. File identity
 
@@ -31,7 +31,7 @@ excerpts (a few lines) are quoted here for illustration, consistent with
 | PDF metadata `/CreationDate` | 2004-02-28 |
 
 **Ingestion must store this hash in `knowledge_sources.file_hash`** (per
-`DESIGN.md` §16.1) and compare on re-ingestion to detect a swapped/updated
+`docs/old/DESIGN.md` §16.1) and compare on re-ingestion to detect a swapped/updated
 source file.
 
 ## 2. Provenance and what kind of document this is
@@ -60,7 +60,7 @@ every prose page. **No OCR fallback is needed for this file.**
 
 Quality caveats found during inspection (source-transcription artifacts,
 not PDF-extraction artifacts — do not "fix" these by guessing, per
-`DESIGN.md` §11.2's instruction not to rewrite spelling):
+`docs/old/DESIGN.md` §11.2's instruction not to rewrite spelling):
 
 - Occasional stray typos carried over from the web transcription, e.g.
   `"tbe floor"` for `"the floor"`.
@@ -338,7 +338,7 @@ the web gets wrong, because they're specific to Crowley's system:
 5. Detect section headings using the patterns in §8 (Major Arcana numbered
    heading; Minor Arcana two-line caps heading; Court card single-line
    caps heading) to split the document into card-scoped sections. Never
-   let a chunk cross a heading boundary (`DESIGN.md` §11.3 step 5).
+   let a chunk cross a heading boundary (`docs/old/DESIGN.md` §11.3 step 5).
 6. Map each detected heading to a canonical `card_id` from
    `thoth_deck.yaml` using the `book_of_thoth_aliases` list on each card
    (built from §7's verbatim TOC listing) — exact string match, not fuzzy
@@ -348,15 +348,15 @@ the web gets wrong, because they're specific to Crowley's system:
    six cards' existing sections as an additional chunk
    (`section_type: "card_appendix"`), not treated as unrelated general
    material.
-8. Chunk within sections per `DESIGN.md` §11.3 step 5 (~600–1200 tokens,
+8. Chunk within sections per `docs/old/DESIGN.md` §11.3 step 5 (~600–1200 tokens,
    small overlap only if a section exceeds that).
 9. Store `source_hash`, `section_id`, `section_type`, `card_id`,
    `page_start`, `page_end`, `chunk_index`, `text_hash` per
-   `DESIGN.md` §16.1's `knowledge_chunks` schema.
+   `docs/old/DESIGN.md` §16.1's `knowledge_chunks` schema.
 
 ## 13. Suggested test fixtures
 
-Per `ARCHITECTURE_HANDOFF.md` §16, create small fixtures rather than
+Per `docs/old/ARCHITECTURE_HANDOFF.md` §16, create small fixtures rather than
 duplicating the book. Recommended (to be created alongside the M6 parser,
 not in this session): extracted-and-stripped text for one representative
 page from each of: a Major Arcana card (e.g. PDF page 45, Adjustment), a
