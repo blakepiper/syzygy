@@ -424,41 +424,32 @@ def _cmd_knowledge_ingest(args: argparse.Namespace) -> int:
 
 
 def _cmd_knowledge_status(_args: argparse.Namespace) -> int:
-    from syzygy.knowledge.ingest import SOURCE_TYPES
-    from syzygy.knowledge.store import count_chunks, get_source_by_type
+    from syzygy.knowledge.status import any_full_text, source_statuses
 
     conn = _open_profile_db()
     try:
-        for source_type in SOURCE_TYPES:
-            source = get_source_by_type(conn, source_type)
-            if source is None:
-                print(f"{source_type:26s} not present")
-                continue
-            chunk_count = count_chunks(conn, source.id)
-            with_text = conn.execute(
-                "SELECT COUNT(*) FROM knowledge_chunks WHERE source_id = ? AND text != ''",
-                (source.id,),
-            ).fetchone()[0]
-            # Citations-only is the normal state for anyone who has not
-            # supplied their own PDFs (M13.3), so it is reported as a mode
-            # rather than as a shortfall.
-            kind = "full text" if with_text else "citations only"
-            print(
-                f"{source_type:26s} {chunk_count:4d} chunks  {kind:15s} "
-                f"(version {source.ingestion_version}, hash {source.file_hash[:12]})"
-            )
-        if not any(
-            conn.execute(
-                "SELECT 1 FROM knowledge_chunks WHERE text != '' LIMIT 1"
-            ).fetchall()
-        ):
-            print(
-                "\nNo source passages are available, so readings are interpreted without\n"
-                "them. Run `syzygy knowledge ingest <pdf>` against your own copies of the\n"
-                "books to add them - see docs/KNOWLEDGE_SOURCES.md."
-            )
+        statuses = source_statuses(conn)
     finally:
         conn.close()
+
+    for status in statuses:
+        # Citations-only is the normal state for anyone who has not
+        # supplied their own PDFs (M13.3), so it is reported as a mode
+        # rather than as a shortfall.
+        version = f" (version {status.ingestion_version})" if status.ingestion_version else ""
+        print(
+            f"{status.source_type:26s} {status.chunk_count:4d} chunks  "
+            f"{status.state.value:15s}{version}"
+        )
+        if status.detail:
+            print(f"{'':26s}      {status.detail}")
+
+    if not any_full_text(statuses):
+        print(
+            "\nNo source passages are available, so readings are interpreted without\n"
+            "them. Run `syzygy knowledge ingest <pdf>` against your own copies of the\n"
+            "books to add them - see docs/KNOWLEDGE_SOURCES.md."
+        )
     return 0
 
 
@@ -1126,32 +1117,37 @@ def _doctor_knowledge_base() -> None:
     (a reading still completes with `knowledge_chunks=[]`), so nothing
     here can fail `doctor`'s exit code - it just tells the user what's
     ingested.
+
+    M18.1d: "citations only" and "ingested but broken" are different
+    answers and used to render identically. The first is what every fresh
+    install looks like and is labelled as normal; the second names what is
+    wrong with it, because it is the only one worth acting on.
     """
-    from syzygy.knowledge.ingest import SOURCE_TYPES
-    from syzygy.knowledge.store import count_chunks, get_source_by_type, has_full_text
+    from syzygy.knowledge.status import SourceState, broken, source_statuses
 
     conn = _open_profile_db()
     try:
-        any_full_text = False
-        for source_type in SOURCE_TYPES:
-            source = get_source_by_type(conn, source_type)
-            if source is None:
-                print(f"knowledge {source_type:26s} not present")
-                continue
-            chunk_count = count_chunks(conn, source.id)
-            # Since M13.3 every install ships citations for all three
-            # sources, so "present" and "has the passages" are different
-            # states and both are supported.
-            if has_full_text(conn, source.id):
-                any_full_text = True
-                print(f"knowledge {source_type:26s} {chunk_count:4d} chunks, full text")
-            else:
-                print(f"knowledge {source_type:26s} {chunk_count:4d} chunks, citations only")
-        if not any_full_text:
-            print("(citations only - readings still work, with no source passages;")
-            print(" see `syzygy knowledge ingest`)")
+        statuses = source_statuses(conn)
     finally:
         conn.close()
+
+    labels = {
+        SourceState.ABSENT: "not present",
+        SourceState.CITATIONS_ONLY: "citations only (normal)",
+        SourceState.FULL_TEXT: "full text",
+        SourceState.BROKEN: "NEEDS ATTENTION",
+    }
+    for status in statuses:
+        counts = f"{status.chunk_count:4d} chunks, " if status.chunk_count else ""
+        print(f"knowledge {status.source_type:26s} {counts}{labels[status.state]}")
+        if status.detail:
+            print(f"          {status.detail}")
+
+    if broken(statuses):
+        print("(re-ingest the affected source with `syzygy knowledge ingest <pdf>`)")
+    elif not any(status.has_text for status in statuses):
+        print("(citations only - readings still work, with no source passages;")
+        print(" see `syzygy knowledge ingest`, or press [K] in the interface)")
 
 
 def _doctor_providers() -> None:
