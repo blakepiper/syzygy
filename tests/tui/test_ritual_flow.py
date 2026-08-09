@@ -22,7 +22,7 @@ from syzygy.tui.screens.reading import ReadingScreen
 from syzygy.tui.screens.reveal import RevealScreen
 from syzygy.tui.screens.welcome import WelcomeScreen
 from syzygy.tui.screens.wheel import WheelScreen
-from syzygy.tui.widgets.reading_panel import ReadingPanel
+from syzygy.tui.widgets.reading_panel import NO_PASSAGES_NOTE, ReadingPanel
 
 from .conftest import FIXED_NOW
 
@@ -186,7 +186,8 @@ async def test_inputs_view_shows_the_exact_model_inputs(app: SyzygyApp, profile)
         assert "Pluto" not in body
         # No source chunks were retrieved, and the screen says so rather
         # than implying Crowley grounding (docs/old/DESIGN.md section 23).
-        assert "no source chunks" in body
+        assert "PASSAGES SENT TO THE MODEL" in body
+        assert NO_PASSAGES_NOTE in body
 
 
 async def test_reopening_the_day_does_not_redraw(app: SyzygyApp, services, profile, conn):

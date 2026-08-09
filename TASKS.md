@@ -302,7 +302,7 @@ of a CLI incantation buried in the docs.
       surface per `AGENTS.md`, and citations must not enter it. Record per
       citation: source id and tier, title, page range, chunk id, retrieval
       method, and whether its text was available.
-- [ ] M18.1b Rewrite the `SOURCE MATERIAL` block in
+- [x] M18.1b Rewrite the `SOURCE MATERIAL` block in
       `widgets/reading_panel.py` (currently `reading_panel.py:115-125`) into
       two labelled lists: **Passages sent to the model** (what
       `context.knowledge_chunks` holds) and **Where this card is discussed**

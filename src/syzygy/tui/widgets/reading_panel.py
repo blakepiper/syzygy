@@ -19,6 +19,7 @@ from textual.app import ComposeResult
 from textual.containers import VerticalScroll
 from textual.widgets import Static
 
+from syzygy.domain.interpretation import InterpretationContext
 from syzygy.domain.reading import Reading, ReadingStatus
 from syzygy.tui import palette
 from syzygy.tui.widgets.glyph import GlyphSet, default_glyphs, format_degrees
@@ -62,6 +63,58 @@ def _conventional_text(reading: Reading) -> Text:
     text.append("\nREFLECT\n", style=_HEADING)
     text.append(f"{conventional.reflection}\n", style=_BODY)
     return text
+
+
+#: The one sentence a citation-only install gets, and the action that
+#: changes it (M18.1b). Syzygy ships the references to all three books
+#: because they are its own derived index; it ships none of the prose,
+#: because that is the books
+#: (docs/adr/0003-ship-derived-knowledge-index-without-source-text.md).
+NO_PASSAGES_NOTE = (
+    "Syzygy ships the references to these pages but not the book text, "
+    "which is still under copyright — so no passages were sent."
+)
+NO_PASSAGES_ACTION = "Press [K] on the home screen to ingest your own copies of the books."
+
+
+def _append_source_material(
+    text: Text, reading: Reading, context: InterpretationContext
+) -> None:
+    """The two lists the `[I]` view owes the user (M18.1b).
+
+    They answer different questions and used to be conflated into one
+    heading that said "no source chunks were supplied to the model" and
+    stopped there - true, unexplained, and an apparent dead end. What was
+    *sent* comes from the interpretation context; where the card is
+    *discussed* comes from the reading's own retrieved citations, which
+    are populated on every install because the bundled artifact carries
+    them for all 78 cards.
+    """
+    text.append("\nPASSAGES SENT TO THE MODEL\n", style=_HEADING)
+    if context.knowledge_chunks:
+        for chunk in context.knowledge_chunks:
+            text.append(
+                f"  {chunk.title} (pages {chunk.page_start}-{chunk.page_end}) [{chunk.id}]\n",
+                style=_BODY,
+            )
+    else:
+        # docs/old/DESIGN.md section 23: never imply Crowley grounding that was not
+        # actually retrieved.
+        text.append("  none.\n", style=_MUTED)
+        text.append(f"  {NO_PASSAGES_NOTE}\n", style=_MUTED)
+        text.append(f"  {NO_PASSAGES_ACTION}\n", style=_MUTED)
+
+    text.append("\nWHERE THIS CARD IS DISCUSSED\n", style=_HEADING)
+    if reading.retrieved_citations:
+        for citation in reading.retrieved_citations:
+            tier = "canonical" if citation.tier == 0 else "supplementary"
+            sent = "sent" if citation.text_available else "citation only"
+            text.append(f"  {citation.reference}\n", style=_BODY)
+            text.append(f"    {tier} · {citation.retrieval_method} · {sent}\n", style=_MUTED)
+    else:
+        # Only reachable on a build with no bundled artifact, or a reading
+        # committed before migration 6 - both real, neither the norm.
+        text.append("  no citations were recorded for this reading.\n", style=_MUTED)
 
 
 def _inputs_text(reading: Reading, glyphs: GlyphSet) -> Text:
@@ -112,17 +165,7 @@ def _inputs_text(reading: Reading, glyphs: GlyphSet) -> Text:
         )
     text.append(f"  Ascendant sign: {context.ascendant_sign}\n", style=_BODY)
 
-    text.append("\nSOURCE MATERIAL\n", style=_HEADING)
-    if context.knowledge_chunks:
-        for chunk in context.knowledge_chunks:
-            text.append(
-                f"  {chunk.title} (pages {chunk.page_start}-{chunk.page_end}) [{chunk.id}]\n",
-                style=_BODY,
-            )
-    else:
-        # docs/old/DESIGN.md section 23: never imply Crowley grounding that was not
-        # actually retrieved.
-        text.append("  no source chunks were supplied to the model\n", style=_MUTED)
+    _append_source_material(text, reading, context)
 
     text.append("\nPROVENANCE\n", style=_HEADING)
     text.append(f"  provider: {reading.provider_id or '—'}\n", style=_BODY)
