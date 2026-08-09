@@ -264,6 +264,29 @@ _MIGRATIONS: list[tuple[int, str, str]] = [
             ON iching_consultations (profile_id, asked_at_utc DESC);
         """,
     ),
+    (
+        10,
+        "archive deletion: preserve the one-reading-per-day commitment",
+        """
+        CREATE TABLE deleted_reading_dates (
+            profile_id                  TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+            consultation_local_date     TEXT NOT NULL,
+            deleted_at                  TEXT NOT NULL,
+            PRIMARY KEY (profile_id, consultation_local_date)
+        );
+
+        CREATE TRIGGER readings_cannot_replace_archived_day
+        BEFORE INSERT ON readings
+        WHEN EXISTS (
+            SELECT 1 FROM deleted_reading_dates
+            WHERE profile_id = NEW.profile_id
+              AND consultation_local_date = NEW.consultation_local_date
+        )
+        BEGIN
+            SELECT RAISE(ABORT, 'daily reading for this date was deleted from the archive');
+        END;
+        """,
+    ),
 ]
 
 

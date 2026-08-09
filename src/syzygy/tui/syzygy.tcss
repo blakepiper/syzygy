@@ -702,6 +702,22 @@ Mascot.-mascot-complete {
     color: $syz-bone;
 }
 
+/* Archive entry deletion uses the same cancel-first safety pattern as
+ * profile deletion, but has its own ids because both screens are installed. */
+#archive-body {
+    height: 1fr;
+}
+
+#archive-delete-confirm {
+    height: auto;
+    padding: 1 0;
+}
+
+#archive-delete-body {
+    padding: 0 2;
+    color: $syz-bone;
+}
+
 /* Home (M12.5b).
  *
  * Three regions, one per point of the alignment axis above them. Stacked

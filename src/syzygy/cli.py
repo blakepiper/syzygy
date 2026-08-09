@@ -31,7 +31,7 @@ Commands implemented so far:
 - `syzygy chart` - print a saved profile's natal chart.
 - `syzygy oracle ask <question>` / `list` / `show` - make and reopen
   question-led consultations, stored separately from the daily reading.
-- `syzygy knowledge ingest <pdf>` / `status` / `search` / `build-artifact`
+- `syzygy knowledge ingest [<pdf>]` / `status` / `search` / `build-artifact`
   - ingest a Book of Thoth / companion-source PDF, inspect what is
   present, search the index, and (development-only) regenerate the
   committed citations+vectors artifact. Source PDFs live outside the
@@ -574,32 +574,73 @@ def _cmd_knowledge_ingest(args: argparse.Namespace) -> int:
     from pathlib import Path
 
     from syzygy.clock import SystemClock
-    from syzygy.knowledge.ingest import UnknownSourceTypeError, ingest
+    from syzygy.knowledge.ingest import (
+        UnknownSourceTypeError,
+        default_source_paths,
+        ingest,
+    )
 
-    pdf_path = Path(args.pdf_path)
-    if not pdf_path.is_file():
-        print(f"no such file: {pdf_path}", file=sys.stderr)
-        return 1
+    if args.pdf_path is None:
+        if args.source_type is not None:
+            print("--source-type requires an explicit PDF path", file=sys.stderr)
+            return 1
+        sources = default_source_paths()
+        missing = [path for _, path in sources if not path.is_file()]
+        if missing:
+            print(
+                "Cannot ingest the canonical knowledge set; these files are missing:",
+                file=sys.stderr,
+            )
+            for path in missing:
+                print(f"  {path}", file=sys.stderr)
+            print(
+                "Put all three PDFs in docs/ with the filenames shown, then run "
+                "`syzygy knowledge ingest` again.",
+                file=sys.stderr,
+            )
+            return 1
+        print("Ingesting the three canonical books from docs/…")
+    else:
+        pdf_path = Path(args.pdf_path)
+        if not pdf_path.is_file():
+            print(f"no such file: {pdf_path}", file=sys.stderr)
+            return 1
+        sources = [(args.source_type, pdf_path)]
 
     conn = _open_profile_db()
     try:
-        try:
-            result = ingest(
-                conn, pdf_path, now=SystemClock().now_utc(), source_type=args.source_type
-            )
-        except UnknownSourceTypeError as exc:
-            print(str(exc), file=sys.stderr)
-            return 1
+        for source_type, pdf_path in sources:
+            label = source_type or pdf_path.name
+
+            def progress(phase: str, *, _label: str = label) -> None:
+                print(f"{_label}: {phase}…")
+
+            try:
+                result = ingest(
+                    conn,
+                    pdf_path,
+                    now=SystemClock().now_utc(),
+                    source_type=source_type,
+                    on_progress=progress,
+                )
+            except UnknownSourceTypeError as exc:
+                print(str(exc), file=sys.stderr)
+                return 1
+            except Exception as exc:  # a bad local PDF should fail as a CLI error, not a traceback
+                print(
+                    f"Could not ingest {pdf_path}: {type(exc).__name__}: {exc}",
+                    file=sys.stderr,
+                )
+                return 1
+            if result.skipped:
+                print(f"{result.source_type}: already ingested at the current version, skipped")
+            else:
+                print(
+                    f"{result.source_type}: ingested {result.chunk_count} chunks "
+                    f"across {result.card_count} cards"
+                )
     finally:
         conn.close()
-
-    if result.skipped:
-        print(f"{result.source_type}: already ingested at the current version, skipped")
-    else:
-        print(
-            f"{result.source_type}: ingested {result.chunk_count} chunks "
-            f"across {result.card_count} cards"
-        )
     return 0
 
 
@@ -627,8 +668,8 @@ def _cmd_knowledge_status(_args: argparse.Namespace) -> int:
     if not any_full_text(statuses):
         print(
             "\nNo source passages are available, so readings are interpreted without\n"
-            "them. Run `syzygy knowledge ingest <pdf>` against your own copies of the\n"
-            "books to add them - see docs/KNOWLEDGE_SOURCES.md."
+            "them. Put the three expected PDFs in docs/ and run\n"
+            "`syzygy knowledge ingest` - see docs/KNOWLEDGE_SOURCES.md."
         )
     return 0
 
@@ -1493,9 +1534,13 @@ def build_parser() -> argparse.ArgumentParser:
     knowledge_subparsers = knowledge_parser.add_subparsers(dest="knowledge_command")
 
     knowledge_ingest_parser = knowledge_subparsers.add_parser(
-        "ingest", help="ingest a Book of Thoth / companion-source PDF"
+        "ingest", help="ingest all three PDFs from docs/ (or one explicit PDF)"
     )
-    knowledge_ingest_parser.add_argument("pdf_path", help="path to the source PDF")
+    knowledge_ingest_parser.add_argument(
+        "pdf_path",
+        nargs="?",
+        help="optional path to one source PDF (default: all three canonical docs/*.pdf files)",
+    )
     knowledge_ingest_parser.add_argument(
         "--source-type",
         default=None,

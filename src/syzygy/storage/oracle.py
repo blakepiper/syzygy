@@ -95,6 +95,17 @@ def list_consultations(
     return [_row_to_consultation(row) for row in conn.execute(sql, params).fetchall()]
 
 
+def delete_consultation(
+    conn: sqlite3.Connection, consultation_id: str, *, profile_id: str
+) -> bool:
+    """Delete exactly one question-led Thoth consultation owned by a profile."""
+    deleted = conn.execute(
+        "DELETE FROM oracle_consultations WHERE id = ? AND profile_id = ?",
+        (consultation_id, profile_id),
+    ).rowcount
+    return deleted == 1
+
+
 def create_asked(
     conn: sqlite3.Connection,
     *,

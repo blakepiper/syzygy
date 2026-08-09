@@ -66,6 +66,18 @@ EXPECTED_FILENAMES: dict[str, str] = {
     source_type: f"{hint}.pdf" for source_type, hint in _FILENAME_HINTS.items()
 }
 
+
+def default_source_paths(docs_dir: Path = Path("docs")) -> list[tuple[str, Path]]:
+    """The complete, canonical no-argument ingest set.
+
+    Keeping this mapping beside source detection prevents the CLI's convenient
+    path from acquiring a second, drifting list of filenames or source types.
+    """
+    return [
+        (source_type, docs_dir / EXPECTED_FILENAMES[source_type])
+        for source_type in SOURCE_TYPES
+    ]
+
 _SEGMENTERS: dict[str, Callable[[pymupdf.Document], list[Section]]] = {
     "book_of_thoth": segment_book_of_thoth,
     "duquette_companion": segment_duquette,

@@ -275,6 +275,15 @@ exclusive Oracle mode backed by migration 9, `iching-v1`, and the complete
 page-cited Legge (1882) resource. The CLI selects it with `oracle ask --mode
 iching`; the default remains Thoth for compatibility.
 
+### Post-M20 usability follow-up
+
+- [x] `syzygy knowledge ingest` with no arguments preflights and ingests the
+      three canonical `docs/*.pdf` files in one run, while retaining the
+      explicit single-file form.
+- [x] `[D]` on the archive asks for confirmation before deleting any daily,
+      Thoth Oracle, or I Ching entry. Daily-reading deletion leaves a
+      database-enforced profile/date tombstone so it cannot become a reroll.
+
 ---
 
 ## M21 — Liber Syzygy

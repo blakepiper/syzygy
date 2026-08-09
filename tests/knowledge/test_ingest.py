@@ -2,7 +2,22 @@ from pathlib import Path
 
 import pytest
 
-from syzygy.knowledge.ingest import UnknownSourceTypeError, _chunk_text, detect_source_type
+from syzygy.knowledge.ingest import (
+    SOURCE_TYPES,
+    UnknownSourceTypeError,
+    _chunk_text,
+    default_source_paths,
+    detect_source_type,
+)
+
+
+def test_default_source_paths_are_the_complete_docs_set():
+    assert default_source_paths() == [
+        ("book_of_thoth", Path("docs/book_of_thoth.pdf")),
+        ("duquette_companion", Path("docs/understanding_crowley_thoth_tarot.pdf")),
+        ("ziegler_mirror_of_soul", Path("docs/mirror_of_the_soul.pdf")),
+    ]
+    assert tuple(source_type for source_type, _ in default_source_paths()) == SOURCE_TYPES
 
 
 def test_detect_source_type_book_of_thoth():

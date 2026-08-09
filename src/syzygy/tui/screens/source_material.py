@@ -1,7 +1,7 @@
 """Source material: what is installed, and how to install the rest (M18.1c).
 
 Reached with `[K]` from home. Before this screen, the only route to
-source passages was `syzygy knowledge ingest <pdf>` in `docs/`, which
+source passages was `syzygy knowledge ingest` for the PDFs in `docs/`, which
 made "no passages were sent" a dead end for anyone who never reads the
 CLI reference - and that was the whole of the complaint M18 exists to
 answer.

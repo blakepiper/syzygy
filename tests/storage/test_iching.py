@@ -143,3 +143,13 @@ def test_iching_is_separate_from_thoth_oracle_and_daily_reading(conn, profile) -
     assert iching.list_consultations(conn, profile.id) == [i_ching]
     assert oracle.list_consultations(conn, profile.id) == [thoth]
     assert readings.list_readings(conn, profile.id) == [daily]
+
+
+def test_archive_delete_removes_only_the_owned_iching_consultation(conn, profile) -> None:
+    consultation = ask_question(conn, profile, FixedClock(NOW), "What can go?")
+
+    assert not iching.delete_consultation(
+        conn, consultation.id, profile_id="another-profile"
+    )
+    assert iching.delete_consultation(conn, consultation.id, profile_id=profile.id)
+    assert iching.get_by_id(conn, consultation.id) is None

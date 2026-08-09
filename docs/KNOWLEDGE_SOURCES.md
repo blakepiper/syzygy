@@ -77,6 +77,17 @@ pages say. Source passages reach a reading only on installs where the user
 has ingested their own copies with `syzygy knowledge ingest`; the bundled
 index deliberately never reaches the model (see the ADR).
 
+The normal installation path is deliberately one command: save the three
+files under the exact `docs/` names in the registry below, then run:
+
+```bash
+syzygy knowledge ingest
+```
+
+The command checks that the complete set exists before changing the knowledge
+base, then ingests all three. Passing one PDF path explicitly remains available
+for replacing or troubleshooting an individual source.
+
 Each source's raw-file hash is recorded below so ingestion can verify it's
 processing the same file this document was written against, the same way
 `docs/THOTH_INGESTION_MAP.md` section 1 does for the primary source.

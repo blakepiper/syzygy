@@ -63,6 +63,46 @@ def test_iching_has_its_own_non_unique_indexed_table(conn):
     assert not any(row["unique"] for row in indexes if row["origin"] != "pk")
 
 
+def test_deleted_daily_dates_have_a_database_guard(conn):
+    apply_all(conn)
+    tables = {
+        row[0]
+        for row in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table'"
+        ).fetchall()
+    }
+    assert "deleted_reading_dates" in tables
+    triggers = {
+        row[0]
+        for row in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'trigger'"
+        ).fetchall()
+    }
+    assert "readings_cannot_replace_archived_day" in triggers
+
+    conn.execute(
+        "INSERT INTO profiles (id, name, birth_date, birth_time, birth_place_label, "
+        "birth_latitude, birth_longitude, birth_timezone, house_system, zodiac_type, "
+        "astrology_engine, astrology_engine_version, chart_schema_version, "
+        "natal_chart_json, created_at, updated_at) VALUES "
+        "('p-deleted','Blake','1990-01-01','12:00:00','Nowhere',0,0,'UTC','placidus',"
+        "'tropical','fixture','1','chart-v1','{}','2026-08-07','2026-08-07')"
+    )
+    conn.execute(
+        "INSERT INTO deleted_reading_dates "
+        "(profile_id, consultation_local_date, deleted_at) "
+        "VALUES ('p-deleted', '2026-08-07', '2026-08-08')"
+    )
+    with pytest.raises(sqlite3.IntegrityError, match="deleted from the archive"):
+        conn.execute(
+            "INSERT INTO readings (id, profile_id, consultation_local_date, "
+            "consultation_local_timestamp, consultation_utc_timestamp, "
+            "consultation_timezone, status, created_at, updated_at) VALUES "
+            "('replacement', 'p-deleted', '2026-08-07', '2026-08-07T08:00:00', "
+            "'2026-08-07T12:00:00Z', 'UTC', 'prepared', '2026-08-07', '2026-08-07')"
+        )
+
+
 def test_profiles_own_a_persistent_natal_summary(conn):
     apply_all(conn)
     columns = {row["name"] for row in conn.execute("PRAGMA table_info(profiles)")}

@@ -169,3 +169,13 @@ def test_question_is_stored_verbatim_but_context_uses_normalized_text(conn, prof
     assert consultation.question.normalized_text == "What should I notice?"
     assert consultation.interpretation_context is not None
     assert consultation.interpretation_context.question == "What should I notice?"
+
+
+def test_archive_delete_removes_only_the_owned_oracle_consultation(conn, profile) -> None:
+    consultation = ask_question(conn, profile, FixedClock(NOW), "What can go?")
+
+    assert not oracle.delete_consultation(
+        conn, consultation.id, profile_id="another-profile"
+    )
+    assert oracle.delete_consultation(conn, consultation.id, profile_id=profile.id)
+    assert oracle.get_by_id(conn, consultation.id) is None

@@ -22,6 +22,7 @@ from syzygy.domain.astrology import RankedTransit, sign_for_longitude
 from syzygy.domain.reading import Reading, ReadingStatus
 from syzygy.knowledge.status import any_full_text, source_note_dismissed, source_statuses
 from syzygy.storage.reading_service import rank_current_transits
+from syzygy.storage.readings import date_was_deleted
 from syzygy.tui.screens.base import SyzygyScreen, TitleBar
 from syzygy.tui.screens.model_setup import ProviderStatus, load_status
 from syzygy.tui.widgets.alignment import AlignmentWidget
@@ -341,8 +342,20 @@ class HomeScreen(SyzygyScreen):
         status = self.query_one("#home-status", Static)
         alignment = self.query_one("#home-alignment", AlignmentWidget)
 
-        if self._reading is not None and self._reading.card_draw is not None:
+        local_date = self.syzygy.services.clock.now_utc().astimezone().date().isoformat()
+        archived = date_was_deleted(
+            self.syzygy.services.conn, profile.id, local_date
+        )
+
+        if archived:
+            button.label = "TODAY'S READING WAS DELETED"
+            button.disabled = True
+            alignment.chance_resolved = True
+            status.update("Today's card remains final; another cannot be drawn.")
+            self._set_mascot(MascotState.WAITING)
+        elif self._reading is not None and self._reading.card_draw is not None:
             button.label = OPEN_TODAYS_READING
+            button.disabled = False
             alignment.chance_resolved = True
             if self._reading.status == ReadingStatus.COMPLETE:
                 status.update("Today's reading is complete.")
@@ -352,6 +365,7 @@ class HomeScreen(SyzygyScreen):
                 self._set_mascot(MascotState.WAITING)
         else:
             button.label = TURN_THE_WHEEL
+            button.disabled = False
             alignment.chance_resolved = False
             status.update("Chance has not yet entered the alignment.")
             self._set_mascot(MascotState.WAITING)
@@ -380,6 +394,9 @@ class HomeScreen(SyzygyScreen):
 
     def action_primary(self) -> None:
         if self.syzygy.profile is None or self._transitioning:
+            return
+        if self.query_one("#primary-action", Button).disabled:
+            self.app.bell()
             return
         if self._reading is not None and self._reading.card_draw is not None:
             from syzygy.tui.screens.reading import ReadingScreen

@@ -4,6 +4,56 @@ from syzygy.cli import main
 from syzygy.interpretation.providers import api_keys
 
 
+def test_knowledge_ingest_without_a_path_ingests_all_three_docs_pdfs(
+    isolated_app_paths, tmp_path, monkeypatch, capsys
+):
+    from syzygy.knowledge.ingest import IngestResult
+
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    filenames = (
+        "book_of_thoth.pdf",
+        "understanding_crowley_thoth_tarot.pdf",
+        "mirror_of_the_soul.pdf",
+    )
+    for filename in filenames:
+        (docs / filename).write_bytes(b"fixture")
+    monkeypatch.chdir(tmp_path)
+    calls: list[tuple[str, str | None]] = []
+
+    def fake_ingest(conn, pdf_path, *, now, source_type=None, on_progress=None):
+        calls.append((pdf_path.name, source_type))
+        return IngestResult(
+            source_type=source_type,
+            skipped=False,
+            chunk_count=2,
+            card_count=1,
+        )
+
+    monkeypatch.setattr("syzygy.knowledge.ingest.ingest", fake_ingest)
+
+    assert main(["knowledge", "ingest"]) == 0
+    assert calls == [
+        ("book_of_thoth.pdf", "book_of_thoth"),
+        ("understanding_crowley_thoth_tarot.pdf", "duquette_companion"),
+        ("mirror_of_the_soul.pdf", "ziegler_mirror_of_soul"),
+    ]
+    assert capsys.readouterr().out.count("ingested 2 chunks") == 3
+
+
+def test_knowledge_ingest_without_a_path_reports_every_missing_pdf(
+    isolated_app_paths, tmp_path, monkeypatch, capsys
+):
+    (tmp_path / "docs").mkdir()
+    monkeypatch.chdir(tmp_path)
+
+    assert main(["knowledge", "ingest"]) == 1
+    error = capsys.readouterr().err
+    assert "book_of_thoth.pdf" in error
+    assert "mirror_of_the_soul.pdf" in error
+    assert "understanding_crowley_thoth_tarot.pdf" in error
+
+
 def test_dev_deck_lists_78_cards(capsys):
     exit_code = main(["dev", "deck"])
     assert exit_code == 0

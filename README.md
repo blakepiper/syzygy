@@ -172,13 +172,22 @@ correspondences, and the ranked transits are all grounded in
 cited page by page. What is missing is Crowley's prose, not the
 attributions.
 
-Point Syzygy at your own copy of a book and its passages become part of
-your readings from then on — press `[K]` in the interface, or:
+Save your copies under these exact names:
+
+- `docs/book_of_thoth.pdf`
+- `docs/mirror_of_the_soul.pdf`
+- `docs/understanding_crowley_thoth_tarot.pdf`
+
+Then ingest all three at once; their passages become part of readings from
+then on:
 
 ```bash
-syzygy knowledge ingest /path/to/book_of_thoth.pdf
+syzygy knowledge ingest
 syzygy knowledge status
 ```
+
+The `[K]` screen and `syzygy knowledge ingest /path/to/one.pdf` remain
+available when you want to install or replace one source at a time.
 
 Nothing is ever downloaded. `[K]` accepts only a file whose hash matches
 the edition the shipped citations were built against, because every page

@@ -40,6 +40,10 @@ class IllegalReadingTransition(Exception):
         self.requested = requested
 
 
+class ReadingDateArchivedError(Exception):
+    """A deleted daily reading may not be replaced with a new draw."""
+
+
 def _check_transition(current: ReadingStatus, requested: ReadingStatus) -> None:
     if requested not in ALLOWED_TRANSITIONS[current]:
         raise IllegalReadingTransition(current, requested)
@@ -116,6 +120,52 @@ def get_by_id(conn: sqlite3.Connection, reading_id: str) -> Reading | None:
     return _get_by_id(conn, reading_id)
 
 
+def date_was_deleted(conn: sqlite3.Connection, profile_id: str, local_date: str) -> bool:
+    """Whether this profile/date once had a reading removed from the archive."""
+    return (
+        conn.execute(
+            "SELECT 1 FROM deleted_reading_dates "
+            "WHERE profile_id = ? AND consultation_local_date = ?",
+            (profile_id, local_date),
+        ).fetchone()
+        is not None
+    )
+
+
+def delete_from_archive(
+    conn: sqlite3.Connection, reading_id: str, *, profile_id: str, deleted_at: datetime
+) -> bool:
+    """Delete one daily reading while permanently preserving its occupied date.
+
+    The tombstone and deletion are one transaction. The migration-10 trigger
+    then makes a later replacement impossible at the database boundary, so
+    removing archive history can never become a production reroll path.
+    """
+    row = conn.execute(
+        "SELECT consultation_local_date FROM readings WHERE id = ? AND profile_id = ?",
+        (reading_id, profile_id),
+    ).fetchone()
+    if row is None:
+        return False
+    conn.execute("BEGIN")
+    try:
+        conn.execute(
+            "INSERT OR IGNORE INTO deleted_reading_dates "
+            "(profile_id, consultation_local_date, deleted_at) VALUES (?, ?, ?)",
+            (profile_id, row["consultation_local_date"], deleted_at.isoformat()),
+        )
+        deleted = conn.execute(
+            "DELETE FROM readings WHERE id = ? AND profile_id = ?",
+            (reading_id, profile_id),
+        ).rowcount
+    except Exception:
+        conn.execute("ROLLBACK")
+        raise
+    else:
+        conn.execute("COMMIT")
+    return deleted == 1
+
+
 def list_readings(
     conn: sqlite3.Connection, profile_id: str, *, limit: int | None = None
 ) -> list[Reading]:
@@ -188,6 +238,11 @@ def create_prepared(
     is resolved by letting the `UNIQUE` constraint fire and reading back
     whichever row won - see the module docstring.
     """
+    if date_was_deleted(conn, profile_id, consultation_local_date):
+        raise ReadingDateArchivedError(
+            "this date's reading was deleted from the archive; its card remains final"
+        )
+
     reading_id = str(uuid.uuid4())
     now = consultation_utc_timestamp.isoformat()
     try:

@@ -131,6 +131,40 @@ def test_first_call_creates_a_complete_reading(conn):
     assert reading.interpretation is not None
 
 
+def test_archive_delete_removes_reading_but_permanently_occupies_its_date(conn):
+    profile = _profile()
+    insert_profile(conn, profile)
+    reading = _run(conn, profile)
+
+    assert readings.delete_from_archive(
+        conn, reading.id, profile_id=profile.id, deleted_at=FIXED_NOW
+    )
+    assert readings.get_by_id(conn, reading.id) is None
+    assert readings.date_was_deleted(
+        conn, profile.id, reading.consultation_local_date
+    )
+    with pytest.raises(readings.ReadingDateArchivedError):
+        readings.create_prepared(
+            conn,
+            profile_id=profile.id,
+            consultation_local_date=reading.consultation_local_date,
+            consultation_local_timestamp=FIXED_NOW.isoformat(),
+            consultation_utc_timestamp=FIXED_NOW,
+            consultation_timezone="UTC",
+        )
+
+
+def test_archive_delete_cannot_delete_another_profiles_reading(conn):
+    profile = _profile()
+    insert_profile(conn, profile)
+    reading = _run(conn, profile)
+
+    assert not readings.delete_from_archive(
+        conn, reading.id, profile_id="someone-else", deleted_at=FIXED_NOW
+    )
+    assert readings.get_by_id(conn, reading.id) == reading
+
+
 def test_second_call_same_day_returns_same_reading_unchanged(conn):
     profile = _profile()
     insert_profile(conn, profile)
