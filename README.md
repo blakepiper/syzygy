@@ -120,14 +120,34 @@ name, chart placements, the drawn card, ranked transits, and any matched
 source passages) to its servers on every reading — `model use` prints
 this disclosure before saving the selection.
 
-To ground interpretations in the actual Book of Thoth text rather than
-just the deck's structured correspondences, ingest a PDF you already have
-a personal copy of (none is bundled — `docs/*.pdf` is gitignored):
+### Source material
+
+Every install ships an index of **where** each of the 78 cards is
+discussed in three books — source, heading, page range — and **none of
+what those pages say**. The books are still under copyright; the index is
+Syzygy's own derived work, so it travels and the prose does not (see
+[`docs/adr/0003-ship-derived-knowledge-index-without-source-text.md`](docs/adr/0003-ship-derived-knowledge-index-without-source-text.md)).
+
+So on a fresh install, a reading shows you where to go and read for
+yourself, and the model is given no passages. Press `[I]` on any reading
+to see both lists. **That is still a real reading**: the card, its
+correspondences, and the ranked transits are all grounded in
+`thoth_deck.yaml`, which is itself sourced from *The Book of Thoth* and
+cited page by page. What is missing is Crowley's prose, not the
+attributions.
+
+Point Syzygy at your own copy of a book and its passages become part of
+your readings from then on — press `[K]` in the interface, or:
 
 ```bash
 syzygy knowledge ingest /path/to/book_of_thoth.pdf
 syzygy knowledge status
 ```
+
+Nothing is ever downloaded. `[K]` accepts only a file whose hash matches
+the edition the shipped citations were built against, because every page
+range in the app is that edition's pagination; the CLI will ingest
+another copy if you know yours differs and accept what that means.
 
 ## Documentation
 

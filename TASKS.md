@@ -332,7 +332,7 @@ of a CLI incantation buried in the docs.
       Tier 0 ordering first, that the prompt's `SOURCE PASSAGES` section is
       populated, and that the `[I]` view's two lists agree with what the prompt
       contained.
-- [ ] M18.1g Update `docs/KNOWLEDGE_SOURCES.md` and the README with the
+- [x] M18.1g Update `docs/KNOWLEDGE_SOURCES.md` and the README with the
       user-facing version of this: what ships, what does not, what ingesting
       your own copies changes about a reading, and that a reading without
       passages is still a real reading grounded in `thoth_deck.yaml`.

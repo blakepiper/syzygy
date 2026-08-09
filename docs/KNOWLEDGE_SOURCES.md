@@ -81,6 +81,44 @@ Each source's raw-file hash is recorded below so ingestion can verify it's
 processing the same file this document was written against, the same way
 `docs/THOTH_INGESTION_MAP.md` section 1 does for the primary source.
 
+### 1.3 What this means for a reading (M18)
+
+The user-facing version of everything above, because until M18 the only
+place it surfaced was a reading's `[I]` view saying "no source chunks were
+supplied to the model" and nothing further.
+
+| | Ships with every install | Only after you ingest your own PDF |
+|---|---|---|
+| Where the drawn card is discussed (book, heading, page range) | yes | yes |
+| Vector search over that index | yes | yes |
+| The passages themselves, in front of the model | **no** | yes |
+| FTS5 lexical search | no | yes |
+
+A reading with no passages is **still a real reading**. The card, its
+correspondences, the decan, the Hebrew letter and the Qabalistic path all
+come from `src/syzygy/resources/thoth_deck.yaml`, which is grounded
+against the Tier 0 PDF and cited entry by entry in
+`docs/THOTH_INGESTION_MAP.md`. What is absent is Crowley's prose, not the
+attributions — and the interpretation says so rather than implying a
+grounding it does not have.
+
+Three places report this state, all from `syzygy.knowledge.status`:
+
+- **`[I]` on a reading** — two lists: what was sent, and where the card is
+  discussed. The second is populated on every install.
+- **`[K]` from home** — per-source state, the filenames auto-detection
+  recognises, and the ingestion route itself. It never downloads a book,
+  and it refuses a file whose SHA-256 is not one of the editions in the
+  registry below: every page range Syzygy displays is that edition's
+  pagination, so ingesting a different scan under the same `source_type`
+  would silently repoint all of them. `syzygy knowledge ingest` has no
+  such check, by design — it is the route for someone who knows their copy
+  differs and accepts the consequence.
+- **`syzygy doctor` / `syzygy knowledge status`** — `citations only` is
+  labelled as the normal state; `broken` (registered with no chunks, no
+  card mapped, or ingested at a version this build no longer segments at)
+  is the only one that asks for action.
+
 ## 2. Source registry
 
 | id | `source_type` | Title | Author | File | SHA-256 | Pages |
