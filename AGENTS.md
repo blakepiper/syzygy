@@ -159,7 +159,7 @@ may use it freely — it does not mean you may invent it.
 | Path | What lives here |
 |---|---|
 | `docs/old/DESIGN.md` | Product design and rationale — read when product intent is unclear |
-| `TASKS.md` | The ordered task checklist: a one-line history of every shipped milestone, then the full spec for current work (M19 onward) — find your task here, check it off when done |
+| `TASKS.md` | The ordered task checklist: a one-line history of every shipped milestone, then the full spec for current work (M21 onward) — find your task here, check it off when done |
 | `docs/old/IMPLEMENTATION_PLAN.md` | Concrete architecture per milestone for M0–M9. History; current work is in `TASKS.md` |
 | `docs/animation.md` | The animation design spec M14 is written against — read before touching motion |
 | `docs/BRAND_ASSETS.md` | How the bundled logo/mascot PNGs and the theme MP3 are produced and where they live |
@@ -331,7 +331,13 @@ committed three-coin cast with changing lines and a resulting hexagram,
 source-grounded Legge (1882) text, its own `iching-v1` prompt and storage state
 machine, and the same retry-without-reroll provider boundary.
 
-All tasks through M20 are implemented, except M16.10f - the manual
+M21 wrote `docs/liber_syzygy.md`, the composed founding text. It is
+gitignored on purpose and stays that way until the author says otherwise: do
+not commit it, quote it into the README, render it in the TUI, or feed it to a
+model as tone guidance. Placing it anywhere in the application is a separate,
+unopened task.
+
+All tasks through M21 are implemented, except M16.10f - the manual
 clean-machine matrix, of which only Linux x86-64 CPU has actually been
 performed (recorded in `docs/LOCAL_MODEL_MAINTENANCE.md`). M12.3 (a
 Cinzel display treatment) was dropped rather than deferred - `TASKS.md`
@@ -339,5 +345,5 @@ records why.
 
 **Where the current work is written down.** `docs/old/IMPLEMENTATION_PLAN.md`
 covers M0–M9 and is history now; everything after that lives in `TASKS.md` -
-shipped milestones as one summary row each, current work (M19 onward) as a
+shipped milestones as one summary row each, current work (M21 onward) as a
 full spec. Read the milestone there before implementing.

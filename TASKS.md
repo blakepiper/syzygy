@@ -7,12 +7,12 @@ completed work after that is summarized here rather than retained as hundreds
 of closed checklist items.
 
 Read `AGENTS.md` before touching code. Nothing below relaxes a product
-invariant: a model interprets a card and astrology facts already fixed by
-Syzygy; it never calculates astrology, selects a card, causes a reroll, or
-reads application state outside `InterpretationContext`. That holds for the
-Oracle in M19 exactly as it holds for the daily reading.
+invariant: a model interprets a card, a cast, and astrology facts already fixed
+by Syzygy; it never calculates astrology, selects a card or hexagram, causes a
+reroll, or reads application state outside `InterpretationContext`. That holds
+for the Oracle exactly as it holds for the daily reading.
 
-## Completed history (M0–M18)
+## Completed history (M0–M20)
 
 All milestones in this section are complete except where the note says
 otherwise.
@@ -38,6 +38,8 @@ otherwise.
 | M16 | Guided local-model setup end to end: machine inventory and conservative fit estimation, a pinned publisher-owned model catalog and llama.cpp runtime manifest, discovery and qualification of an existing server or binary, resumable digest-verified downloads with safe archive extraction, a localhost-only supervisor with typed startup diagnosis, a no-side-effect smoke test gating activation, a resumable TUI wizard, and `syzygy model setup-local` / `model local status\|doctor\|list\|start\|stop\|remove`. Catalog entries ship `provisional`: the evaluation harness exists and is runnable but has not been run against them, and the UI says so. Carried open below: M16.10f. |
 | M17 | Startup on every launch rather than only the first, default entry/exit transitions on every screen, the mascot past first launch, an unmistakable list highlight, arrow-key navigation through every menu, and centred card art. Four deliberate departures, all reasoned where a reader will hit them: entry durations exceed `docs/animation.md` section 5's figures (five frames is not a transition — see `animation/events.py`'s module docstring); directional focus is *bindings*, not an `on_key` handler, so `Input` and `ListView` keep their own arrows; no global `escape`, because the too-small gate must not be dismissable; and `timeline.Sequence.finish` had a real float-accumulation bug that silently dropped a sequence's trailing `Call`, fixed here. |
 | M18 | Source material reaches the reading or says exactly why not. Retrieval's citations are persisted on the `Reading` (migration 6), separately from `InterpretationContext` — the textless filter is untouched, so citations reach the user and passages reach the provider. `[I]` shows both lists; `[K]` opens a source-material screen that reports every source's state, ingests a PDF you already have on a worker with progress, never downloads a book, and refuses a file that is not the edition the shipped citations describe; home carries a one-line dismissible note; and `doctor`/`knowledge status` separate "citations only (normal)" from "broken". All 78 cards are proven to carry a Tier 0 citation against the artifact that actually ships. |
+| M19 | The Oracle: a question-led rite separate from the daily card, recorded in ADR 0006. Its own table (migration 7 — M18 had already taken 6), repository, service, and `ASKED → DRAWN → CONTEXT_READY → INTERPRETING → COMPLETE/INTERPRETATION_FAILED` state machine, with no per-date uniqueness and no reroll within a consultation. The question's keystroke timing feeds the same `EntropyCollector` the wheel uses; the text itself is capped, normalized, stored as typed, and JSON-quoted beneath the fixed facts as data that cannot alter the card, the astrology, or the output contract. `oracle-v1` and `OracleResult` add a question-facing response to the two registers; all four providers get it through the shared structured-output path, `FixtureProvider` included, so the rite completes with no model configured. TUI ask → Wheel (Oracle mode, handing the fixed draw straight to the result screen; the staged daily `RevealScreen` is untouched) → result, plus archive listing and `syzygy oracle ask/list/show`. No horary: it needs current location and momentary angles, which `AGENTS.md` forbids outright, so ADR 0006 records it out of scope rather than deferred. Follow-ups shipped alongside: the mascot as Braille line art in one centered lockup, and natal summaries moved onto the saved `Profile` (migration 8) so restarts reuse them. |
+| M20 | I Ching as a mutually exclusive Oracle mode, recorded in ADR 0007: the three-coin method (so a moving yang is 1/8, not the yarrow stalks' 1/16), changing lines and the resulting hexagram treated as one cast's direction, never a second oracle competing with the card. `iching_legge.yaml` carries all 64 judgments, Images, and line texts transcribed and page-cited from Legge (1882); casting reuses `EntropyCollector` and rejection sampling, with the exact line probabilities asserted over a large seeded sample. Migration 9, an `iching-v1` prompt, its own TUI mode and archive treatment, and `oracle ask --mode iching`; Thoth remains the default. Follow-ups shipped alongside: bare `syzygy knowledge ingest` preflights and ingests all three canonical PDFs in one run, and `[D]` on the archive confirms before deleting any entry, with daily deletion leaving a database-enforced profile/date tombstone so it can never become a reroll. |
 
 Historical implementation details remain discoverable in git. Do not expand
 this section back into a task-by-task ledger.
@@ -57,232 +59,6 @@ this section back into a task-by-task ledger.
       memory/time, with no personal machine identifiers. Blocks nothing
       below; it blocks calling the local-model path validated on those
       platforms.
-
----
-
-## M19 — The Oracle
-
-### Outcome
-
-`[O]` from home opens a consultation: the user asks a question in their own
-words, turns the wheel, receives one Thoth card, and gets an interpretation
-that answers *that question* through *that card* — in the same two registers as
-the daily reading. It is a distinct rite from the daily card, stored
-separately, and it changes none of the daily reading's invariants.
-
-### Architecture decisions to settle first (ADR 0006)
-
-Write the ADR before the code; these are the decisions it must record, with the
-recommendation each one starts from.
-
-1. **The Oracle is a separate rite, not a second daily reading.** It gets its
-   own table and its own state machine. Reusing `readings` would collide with
-   the `UNIQUE (profile_id, consultation_local_date)` constraint that makes the
-   daily card canonical, and that constraint is not negotiable.
-2. **The Oracle is unlimited in count but not in effort.** Every consultation
-   requires its own turn of the wheel and its own draw. There is no reroll
-   *within* a consultation — once the card is committed, a failed or retried
-   interpretation reuses it, exactly as `ReadingStatus` enforces today. Asking
-   again is a new question, visibly a new consultation, never a second opinion
-   on the same one.
-3. **Astrology's role: SELF and COSMOS as context, demoted below the
-   question and the card.** The consultation uses the profile's natal chart and
-   the same ranked transits the daily reading uses, so the mental model stays
-   SELF + COSMOS + CHANCE. It does **not** cast a horary chart. Horary needs
-   the querent's current location and the Ascendant of the moment of asking,
-   and `AGENTS.md` forbids current-location astrology outright — that
-   invariant governs, so the ADR records horary as out of scope with the
-   reason, not as a future maybe.
-4. **The question is user text and is treated as such.** Length-capped, stored
-   verbatim locally, never logged to a server command line, and sent only to
-   the provider the user configured (which may be entirely local after M16).
-   Prompt construction must be injection-resistant: the question is quoted
-   data inside a fixed contract, never an instruction that can restate the
-   card, the astrology, or the output schema.
-5. **The interpretation stays divinatory.** The Oracle reflects; it does not
-   issue medical, legal, or financial directives, and it does not predict a
-   dated event as fact. This belongs in the prompt contract and the schema, not
-   in a filter bolted on afterwards.
-6. **I Ching is deferred to M20 behind a sourcing review** — see below.
-
-### M19.1 — Domain and storage
-
-- [x] M19.1a Add `syzygy/domain/oracle.py`: `OracleQuestion` (text, asked-at,
-      local date), `OracleConsultation`, `OracleStatus`, and its own
-      `ALLOWED_TRANSITIONS`. Mirror `ReadingStatus`' shape
-      (`ASKED → DRAWN → CONTEXT_READY → INTERPRETING → COMPLETE /
-      INTERPRETATION_FAILED`) so the card-committed-before-any-model-call rule
-      is enforced by the same kind of checkable state machine, and so no state
-      may return to `ASKED` or `DRAWN` once a card exists.
-- [x] M19.1b Add migration 6 (append-only) creating `oracle_consultations`:
-      id, profile id, question text, asked-at UTC, local date, status, card
-      draw JSON, transit snapshot JSON, context JSON, result JSON, provider,
-      model, prompt version, timestamps. No uniqueness constraint on
-      `(profile_id, date)` — many consultations per day is the point. Index by
-      `(profile_id, asked_at)` for the archive.
-- [x] M19.1c Add `storage/oracle.py` (repository) and `storage/oracle_service.py`
-      (orchestration), modelled on `readings.py` / `reading_service.py`. The
-      service commits the draw before any provider call and is resumable from
-      status alone, exactly as `draw_todays_reading` is.
-- [x] M19.1d Tests: the state machine rejects every illegal transition; a
-      failed interpretation retried reuses the committed card; a crash between
-      draw and interpretation resumes without redrawing; consultations do not
-      appear in, or interfere with, `readings`.
-
-### M19.2 — Chance, entropy, and the question
-
-- [x] M19.2a Reuse `sortes.draw.draw_card` and `EntropyCollector` unchanged —
-      all 78 cards, equal probability, OS randomness mixed with interaction
-      entropy. The Oracle adds no deck, no spread, no orientation.
-- [x] M19.2b Feed the keystrokes of typing the question into the
-      `EntropyCollector` as interaction entropy, in addition to the wheel. It
-      is the same mechanism the wheel already uses and it makes the asking part
-      of the chance rather than a form field before it. Production code still
-      never constructs `EntropyCollector` with a non-default `os_random`.
-- [x] M19.2c Cap and normalise the question: a length limit that fits the
-      prompt budget, whitespace normalisation, a refusal for empty input, and
-      no interpretation of markup or control characters. Store the original
-      text as the user typed it.
-
-### M19.3 — Prompt contract and result schema
-
-- [x] M19.3a Add `ORACLE_PROMPT_VERSION = "oracle-v1"` and an `OracleResult`
-      model to `domain/interpretation.py` + `interpretation/prompts.py`,
-      deriving its JSON schema the same way `_response_json_schema` does so the
-      constraining schema cannot drift from the validating one. Fields: the
-      esoteric register, the conventional register, and an explicit
-      question-facing response; provenance fields stripped from the
-      model-facing schema as today.
-- [x] M19.3b Build the oracle context through a new builder in
-      `interpretation/context_builder.py` producing an
-      `InterpretationContext` — same input surface, no provider reaching for
-      anything else. The question is a context field, not an out-of-band
-      instruction.
-- [x] M19.3c Structure the prompt so the fixed facts dominate: the card and its
-      correspondences, the ranked transits, the natal placements, the retrieved
-      passages (subject to M18's rules), then the question as quoted data with
-      an explicit instruction that it may not alter the card, the astrology, or
-      the output contract.
-- [x] M19.3d Reuse the shared parse/validate/repair-retry path in
-      `interpretation.providers.structured_output`. All four providers get the
-      Oracle for free; `FixtureProvider` must return a plausible fixture
-      consultation so the rite works with no model configured.
-- [x] M19.3e Tests: schema derivation, register separation, a question
-      containing prompt-injection text does not change the fixture's reported
-      card or schema, repair path on malformed output, and provenance recorded
-      on every consultation.
-
-### M19.4 — The consultation flow in the TUI
-
-- [x] M19.4a Add `[O] Oracle` to `HomeScreen.BINDINGS` and its key line.
-      Available whether or not today's daily reading exists — the Oracle is not
-      gated by the daily card and does not consume it.
-- [x] M19.4b Add `tui/screens/oracle_ask.py` (question input, character
-      budget, plain-language framing of what will happen) → the existing wheel
-      screen in an Oracle mode → `tui/screens/oracle_result.py` (card, answer,
-      registers, `[I]` inputs view reusing `reading_panel`'s two-list treatment
-      from M18). Keep domain logic out of the screens.
-- [x] M19.4c Failure preserves the rite: an interpretation failure keeps the
-      committed card and question, shows the fixed alignment, and offers retry
-      / fixture / provider recovery — never a redraw. Reuse the existing
-      `INTERPRETATION_FAILED` copy and recovery affordances.
-- [x] M19.4d Extend the archive to list consultations alongside readings,
-      distinguishable at a glance, reopenable read-only. Keep it list-only, as
-      M8 established.
-- [x] M19.4e Layout tiers and motion: the flow works at `-compact` through
-      `-tall`, essential controls stay above the fold, focus order is
-      keyboard-only navigable (M17's directional focus), and animation
-      degrades with the motion level. Add the screens to
-      `tests/tui/test_layout.py`.
-
-### M19.5 — CLI parity and docs
-
-- [x] M19.5a Add `syzygy oracle ask "<question>"` (draws, interprets, prints
-      both registers) and `syzygy oracle list` / `oracle show <id>`. Interactive
-      when attached to a terminal; never prompts in CI.
-- [x] M19.5b Document the Oracle in the README and `docs/old/DESIGN.md`'s
-      successor notes: what it is, how it differs from the daily reading, that
-      it is unlimited but each consultation is its own draw, and where the
-      question is stored.
-
-### Definition of done (M19)
-
-- [x] A user can ask a question, turn the wheel, and receive an interpretation
-      that answers it through the drawn card.
-- [x] A consultation never touches, blocks, or is blocked by the daily reading,
-      and never redraws its own card.
-- [x] The question cannot alter the card, the astrology, or the output schema.
-- [x] The rite completes with no model configured, via `FixtureProvider`.
-- [x] `pytest`, `ruff check .`, `mypy src`, `syzygy dev deck`, and
-      `syzygy doctor` pass.
-
-Implementation note: M18 already shipped migration 6, so M19 appends migration
-7. ADR 0006 records the correction. The existing Wheel is reused in Oracle
-mode and hands the fixed draw directly to `OracleResultScreen`; the daily-only
-staged `RevealScreen` remains unchanged.
-
----
-
-### Post-M19 quick fixes
-
-- [x] Render the dense monochrome mascot as terminal Braille line art rather
-      than low-resolution colour half-blocks, and align startup/welcome logo,
-      mascot, and copy in one centered lockup.
-- [x] Move generated natal-chart summaries from the generic summary cache onto
-      the saved `Profile`; migration 8 preserves existing generated summaries,
-      and reloads/restarts reuse them without another provider call. Daily
-      cosmos summaries remain date-scoped cache entries.
-
----
-
-## M20 — I Ching
-
-Do not start this before M19 ships — it reuses the Oracle's flow, storage, and
-prompt shape wholesale. It is listed now because M19's design should not
-foreclose it.
-
-Legge (1882) is the working source: complete — judgments, images, and all six
-line texts per hexagram — freely available, and already cleanly digitized. Take
-it and go.
-
-The genuinely open question is mechanical. Casting six lines is trivial next to
-`sortes.draw`, but the three-coin and yarrow-stalk methods produce *different*
-probabilities for changing lines — 1/8 vs 1/16 for a moving yang, among others.
-That is a real divinatory choice about which tradition Syzygy is practising,
-and it belongs in the ADR.
-
-- [x] M20.1 ADR: cast method and its probability distribution (three-coin vs
-      yarrow-stalk), whether changing lines and the resulting second hexagram
-      are in scope, and how the hexagram composes with the Thoth card — a
-      second chance object in the same consultation, or an alternative mode the
-      user selects. Recommendation: an alternative mode, so no consultation
-      carries two competing oracles.
-- [x] M20.2 Canonical hexagram data as a resource file with the same grounding
-      discipline as `thoth_deck.yaml`: hexagram number, King Wen sequence,
-      name, trigrams, judgment, image, and the six line texts, transcribed from
-      Legge with a citation per entry. Transcribed and cited, never from model
-      memory — the same accuracy rule `thoth_deck.yaml` lives under.
-- [x] M20.3 Cast mechanics reusing `EntropyCollector` and rejection sampling —
-      never `random.random()`, never modulo over a raw byte — with tests
-      asserting the chosen method's exact line probabilities over a large
-      seeded sample.
-- [x] M20.4 Prompt contract, TUI mode, storage, and archive treatment mirroring
-      M19's, with its own prompt version.
-
-Implementation note: ADR 0007 selects the three-coin method and treats the
-resulting hexagram as the direction of one cast. I Ching is a mutually
-exclusive Oracle mode backed by migration 9, `iching-v1`, and the complete
-page-cited Legge (1882) resource. The CLI selects it with `oracle ask --mode
-iching`; the default remains Thoth for compatibility.
-
-### Post-M20 usability follow-up
-
-- [x] `syzygy knowledge ingest` with no arguments preflights and ingests the
-      three canonical `docs/*.pdf` files in one run, while retaining the
-      explicit single-file form.
-- [x] `[D]` on the archive asks for confirmation before deleting any daily,
-      Thoth Oracle, or I Ching entry. Daily-reading deletion leaves a
-      database-enforced profile/date tombstone so it cannot become a reroll.
 
 ---
 
@@ -333,31 +109,31 @@ content is not.
 
 ### Form
 
-- [ ] M21.1 Settle the form before drafting. Recommendation: short numbered
+- [x] M21.1 Settle the form before drafting. Recommendation: short numbered
       chapters of numbered verses (the *Liber* convention), so any line can be
       cited as `II:7` — which is also what makes the text usable later in the
       interface, an epigraph at a time. Terma supplies the framing device (a
       text recovered rather than composed, with a colophon); grimoire supplies
       the operative sections — what the instrument is, how it is approached,
       what is asked of the one who turns it.
-- [ ] M21.2 Draft it. Aim for a text that is short enough to read in one
+- [x] M21.2 Draft it. Aim for a text that is short enough to read in one
       sitting and dense enough to reward a second — on the order of 800–1500
       words, not a book. Every verse earns its place; nothing is there to make
       the document feel long. Archaic register is welcome; archaic *padding* is
       not.
-- [ ] M21.3 Keep it true to the instrument it describes. The text may not
+- [x] M21.3 Keep it true to the instrument it describes. The text may not
       promise mechanics Syzygy does not have: upright cards only, one card,
       one canonical reading per day, the wheel turned by the querent's own
       motion, the card fixed before it is interpreted and never redrawn. Where
       the text is deliberately grander than the code, it should be grander in
       register, never in claim.
-- [ ] M21.4 Attribution discipline. The work is Syzygy's own composition; the
+- [x] M21.4 Attribution discipline. The work is Syzygy's own composition; the
       recovered-text conceit is a literary device and that is fine. But any
       line presented as a quotation from a real source must actually be one,
       correctly attributed — including the author's excerpt above, whose source
       needs identifying before it can be quoted in the text with a citation.
       Invent no scripture, no lineage, and no scholar.
-- [ ] M21.5 Decide the register question explicitly and write the answer into
+- [x] M21.5 Decide the register question explicitly and write the answer into
       the text's own colophon: does *Liber Syzygy* speak in Syzygy's two voices
       (esoteric and conventional), or only the esoteric one? Recommendation:
       only the esoteric — the conventional register exists to translate a
@@ -369,3 +145,33 @@ Placing the text in the application — a `[?]` reading screen, an epigraph on
 the startup sequence, a verse on the reveal, README material, or anything that
 would feed it to a model as tone guidance. Those become their own task once the
 author has decided the text is good and it comes out of `.gitignore`.
+
+### Implementation note (M21)
+
+Written to `docs/liber_syzygy.md`, still gitignored and uncommitted, referenced
+nowhere in the README, the TUI, or any prompt. Seven chapters of numbered
+verses (`II:7`), 1,422 words before the colophon, taking the recommendation on
+form and on register: the text speaks only in the esoteric voice, and the
+colophon says why — the conventional register translates a reading for a
+person, and the ground a reading is given under is not itself a reading.
+
+Two calls worth knowing about:
+
+- **The excerpt is not quoted.** Its source could not be established — searches
+  for its distinctive phrases return nothing matching, only unrelated material
+  on Greek fate and oracles. Under M21.4 that leaves exactly one honest option,
+  so the theology was rewritten in the book's own voice (chapter IV) and the
+  colophon states plainly that the passage shaped the register, was not
+  reproduced, and is not attributed. If the author knows the source, IV can
+  carry a real citation instead.
+- **The terma framing is disclosed rather than sustained.** The book presents
+  itself as recovered, and the colophon's first line says it is not. Keeping
+  the conceit unbroken would have meant an artefact that reads as a fabricated
+  lineage the moment it leaves the author's machine, which M21.4 forbids more
+  than it forbids inventing a scholar by name.
+
+Chapter V is the accuracy load-bearing one: one upright card, one card per day
+and no better morning, the lot written down before the interpreter is summoned
+and unchanged across a retry, birthplace asked and current location never,
+every Oracle asking its own turn of the wheel, one chance object per question,
+and the record kept locally as the reading actually given.
