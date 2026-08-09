@@ -24,10 +24,18 @@ from typing import Final
 
 import httpx
 
-from syzygy.domain.interpretation import InterpretationContext, InterpretationResult, SummaryResult
+from syzygy.domain.interpretation import (
+    InterpretationContext,
+    InterpretationKind,
+    InterpretationResult,
+    OracleResult,
+    SummaryResult,
+)
 from syzygy.interpretation.prompts import (
+    ORACLE_SYSTEM_PROMPT,
     SUMMARY_SYSTEM_PROMPT,
     SYSTEM_PROMPT,
+    build_oracle_prompt,
     build_repair_prompt,
     build_summary_prompt,
     build_summary_repair_prompt,
@@ -69,10 +77,15 @@ class AnthropicProvider:
         # Only ever set in tests, to stand in for the real API.
         self._transport = transport
 
-    async def interpret(self, context: InterpretationContext) -> InterpretationResult:
-        messages: list[dict[str, str]] = [{"role": "user", "content": build_user_prompt(context)}]
+    async def interpret(
+        self, context: InterpretationContext
+    ) -> InterpretationResult | OracleResult:
+        oracle = context.kind is InterpretationKind.ORACLE
+        system = ORACLE_SYSTEM_PROMPT if oracle else SYSTEM_PROMPT
+        user_prompt = build_oracle_prompt(context) if oracle else build_user_prompt(context)
+        messages: list[dict[str, str]] = [{"role": "user", "content": user_prompt}]
         async with httpx.AsyncClient(timeout=self._timeout, transport=self._transport) as client:
-            raw = await self._complete(client, messages, system=SYSTEM_PROMPT)
+            raw = await self._complete(client, messages, system=system)
             try:
                 return parse_and_validate(
                     raw, context=context, provider_id=self.provider_id, model_id=self.model_id
@@ -80,7 +93,7 @@ class AnthropicProvider:
             except ResponseValidationError as exc:
                 messages.append({"role": "assistant", "content": raw})
                 messages.append({"role": "user", "content": build_repair_prompt(raw, str(exc))})
-                raw = await self._complete(client, messages, system=SYSTEM_PROMPT)
+                raw = await self._complete(client, messages, system=system)
                 # A second failure propagates: the reading service marks
                 # INTERPRETATION_FAILED and leaves the card/snapshot alone
                 # (docs/old/DESIGN.md §13.4).

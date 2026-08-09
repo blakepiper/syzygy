@@ -15,8 +15,10 @@ from textual.app import ComposeResult
 from textual.containers import Center, Vertical
 from textual.widgets import Footer, Static
 
+from syzygy.domain.oracle import OracleConsultation
 from syzygy.domain.reading import Reading
 from syzygy.sortes.entropy import EntropyCollector
+from syzygy.storage.oracle_service import draw_oracle_consultation
 from syzygy.storage.reading_service import draw_todays_reading
 from syzygy.tui.screens.base import SyzygyScreen, TitleBar
 from syzygy.tui.widgets.wheel import (
@@ -35,11 +37,17 @@ class WheelScreen(SyzygyScreen):
 
     BINDINGS = [("escape", "abandon", "step away")]
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        consultation: OracleConsultation | None = None,
+        *,
+        collector: EntropyCollector | None = None,
+    ) -> None:
         super().__init__()
         # One collector per draw attempt. Default `os_random` - production
         # code must never inject a fixed source here (AGENTS.md).
-        self._collector = EntropyCollector()
+        self._collector = collector or EntropyCollector()
+        self._oracle = consultation
         self._releasing = False
 
     def compose(self) -> ComposeResult:
@@ -115,19 +123,35 @@ class WheelScreen(SyzygyScreen):
             return
         services = self.syzygy.services
         try:
-            reading = draw_todays_reading(
-                services.conn,
-                profile,
-                services.clock,
-                services.astrology,
-                self._collector,
-            )
+            reading: Reading | OracleConsultation
+            if self._oracle is not None:
+                reading = draw_oracle_consultation(
+                    services.conn,
+                    self._oracle,
+                    profile,
+                    services.clock,
+                    services.astrology,
+                    self._collector,
+                )
+            else:
+                reading = draw_todays_reading(
+                    services.conn,
+                    profile,
+                    services.clock,
+                    services.astrology,
+                    self._collector,
+                )
         except Exception as exc:
             self.app.call_from_thread(self._draw_failed, f"{type(exc).__name__}: {exc}")
             return
         self.app.call_from_thread(self._drawn, reading)
 
-    def _drawn(self, reading: Reading) -> None:
+    def _drawn(self, reading: Reading | OracleConsultation) -> None:
+        if isinstance(reading, OracleConsultation):
+            from syzygy.tui.screens.oracle_result import OracleResultScreen
+
+            self.app.switch_screen(OracleResultScreen(reading))
+            return
         from syzygy.tui.screens.reveal import RevealScreen
 
         # The fixed result is already committed. The Level-3 emphasis is

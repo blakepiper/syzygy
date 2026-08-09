@@ -29,6 +29,8 @@ Commands implemented so far:
   takes the profile's readings with it). Storage lives at
   `syzygy.config.default_app_paths()`.
 - `syzygy chart` - print a saved profile's natal chart.
+- `syzygy oracle ask <question>` / `list` / `show` - make and reopen
+  question-led consultations, stored separately from the daily reading.
 - `syzygy knowledge ingest <pdf>` / `status` / `search` / `build-artifact`
   - ingest a Book of Thoth / companion-source PDF, inspect what is
   present, search the index, and (development-only) regenerate the
@@ -390,6 +392,131 @@ def _cmd_chart(args: argparse.Namespace) -> int:
     return 0
 
 
+def _oracle_profile(conn: sqlite3.Connection, profile_id: str | None):
+    from syzygy.storage.profiles import get_profile, list_profiles
+
+    if profile_id:
+        profile = get_profile(conn, profile_id)
+        if profile is None:
+            raise ValueError(f"no profile with id {profile_id!r}")
+        return profile
+    profiles = list_profiles(conn)
+    if not profiles:
+        raise ValueError("No profiles yet. Create one with `syzygy profile create`.")
+    if len(profiles) > 1:
+        choices = "\n".join(f"  {profile.id}  {profile.display_name}" for profile in profiles)
+        raise ValueError(f"Multiple profiles exist - specify --profile-id:\n{choices}")
+    return profiles[0]
+
+
+def _print_oracle(consultation) -> None:
+    from syzygy.sortes.deck import get_card
+
+    print(f"Oracle {consultation.id}")
+    print(f"Question: {consultation.question.text}")
+    if consultation.card_draw is not None:
+        print(f"Card: {get_card(consultation.card_draw.card_id).full_name} (upright)")
+    print(f"Status: {consultation.status.value}")
+    if consultation.result is None:
+        print("The alignment is fixed; interpretation is unavailable.")
+        return
+    result = consultation.result
+    print(f"\n{result.alignment_title}")
+    print(f"\nResponse\n{result.question_response}")
+    print(f"\nEsoteric\n{result.esoteric.summary}\n{result.esoteric.body}")
+    print(f"\nConventional\n{result.conventional.summary}\n{result.conventional.body}")
+    print(f"\nReflect\n{result.conventional.reflection}")
+
+
+def _cmd_oracle_ask(args: argparse.Namespace) -> int:
+    import asyncio
+
+    from syzygy.sortes.entropy import EntropyCollector
+    from syzygy.storage.oracle_service import consult_oracle
+    from syzygy.tui.app import default_services, stop_managed_model
+
+    services = default_services()
+    try:
+        try:
+            profile = _oracle_profile(services.conn, args.profile_id)
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+        collector = EntropyCollector()
+        # A shell owns the literal keystrokes, so the CLI can mix only the
+        # interaction count here; no question characters enter the digest.
+        for _ in args.question:
+            collector.record("question-keystroke")
+        if sys.stdin.isatty():
+            print("Give the wheel three impulses. Press Enter for each one.")
+            for impulse in range(3):
+                input(f"  impulse {impulse + 1}/3: ")
+                collector.record("impulse")
+            input("Press Enter to release the wheel: ")
+            collector.record("release")
+        consultation = asyncio.run(
+            consult_oracle(
+                services.conn,
+                profile,
+                services.clock,
+                services.astrology,
+                collector,
+                services.provider,
+                args.question,
+            )
+        )
+        _print_oracle(consultation)
+        return 0 if consultation.result is not None else 1
+    finally:
+        stop_managed_model(services.provider)
+        services.conn.close()
+
+
+def _cmd_oracle_list(args: argparse.Namespace) -> int:
+    from syzygy.sortes.deck import get_card
+    from syzygy.storage.oracle import list_consultations
+
+    conn = _open_profile_db()
+    try:
+        try:
+            profile = _oracle_profile(conn, args.profile_id)
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+        consultations = list_consultations(conn, profile.id)
+    finally:
+        conn.close()
+    if not consultations:
+        print("No Oracle consultations yet.")
+        return 0
+    for consultation in consultations:
+        card = (
+            get_card(consultation.card_draw.card_id).full_name
+            if consultation.card_draw is not None
+            else "—"
+        )
+        print(
+            f"{consultation.id}  {consultation.question.consultation_local_date}  "
+            f"{consultation.status.value:22s}  {card}  {consultation.question.normalized_text}"
+        )
+    return 0
+
+
+def _cmd_oracle_show(args: argparse.Namespace) -> int:
+    from syzygy.storage.oracle import get_by_id
+
+    conn = _open_profile_db()
+    try:
+        consultation = get_by_id(conn, args.consultation_id)
+    finally:
+        conn.close()
+    if consultation is None:
+        print(f"no Oracle consultation with id {args.consultation_id!r}", file=sys.stderr)
+        return 1
+    _print_oracle(consultation)
+    return 0
+
+
 def _cmd_knowledge_ingest(args: argparse.Namespace) -> int:
     from pathlib import Path
 
@@ -628,9 +755,10 @@ def _cmd_model_use(args: argparse.Namespace) -> int:
 
     if args.provider in HOSTED_PROVIDER_IDS:
         print(
-            f"Selecting {args.provider} sends today's reading context (profile name, "
-            "chart placements, the drawn card, ranked transits, source passages) to its "
-            "servers on every reading from now on (docs/old/DESIGN.md section 13.3)."
+            f"Selecting {args.provider} sends interpretation context (profile name, "
+            "chart placements, the drawn card, ranked transits, source passages, and an "
+            "Oracle question when present) to its servers "
+            "(docs/old/DESIGN.md section 13.3)."
         )
 
     save_selection(settings_path, selection)
@@ -1284,6 +1412,21 @@ def build_parser() -> argparse.ArgumentParser:
         "--profile-id", default=None, help="required if more than one profile is saved"
     )
     chart_parser.set_defaults(func=_cmd_chart)
+
+    oracle_parser = subparsers.add_parser("oracle", help="ask and revisit the Oracle")
+    oracle_subparsers = oracle_parser.add_subparsers(dest="oracle_command")
+    oracle_ask_parser = oracle_subparsers.add_parser(
+        "ask", help="ask a question, turn the wheel, and interpret one fixed card"
+    )
+    oracle_ask_parser.add_argument("question")
+    oracle_ask_parser.add_argument("--profile-id", default=None)
+    oracle_ask_parser.set_defaults(func=_cmd_oracle_ask)
+    oracle_list_parser = oracle_subparsers.add_parser("list", help="list Oracle consultations")
+    oracle_list_parser.add_argument("--profile-id", default=None)
+    oracle_list_parser.set_defaults(func=_cmd_oracle_list)
+    oracle_show_parser = oracle_subparsers.add_parser("show", help="show a stored consultation")
+    oracle_show_parser.add_argument("consultation_id")
+    oracle_show_parser.set_defaults(func=_cmd_oracle_show)
 
     knowledge_parser = subparsers.add_parser(
         "knowledge", help="ingest and inspect knowledge sources"

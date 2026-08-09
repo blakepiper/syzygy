@@ -15,8 +15,10 @@ from textual.app import ComposeResult
 from textual.containers import VerticalScroll
 from textual.widgets import Footer, ListView, Static
 
+from syzygy.domain.oracle import OracleConsultation, OracleStatus
 from syzygy.domain.reading import Reading, ReadingStatus
 from syzygy.sortes.deck import get_card
+from syzygy.storage.oracle import list_consultations
 from syzygy.storage.readings import card_frequency, list_readings, suit_frequency
 from syzygy.tui.screens.base import SyzygyScreen, TitleBar
 from syzygy.tui.widgets.marked_list import MarkedListItem
@@ -32,6 +34,28 @@ class ReadingListItem(MarkedListItem):
         status = "" if reading.status == ReadingStatus.COMPLETE else f"  [{reading.status.value}]"
         super().__init__(f"{reading.consultation_local_date}   {card_label}{status}")
         self.reading = reading
+
+
+class OracleListItem(MarkedListItem):
+    def __init__(self, consultation: OracleConsultation) -> None:
+        card_label = (
+            get_card(consultation.card_draw.card_id).full_name
+            if consultation.card_draw is not None
+            else "—"
+        )
+        status = (
+            ""
+            if consultation.status is OracleStatus.COMPLETE
+            else f" [{consultation.status.value}]"
+        )
+        question = consultation.question.normalized_text
+        if len(question) > 42:
+            question = question[:39] + "…"
+        super().__init__(
+            f"{consultation.question.consultation_local_date}   ORACLE   "
+            f"{question} — {card_label}{status}"
+        )
+        self.consultation = consultation
 
 
 class ArchiveScreen(SyzygyScreen):
@@ -54,13 +78,24 @@ class ArchiveScreen(SyzygyScreen):
         if profile is None:
             return
         readings = list_readings(self.syzygy.services.conn, profile.id)
+        consultations = list_consultations(self.syzygy.services.conn, profile.id)
         listing = self.query_one("#archive-list", ListView)
-        for reading in readings:
-            listing.append(ReadingListItem(reading))
-        self.query_one("#archive-summary", Static).update(
-            f"Readings {len(readings)}" if readings else "No readings yet."
+        entries: list[tuple[str, MarkedListItem]] = [
+            (reading.consultation_utc_timestamp.isoformat(), ReadingListItem(reading))
+            for reading in readings
+        ]
+        entries.extend(
+            (consultation.question.asked_at_utc.isoformat(), OracleListItem(consultation))
+            for consultation in consultations
         )
-        if readings:
+        for _, item in sorted(entries, key=lambda entry: entry[0], reverse=True):
+            listing.append(item)
+        self.query_one("#archive-summary", Static).update(
+            f"Readings {len(readings)}  ·  Oracle consultations {len(consultations)}"
+            if entries
+            else "No readings yet. No Oracle consultations yet."
+        )
+        if entries:
             listing.index = 0
         listing.focus()
 
@@ -70,6 +105,10 @@ class ArchiveScreen(SyzygyScreen):
             from syzygy.tui.screens.reading import ReadingScreen
 
             self.app.push_screen(ReadingScreen(item.reading, interpret=False))
+        elif isinstance(item, OracleListItem):
+            from syzygy.tui.screens.oracle_result import OracleResultScreen
+
+            self.app.push_screen(OracleResultScreen(item.consultation, interpret=False))
 
     def action_toggle_frequency(self) -> None:
         listing = self.query_one("#archive-list", ListView)

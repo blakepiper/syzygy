@@ -98,6 +98,31 @@ def build_context(
     )
 
 
+def build_oracle_context(
+    profile: Profile,
+    card: TarotCard,
+    ranked_transits: list[RankedTransit],
+    knowledge_chunks: list[KnowledgeChunk],
+    consultation_local_timestamp: str,
+    consultation_local_date: str,
+    prompt_version: str,
+    question: str,
+) -> InterpretationContext:
+    """Build the Oracle through the same narrow card-context surface."""
+    daily = build_context(
+        profile,
+        card,
+        ranked_transits,
+        knowledge_chunks,
+        consultation_local_timestamp,
+        consultation_local_date,
+        prompt_version,
+    )
+    payload = daily.model_dump()
+    payload.update(kind=InterpretationKind.ORACLE, question=question)
+    return InterpretationContext.model_validate(payload)
+
+
 def build_natal_summary_context(
     profile: Profile,
     consultation_local_timestamp: str,

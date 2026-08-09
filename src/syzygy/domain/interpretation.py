@@ -21,11 +21,12 @@ from syzygy.domain.astrology import NatalPlacement, RankedTransit
 from syzygy.domain.knowledge import KnowledgeChunk
 from syzygy.domain.tarot import TarotCard
 
-CONTEXT_SCHEMA_VERSION = "context-v2"
+CONTEXT_SCHEMA_VERSION = "context-v3"
 
 
 class InterpretationKind(StrEnum):
     DAILY_READING = "daily_reading"
+    ORACLE = "oracle"
     NATAL_SUMMARY = "natal_summary"
     COSMOS_SUMMARY = "cosmos_summary"
 
@@ -54,13 +55,19 @@ class InterpretationContext(BaseModel):
     ascendant_sign: str
     knowledge_chunks: list[KnowledgeChunk]
     prompt_version: str
+    question: str | None = None
 
     @model_validator(mode="after")
     def validate_kind(self) -> InterpretationContext:
-        if self.kind is InterpretationKind.DAILY_READING and self.card is None:
-            raise ValueError("a daily reading context requires a fixed card")
-        if self.kind is not InterpretationKind.DAILY_READING and self.card is not None:
+        if self.kind in (InterpretationKind.DAILY_READING, InterpretationKind.ORACLE):
+            if self.card is None:
+                raise ValueError("a reading context requires a fixed card")
+        elif self.card is not None:
             raise ValueError("summary contexts must not contain a card")
+        if self.kind is InterpretationKind.ORACLE and self.question is None:
+            raise ValueError("an oracle context requires a question")
+        if self.kind is not InterpretationKind.ORACLE and self.question is not None:
+            raise ValueError("only oracle contexts carry a question")
         return self
 
 
@@ -96,6 +103,12 @@ class InterpretationResult(BaseModel):
     provider_id: str
     model_id: str
     prompt_version: str
+
+
+class OracleResult(InterpretationResult):
+    """Structured Oracle output: two registers plus a direct reflection."""
+
+    question_response: str
 
 
 class SummaryResult(BaseModel):

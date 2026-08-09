@@ -20,10 +20,9 @@ from syzygy.domain.interpretation import (
     InterpretationContext,
     InterpretationKind,
     InterpretationResult,
+    OracleResult,
     SummaryResult,
 )
-
-FIXTURE_PROMPT_VERSION = "fixture-v1"
 
 
 class FixtureProvider:
@@ -36,7 +35,9 @@ class FixtureProvider:
     provider_id = "fixture"
     model_id = "fixture-deterministic-v1"
 
-    async def interpret(self, context: InterpretationContext) -> InterpretationResult:
+    async def interpret(
+        self, context: InterpretationContext
+    ) -> InterpretationResult | OracleResult:
         card = context.card
         if card is None:
             raise ValueError("daily interpretation requires a card")
@@ -73,7 +74,7 @@ class FixtureProvider:
             f"{transit_summary}. [fixture provider: replace with plain-language synthesis]"
         )
 
-        return InterpretationResult(
+        result = InterpretationResult(
             alignment_title=f"{context.profile_display_name} — {card.display_name}",
             esoteric=EsotericReading(
                 summary=f"{card.display_name}, read under {correspondence}.",
@@ -88,8 +89,19 @@ class FixtureProvider:
             source_chunk_ids=[c.id for c in context.knowledge_chunks],
             provider_id=self.provider_id,
             model_id=self.model_id,
-            prompt_version=FIXTURE_PROMPT_VERSION,
+            prompt_version=context.prompt_version,
         )
+        if context.kind is InterpretationKind.ORACLE:
+            return OracleResult.model_validate(
+                {
+                    **result.model_dump(),
+                    "question_response": (
+                    f"For “{context.question}”, {card.display_name} asks what changes when "
+                    "you treat its pattern as a reflection rather than a prediction."
+                    ),
+                }
+            )
+        return result
 
     async def summarize(self, context: InterpretationContext) -> SummaryResult:
         """Deterministic copy so summaries never require a configured model."""

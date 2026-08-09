@@ -23,6 +23,8 @@ from textual.widget import Widget
 from syzygy.tui.app import SyzygyApp
 from syzygy.tui.screens.base import IDEAL_HEIGHT, IDEAL_WIDTH, TALL_HEIGHT, WIDE_WIDTH
 from syzygy.tui.screens.chart import ChartScreen
+from syzygy.tui.screens.oracle_ask import OracleAskScreen
+from syzygy.tui.screens.oracle_result import OracleResultScreen
 from syzygy.tui.screens.reveal import RevealScreen
 from syzygy.tui.screens.too_small import MIN_HEIGHT, MIN_WIDTH
 
@@ -56,6 +58,20 @@ async def reach_reveal(pilot) -> None:
     await pilot.press("enter")
     await settle(pilot)
     assert isinstance(pilot.app.screen, RevealScreen)
+
+
+async def reach_oracle_result(pilot) -> None:
+    await pilot.press("o")
+    await settle(pilot)
+    assert isinstance(pilot.app.screen, OracleAskScreen)
+    pilot.app.screen.query_one("#oracle-question").value = "What needs attention?"
+    await pilot.press("enter")
+    await settle(pilot)
+    for _ in range(3):
+        await pilot.press("space")
+    await pilot.press("enter")
+    await settle(pilot, 6)
+    assert isinstance(pilot.app.screen, OracleResultScreen)
 
 
 # -- the tiers themselves ---------------------------------------------------
@@ -139,6 +155,33 @@ async def test_the_anchors_fit_the_narrowest_terminal(app: SyzygyApp, profile):
 
         assert len({anchor.y for anchor in anchors}) == 3
         assert all(anchor.right <= MIN_WIDTH for anchor in anchors)
+
+
+# -- oracle -----------------------------------------------------------------
+
+
+@pytest.mark.parametrize("size", EVERY_TIER)
+async def test_oracle_question_and_result_keep_essential_controls_visible(
+    app: SyzygyApp, profile, size
+):
+    async with app.run_test(size=size) as pilot:
+        await settle(pilot)
+        await pilot.press("o")
+        await settle(pilot)
+        for selector in ("#oracle-question", "#oracle-submit"):
+            assert on_screen(pilot.app.screen.query_one(selector)), selector
+
+        pilot.app.screen.query_one("#oracle-question").value = "What needs attention?"
+        await pilot.press("enter")
+        await settle(pilot)
+        for _ in range(3):
+            await pilot.press("space")
+        await pilot.press("enter")
+        await settle(pilot, 6)
+        assert isinstance(pilot.app.screen, OracleResultScreen)
+        for selector in ("#oracle-result-card", "#oracle-result-panel", "#oracle-result-keys"):
+            assert on_screen(pilot.app.screen.query_one(selector)), selector
+        assert region_of(pilot, "#oracle-result-panel").height >= 6
 
 
 # -- reading ----------------------------------------------------------------

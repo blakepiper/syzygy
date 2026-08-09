@@ -653,8 +653,8 @@ class ModelSetupScreen(SyzygyScreen):
         save_selection(settings_path, selection)
         message.update(
             f"Active provider set to {provider_id} ({model_id}). Selecting a hosted "
-            "provider sends today's reading context to its servers on every reading "
-            "from now on."
+            "provider sends interpretation context — including an Oracle question when "
+            "present — to its servers."
         )
         self._close_key_form()
         self._refresh_status()

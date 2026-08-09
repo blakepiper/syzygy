@@ -107,89 +107,89 @@ recommendation each one starts from.
 
 ### M19.1 — Domain and storage
 
-- [ ] M19.1a Add `syzygy/domain/oracle.py`: `OracleQuestion` (text, asked-at,
+- [x] M19.1a Add `syzygy/domain/oracle.py`: `OracleQuestion` (text, asked-at,
       local date), `OracleConsultation`, `OracleStatus`, and its own
       `ALLOWED_TRANSITIONS`. Mirror `ReadingStatus`' shape
       (`ASKED → DRAWN → CONTEXT_READY → INTERPRETING → COMPLETE /
       INTERPRETATION_FAILED`) so the card-committed-before-any-model-call rule
       is enforced by the same kind of checkable state machine, and so no state
       may return to `ASKED` or `DRAWN` once a card exists.
-- [ ] M19.1b Add migration 6 (append-only) creating `oracle_consultations`:
+- [x] M19.1b Add migration 6 (append-only) creating `oracle_consultations`:
       id, profile id, question text, asked-at UTC, local date, status, card
       draw JSON, transit snapshot JSON, context JSON, result JSON, provider,
       model, prompt version, timestamps. No uniqueness constraint on
       `(profile_id, date)` — many consultations per day is the point. Index by
       `(profile_id, asked_at)` for the archive.
-- [ ] M19.1c Add `storage/oracle.py` (repository) and `storage/oracle_service.py`
+- [x] M19.1c Add `storage/oracle.py` (repository) and `storage/oracle_service.py`
       (orchestration), modelled on `readings.py` / `reading_service.py`. The
       service commits the draw before any provider call and is resumable from
       status alone, exactly as `draw_todays_reading` is.
-- [ ] M19.1d Tests: the state machine rejects every illegal transition; a
+- [x] M19.1d Tests: the state machine rejects every illegal transition; a
       failed interpretation retried reuses the committed card; a crash between
       draw and interpretation resumes without redrawing; consultations do not
       appear in, or interfere with, `readings`.
 
 ### M19.2 — Chance, entropy, and the question
 
-- [ ] M19.2a Reuse `sortes.draw.draw_card` and `EntropyCollector` unchanged —
+- [x] M19.2a Reuse `sortes.draw.draw_card` and `EntropyCollector` unchanged —
       all 78 cards, equal probability, OS randomness mixed with interaction
       entropy. The Oracle adds no deck, no spread, no orientation.
-- [ ] M19.2b Feed the keystrokes of typing the question into the
+- [x] M19.2b Feed the keystrokes of typing the question into the
       `EntropyCollector` as interaction entropy, in addition to the wheel. It
       is the same mechanism the wheel already uses and it makes the asking part
       of the chance rather than a form field before it. Production code still
       never constructs `EntropyCollector` with a non-default `os_random`.
-- [ ] M19.2c Cap and normalise the question: a length limit that fits the
+- [x] M19.2c Cap and normalise the question: a length limit that fits the
       prompt budget, whitespace normalisation, a refusal for empty input, and
       no interpretation of markup or control characters. Store the original
       text as the user typed it.
 
 ### M19.3 — Prompt contract and result schema
 
-- [ ] M19.3a Add `ORACLE_PROMPT_VERSION = "oracle-v1"` and an `OracleResult`
+- [x] M19.3a Add `ORACLE_PROMPT_VERSION = "oracle-v1"` and an `OracleResult`
       model to `domain/interpretation.py` + `interpretation/prompts.py`,
       deriving its JSON schema the same way `_response_json_schema` does so the
       constraining schema cannot drift from the validating one. Fields: the
       esoteric register, the conventional register, and an explicit
       question-facing response; provenance fields stripped from the
       model-facing schema as today.
-- [ ] M19.3b Build the oracle context through a new builder in
+- [x] M19.3b Build the oracle context through a new builder in
       `interpretation/context_builder.py` producing an
       `InterpretationContext` — same input surface, no provider reaching for
       anything else. The question is a context field, not an out-of-band
       instruction.
-- [ ] M19.3c Structure the prompt so the fixed facts dominate: the card and its
+- [x] M19.3c Structure the prompt so the fixed facts dominate: the card and its
       correspondences, the ranked transits, the natal placements, the retrieved
       passages (subject to M18's rules), then the question as quoted data with
       an explicit instruction that it may not alter the card, the astrology, or
       the output contract.
-- [ ] M19.3d Reuse the shared parse/validate/repair-retry path in
+- [x] M19.3d Reuse the shared parse/validate/repair-retry path in
       `interpretation.providers.structured_output`. All four providers get the
       Oracle for free; `FixtureProvider` must return a plausible fixture
       consultation so the rite works with no model configured.
-- [ ] M19.3e Tests: schema derivation, register separation, a question
+- [x] M19.3e Tests: schema derivation, register separation, a question
       containing prompt-injection text does not change the fixture's reported
       card or schema, repair path on malformed output, and provenance recorded
       on every consultation.
 
 ### M19.4 — The consultation flow in the TUI
 
-- [ ] M19.4a Add `[O] Oracle` to `HomeScreen.BINDINGS` and its key line.
+- [x] M19.4a Add `[O] Oracle` to `HomeScreen.BINDINGS` and its key line.
       Available whether or not today's daily reading exists — the Oracle is not
       gated by the daily card and does not consume it.
-- [ ] M19.4b Add `tui/screens/oracle_ask.py` (question input, character
+- [x] M19.4b Add `tui/screens/oracle_ask.py` (question input, character
       budget, plain-language framing of what will happen) → the existing wheel
       screen in an Oracle mode → `tui/screens/oracle_result.py` (card, answer,
       registers, `[I]` inputs view reusing `reading_panel`'s two-list treatment
       from M18). Keep domain logic out of the screens.
-- [ ] M19.4c Failure preserves the rite: an interpretation failure keeps the
+- [x] M19.4c Failure preserves the rite: an interpretation failure keeps the
       committed card and question, shows the fixed alignment, and offers retry
       / fixture / provider recovery — never a redraw. Reuse the existing
       `INTERPRETATION_FAILED` copy and recovery affordances.
-- [ ] M19.4d Extend the archive to list consultations alongside readings,
+- [x] M19.4d Extend the archive to list consultations alongside readings,
       distinguishable at a glance, reopenable read-only. Keep it list-only, as
       M8 established.
-- [ ] M19.4e Layout tiers and motion: the flow works at `-compact` through
+- [x] M19.4e Layout tiers and motion: the flow works at `-compact` through
       `-tall`, essential controls stay above the fold, focus order is
       keyboard-only navigable (M17's directional focus), and animation
       degrades with the motion level. Add the screens to
@@ -197,24 +197,29 @@ recommendation each one starts from.
 
 ### M19.5 — CLI parity and docs
 
-- [ ] M19.5a Add `syzygy oracle ask "<question>"` (draws, interprets, prints
+- [x] M19.5a Add `syzygy oracle ask "<question>"` (draws, interprets, prints
       both registers) and `syzygy oracle list` / `oracle show <id>`. Interactive
       when attached to a terminal; never prompts in CI.
-- [ ] M19.5b Document the Oracle in the README and `docs/old/DESIGN.md`'s
+- [x] M19.5b Document the Oracle in the README and `docs/old/DESIGN.md`'s
       successor notes: what it is, how it differs from the daily reading, that
       it is unlimited but each consultation is its own draw, and where the
       question is stored.
 
 ### Definition of done (M19)
 
-- [ ] A user can ask a question, turn the wheel, and receive an interpretation
+- [x] A user can ask a question, turn the wheel, and receive an interpretation
       that answers it through the drawn card.
-- [ ] A consultation never touches, blocks, or is blocked by the daily reading,
+- [x] A consultation never touches, blocks, or is blocked by the daily reading,
       and never redraws its own card.
-- [ ] The question cannot alter the card, the astrology, or the output schema.
-- [ ] The rite completes with no model configured, via `FixtureProvider`.
-- [ ] `pytest`, `ruff check .`, `mypy src`, `syzygy dev deck`, and
+- [x] The question cannot alter the card, the astrology, or the output schema.
+- [x] The rite completes with no model configured, via `FixtureProvider`.
+- [x] `pytest`, `ruff check .`, `mypy src`, `syzygy dev deck`, and
       `syzygy doctor` pass.
+
+Implementation note: M18 already shipped migration 6, so M19 appends migration
+7. ADR 0006 records the correction. The existing Wheel is reused in Oracle
+mode and hands the fixed draw directly to `OracleResultScreen`; the daily-only
+staged `RevealScreen` remains unchanged.
 
 ---
 

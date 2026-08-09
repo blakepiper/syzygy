@@ -42,6 +42,7 @@ class HomeScreen(SyzygyScreen):
         ("p", "profiles", "profiles"),
         ("m", "model", "model"),
         ("k", "sources", "source material"),
+        ("o", "oracle", "oracle"),
     ]
 
     def __init__(self) -> None:
@@ -87,6 +88,12 @@ class HomeScreen(SyzygyScreen):
                 yield Static("CHANCE", classes="column-heading")
                 yield Static("", id="home-status", classes="muted")
                 yield Static("", id="home-model-status", classes="muted", markup=False)
+                yield Static(
+                    "[O] Oracle — ask a question without using today's card",
+                    id="home-oracle-hint",
+                    classes="muted",
+                    markup=False,
+                )
                 # M18.1d. Shown before the draw rather than discovered
                 # afterwards in the `[I]` view - a citation-only install is
                 # a supported state, so this states it once and can be
@@ -412,6 +419,9 @@ class HomeScreen(SyzygyScreen):
 
     def action_sources(self) -> None:
         self.app.push_screen("source_material")
+
+    def action_oracle(self) -> None:
+        self.app.push_screen("oracle_ask")
 
     def refresh_reading(self) -> None:
         """Re-read today's reading from storage (used after a draw)."""

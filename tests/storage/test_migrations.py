@@ -36,6 +36,23 @@ def test_readings_carry_a_retrieved_citations_column(conn):
     assert columns["retrieved_citations_json"]["notnull"] == 0
 
 
+def test_oracle_has_its_own_non_unique_indexed_table(conn):
+    apply_all(conn)
+    columns = {
+        row["name"] for row in conn.execute("PRAGMA table_info(oracle_consultations)")
+    }
+    assert {
+        "question_text",
+        "asked_at_utc",
+        "card_draw_json",
+        "interpretation_context_json",
+        "result_json",
+    } <= columns
+    indexes = conn.execute("PRAGMA index_list(oracle_consultations)").fetchall()
+    assert any(row["name"] == "idx_oracle_consultations_profile_asked_at" for row in indexes)
+    assert not any(row["unique"] for row in indexes if row["origin"] != "pk")
+
+
 def test_apply_all_is_idempotent(conn):
     apply_all(conn)
     version_after_first = current_version(conn)

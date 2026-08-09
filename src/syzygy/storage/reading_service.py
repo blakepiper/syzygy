@@ -25,6 +25,7 @@ from syzygy.astrology.policy import TransitAspectPolicy
 from syzygy.astrology.ranking import TransitRanker
 from syzygy.clock import Clock
 from syzygy.domain.astrology import RankedTransit, TransitSnapshot
+from syzygy.domain.interpretation import OracleResult
 from syzygy.domain.knowledge import KnowledgeChunk, KnowledgeHit, RetrievedCitation
 from syzygy.domain.profile import Profile
 from syzygy.domain.reading import Reading, ReadingStatus
@@ -194,6 +195,8 @@ async def interpret_reading(
         # Provider failure is not an application error: preserve the
         # oracle state and let the caller show a recoverable error
         # (docs/old/DESIGN.md §13.4) - never propagate, never redraw.
+        return readings.fail_interpretation(conn, reading.id, now=clock.now_utc())
+    if isinstance(result, OracleResult):
         return readings.fail_interpretation(conn, reading.id, now=clock.now_utc())
     return readings.complete_interpretation(conn, reading.id, result, now=clock.now_utc())
 

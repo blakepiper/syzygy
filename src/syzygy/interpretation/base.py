@@ -18,14 +18,21 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from syzygy.domain.interpretation import InterpretationContext, InterpretationResult, SummaryResult
+from syzygy.domain.interpretation import (
+    InterpretationContext,
+    InterpretationResult,
+    OracleResult,
+    SummaryResult,
+)
 
 
 class InterpretationProvider(Protocol):
     provider_id: str
     model_id: str
 
-    async def interpret(self, context: InterpretationContext) -> InterpretationResult:
+    async def interpret(
+        self, context: InterpretationContext
+    ) -> InterpretationResult | OracleResult:
         """Produce a structured interpretation of `context`.
 
         Must raise rather than return a partially-valid result if the

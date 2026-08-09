@@ -178,6 +178,36 @@ _MIGRATIONS: list[tuple[int, str, str]] = [
         ALTER TABLE readings ADD COLUMN retrieved_citations_json TEXT;
         """,
     ),
+    (
+        7,
+        "oracle consultations: separate question-led rite (M19)",
+        """
+        CREATE TABLE oracle_consultations (
+            id                          TEXT PRIMARY KEY,
+            profile_id                  TEXT NOT NULL REFERENCES profiles(id),
+            question_text               TEXT NOT NULL,
+            question_normalized         TEXT NOT NULL,
+            asked_at_utc                TEXT NOT NULL,
+            consultation_local_date     TEXT NOT NULL,
+            consultation_local_timestamp TEXT NOT NULL,
+            consultation_timezone       TEXT NOT NULL,
+            status                      TEXT NOT NULL,
+            card_draw_json              TEXT,
+            transit_snapshot_json       TEXT,
+            interpretation_context_json TEXT,
+            retrieved_citations_json    TEXT,
+            result_json                 TEXT,
+            provider_id                 TEXT,
+            model_id                    TEXT,
+            prompt_version              TEXT,
+            created_at                  TEXT NOT NULL,
+            updated_at                  TEXT NOT NULL
+        );
+
+        CREATE INDEX idx_oracle_consultations_profile_asked_at
+            ON oracle_consultations (profile_id, asked_at_utc DESC);
+        """,
+    ),
 ]
 
 

@@ -20,12 +20,21 @@ from typing import Final
 
 import httpx
 
-from syzygy.domain.interpretation import InterpretationContext, InterpretationResult, SummaryResult
+from syzygy.domain.interpretation import (
+    InterpretationContext,
+    InterpretationKind,
+    InterpretationResult,
+    OracleResult,
+    SummaryResult,
+)
 from syzygy.interpretation.prompts import (
+    ORACLE_RESPONSE_JSON_SCHEMA,
+    ORACLE_SYSTEM_PROMPT,
     RESPONSE_JSON_SCHEMA,
     SUMMARY_RESPONSE_JSON_SCHEMA,
     SUMMARY_SYSTEM_PROMPT,
     SYSTEM_PROMPT,
+    build_oracle_prompt,
     build_repair_prompt,
     build_summary_prompt,
     build_summary_repair_prompt,
@@ -63,13 +72,23 @@ class OpenAIProvider:
         # Only ever set in tests, to stand in for the real API.
         self._transport = transport
 
-    async def interpret(self, context: InterpretationContext) -> InterpretationResult:
+    async def interpret(
+        self, context: InterpretationContext
+    ) -> InterpretationResult | OracleResult:
+        oracle = context.kind is InterpretationKind.ORACLE
+        schema = ORACLE_RESPONSE_JSON_SCHEMA if oracle else RESPONSE_JSON_SCHEMA
+        schema_name = "SyzygyOracleConsultation" if oracle else "SyzygyDailyReading"
         messages: list[dict[str, str]] = [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": build_user_prompt(context)},
+            {"role": "system", "content": ORACLE_SYSTEM_PROMPT if oracle else SYSTEM_PROMPT},
+            {
+                "role": "user",
+                "content": (
+                    build_oracle_prompt(context) if oracle else build_user_prompt(context)
+                ),
+            },
         ]
         async with httpx.AsyncClient(timeout=self._timeout, transport=self._transport) as client:
-            raw = await self._complete(client, messages)
+            raw = await self._complete(client, messages, schema=schema, schema_name=schema_name)
             try:
                 return parse_and_validate(
                     raw, context=context, provider_id=self.provider_id, model_id=self.model_id
@@ -77,7 +96,7 @@ class OpenAIProvider:
             except ResponseValidationError as exc:
                 messages.append({"role": "assistant", "content": raw})
                 messages.append({"role": "user", "content": build_repair_prompt(raw, str(exc))})
-                raw = await self._complete(client, messages)
+                raw = await self._complete(client, messages, schema=schema, schema_name=schema_name)
                 # A second failure propagates: the reading service marks
                 # INTERPRETATION_FAILED and leaves the card/snapshot alone
                 # (docs/old/DESIGN.md §13.4).

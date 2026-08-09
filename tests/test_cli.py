@@ -230,7 +230,10 @@ def _seed_profile(paths, profile_id: str = "p1", display_name: str = "Blake") ->
     )
     chart = NatalChart(
         birth_data=birth,
-        placements=[NatalPlacement(body="Sun", sign="Leo", longitude=135.0, house=10)],
+        placements=[
+            NatalPlacement(body="Sun", sign="Leo", longitude=135.0, house=10),
+            NatalPlacement(body="Moon", sign="Pisces", longitude=338.0, house=4),
+        ],
         aspects=[],
         ascendant_longitude=210.0,
         midheaven_longitude=120.0,
@@ -303,6 +306,91 @@ def test_profile_delete_reports_an_unknown_id(isolated_app_paths, capsys):
 
     assert exit_code == 1
     assert "no profile with id" in capsys.readouterr().err
+
+
+# -- `syzygy oracle` (M19.5a) --------------------------------------------
+
+
+def test_oracle_list_and_show_reopen_local_question_data(isolated_app_paths, capsys):
+    from datetime import UTC, datetime
+
+    from syzygy.clock import FixedClock
+    from syzygy.storage.database import open_database
+    from syzygy.storage.oracle_service import ask_question
+    from syzygy.storage.profiles import get_profile
+
+    _seed_profile(isolated_app_paths)
+    conn = open_database(isolated_app_paths.database_path)
+    try:
+        profile = get_profile(conn, "p1")
+        assert profile is not None
+        consultation = ask_question(
+            conn,
+            profile,
+            FixedClock(datetime(2026, 8, 9, 12, tzinfo=UTC)),
+            "What remains mine to choose?",
+        )
+    finally:
+        conn.close()
+
+    assert main(["oracle", "list"]) == 0
+    listing = capsys.readouterr().out
+    assert consultation.id in listing
+    assert "What remains mine to choose?" in listing
+
+    assert main(["oracle", "show", consultation.id]) == 0
+    shown = capsys.readouterr().out
+    assert f"Oracle {consultation.id}" in shown
+    assert "Question: What remains mine to choose?" in shown
+    assert "Status: asked" in shown
+
+
+def test_oracle_show_reports_an_unknown_id(isolated_app_paths, capsys):
+    assert main(["oracle", "show", "missing"]) == 1
+    assert "no Oracle consultation" in capsys.readouterr().err
+
+
+def test_oracle_ask_draws_and_interprets_without_a_configured_model(
+    isolated_app_paths, capsys, monkeypatch
+):
+    from datetime import UTC, datetime
+
+    from syzygy.astrology.policy import POLICY_VERSION
+    from syzygy.clock import FixedClock
+    from syzygy.domain.astrology import TransitSnapshot
+    from syzygy.interpretation.providers.fixture import FixtureProvider
+    from syzygy.storage.database import open_database
+    from syzygy.tui.app import SyzygyServices
+
+    class QuietSky:
+        def calculate_transits(self, natal, instant):
+            return TransitSnapshot(
+                instant_utc=instant,
+                transiting_positions=[],
+                raw_aspects=[],
+                astrology_policy_version=POLICY_VERSION,
+            )
+
+    _seed_profile(isolated_app_paths)
+
+    def services():
+        return SyzygyServices(
+            conn=open_database(isolated_app_paths.database_path),
+            clock=FixedClock(datetime(2026, 8, 9, 12, tzinfo=UTC)),
+            astrology=QuietSky(),
+            provider=FixtureProvider(),
+            settings_path=isolated_app_paths.settings_path,
+        )
+
+    monkeypatch.setattr("syzygy.tui.app.default_services", services)
+
+    assert main(["oracle", "ask", "What now?"]) == 0
+    output = capsys.readouterr().out
+    assert "Question: What now?" in output
+    assert "Status: complete" in output
+    assert "Response" in output
+    assert "Esoteric" in output
+    assert "Conventional" in output
 
 
 # -- `syzygy dev animate` (M17.2e) ---------------------------------------

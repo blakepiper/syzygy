@@ -236,6 +236,74 @@ Input:focus {
     border: tall $syz-accent;
 }
 
+#oracle-ask-body {
+    width: 1fr;
+    max-width: 90;
+    height: 1fr;
+    align: center middle;
+    padding: 1 3;
+}
+
+#oracle-error,
+#oracle-budget {
+    height: auto;
+}
+
+#oracle-result-columns {
+    height: 1fr;
+    padding: 0 2;
+}
+
+#oracle-result-aside {
+    width: 34;
+    height: 1fr;
+}
+
+#oracle-result-card {
+    height: 16;
+}
+
+#oracle-result-transits {
+    height: auto;
+}
+
+#oracle-result-main {
+    width: 1fr;
+    height: 1fr;
+}
+
+#oracle-result-question {
+    height: auto;
+    max-height: 4;
+}
+
+#oracle-result-panel {
+    height: 1fr;
+    padding: 1 2;
+}
+
+#oracle-result-body {
+    width: 1fr;
+    max-width: 88;
+    height: auto;
+}
+
+#oracle-result-keys {
+    height: auto;
+}
+
+.-compact #oracle-result-columns {
+    padding: 0 1;
+}
+
+.-compact #oracle-result-aside {
+    width: 24;
+}
+
+.-compact #oracle-result-card {
+    height: 10;
+}
+
 ListView {
     background: $syz-field;
     padding: 0 2;

@@ -40,6 +40,7 @@ from syzygy.tui.screens.cosmos import CosmosScreen
 from syzygy.tui.screens.home import HomeScreen
 from syzygy.tui.screens.local_setup import LocalSetupScreen
 from syzygy.tui.screens.model_setup import ModelSetupScreen
+from syzygy.tui.screens.oracle_ask import OracleAskScreen
 from syzygy.tui.screens.profile_create import ProfileCreateScreen
 from syzygy.tui.screens.profile_select import ProfileSelectScreen
 from syzygy.tui.screens.source_material import SourceMaterialScreen
@@ -202,6 +203,7 @@ class SyzygyApp(App[None]):
         "model_setup": ModelSetupScreen,
         "local_setup": LocalSetupScreen,
         "source_material": SourceMaterialScreen,
+        "oracle_ask": OracleAskScreen,
         "too_small": TooSmallScreen,
     }
 

@@ -19,7 +19,13 @@ import json
 
 from pydantic import ValidationError
 
-from syzygy.domain.interpretation import InterpretationContext, InterpretationResult, SummaryResult
+from syzygy.domain.interpretation import (
+    InterpretationContext,
+    InterpretationKind,
+    InterpretationResult,
+    OracleResult,
+    SummaryResult,
+)
 
 #: Raised for both "not JSON" and "JSON but wrong shape" so callers can
 #: catch one exception type when deciding whether to attempt the single
@@ -51,7 +57,7 @@ def parse_and_validate(
     context: InterpretationContext,
     provider_id: str,
     model_id: str,
-) -> InterpretationResult:
+) -> InterpretationResult | OracleResult:
     """Parse `raw_text` as the model's reply and validate it into a result.
 
     Raises `json.JSONDecodeError` if it is not valid JSON, or
@@ -68,7 +74,10 @@ def parse_and_validate(
         "model_id": model_id,
         "prompt_version": context.prompt_version,
     }
-    return InterpretationResult.model_validate(payload)
+    result_type = (
+        OracleResult if context.kind is InterpretationKind.ORACLE else InterpretationResult
+    )
+    return result_type.model_validate(payload)
 
 
 def parse_summary(

@@ -17,7 +17,10 @@ The LLM interprets; it never calculates astrology, selects the card, or rerolls 
 
 Pre-release, under active development, but the full daily ritual works
 end to end: create a profile, turn the Wheel, draw a card, and read an
-interpretation. Interpretation can come from a model Syzygy sets up and
+interpretation. The question-led Oracle works alongside it: ask in your
+own words, turn the Wheel for a separate fixed card, and receive a direct
+response in the same esoteric and conventional registers. Interpretation
+can come from a model Syzygy sets up and
 runs on your own computer (guided, no terminal required — see
 [`docs/LOCAL_MODELS.md`](docs/LOCAL_MODELS.md)), a
 [`llama.cpp`](https://github.com/ggml-org/llama.cpp) server you run
@@ -72,7 +75,31 @@ First launch creates a profile from birth data (date, time, place,
 coordinates, timezone — or resolved automatically from a place name if
 the lookup service is reachable), calculates its natal chart, and drops
 you on the daily home screen. From there, `[Enter]` turns the Wheel for
-today's reading; `[C]` opens the natal chart, `[A]` the archive.
+today’s reading; `[C]` opens the natal chart, `[A]` the archive.
+
+### The Oracle
+
+Press `[O]` from home to ask a question. The Oracle is separate from the
+canonical daily reading: it neither consumes nor changes today's card, and it
+is available whether or not the daily rite is complete. Consultations are
+unlimited, but each is its own act — one question, one turn of the Wheel, and
+one independently drawn upright Thoth card. Retrying a failed interpretation
+always reuses that committed card; asking again creates a visibly new
+consultation rather than a reroll or second opinion on the old one.
+
+The original question is stored locally with the consultation in Syzygy's
+SQLite database. It is sent only to the configured interpretation provider;
+with a managed local model or the fixture provider it never leaves the
+machine. It is treated as quoted data in the prompt and cannot replace the
+card, astrology facts, or structured output contract.
+
+The same rite is available from the command line:
+
+```bash
+syzygy oracle ask "What am I not seeing clearly?"
+syzygy oracle list
+syzygy oracle show <consultation-id>
+```
 
 By default, readings use the built-in fixture provider — deterministic
 placeholder prose, useful for trying the ritual with no setup. That text
@@ -115,10 +142,10 @@ syzygy model use openai --model gpt-4o-mini
 syzygy model status                # see what's configured and what's active
 ```
 
-Selecting a hosted provider sends that day's reading context (profile
-name, chart placements, the drawn card, ranked transits, and any matched
-source passages) to its servers on every reading — `model use` prints
-this disclosure before saving the selection.
+Selecting a hosted provider sends the interpretation context (profile name,
+chart placements, the drawn card, ranked transits, any matched source
+passages, and an Oracle question when making a consultation) to its servers —
+`model use` prints this disclosure before saving the selection.
 
 ### Source material
 

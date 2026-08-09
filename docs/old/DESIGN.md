@@ -2538,3 +2538,36 @@ At its simplest, Syzygy is this:
 The machine calculates what can be calculated, leaves chance to chance, and uses the model only where interpretation is actually required.
 
 That is the core of the project.
+
+---
+
+# 36. Successor Notes — M19 Oracle
+
+M19 implements the “separate free-consultation mode” anticipated in section
+5.3 as **The Oracle**. It does not revise the daily rite:
+
+- `[O]` from home asks one user-authored question, turns the same unbiased
+  78-card upright Wheel, and interprets that fixed card through the question.
+- Oracle consultations live in `oracle_consultations`, not `readings`. They
+  have no per-day uniqueness constraint and never touch the daily reading's
+  canonical `(profile_id, consultation_local_date)` constraint.
+- “Unlimited” means any number of distinct consultations, each with its own
+  effort and draw. Within a consultation there is no reroll: draw commitment,
+  failure, interruption, and retry obey a separate state machine equivalent to
+  the daily one.
+- SELF and the already-ranked COSMOS remain supporting context. The question
+  and card dominate the answer. This is not horary astrology; no current
+  location, current houses, Ascendant, or Midheaven is collected or inferred.
+- The original question is length-capped and stored locally as typed. A
+  control-stripped, whitespace-normalized copy is JSON-quoted as user data in
+  `InterpretationContext`; it cannot alter the card, astrology, sources, or
+  output schema. A hosted provider receives it when selected; a local or
+  fixture provider keeps it on the machine.
+- The result adds a direct question-facing reflection to the same esoteric and
+  conventional registers. The prompt forbids medical, legal, financial, and
+  safety-critical directives and dated predictions presented as fact.
+- The archive lists daily readings and Oracle consultations together but
+  distinguishes them visibly and reopens both from stored data only.
+
+ADR 0006 records the decisions and the reason migration 7, rather than the
+already-used migration 6, owns the new table.

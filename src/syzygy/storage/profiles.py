@@ -81,16 +81,19 @@ def list_profiles(conn: sqlite3.Connection) -> list[Profile]:
 
 
 def count_readings(conn: sqlite3.Connection, profile_id: str) -> int:
-    """How many readings would be destroyed along with `profile_id`.
+    """How many readings and consultations would be destroyed.
 
     Deleting a profile is irreversible and takes its readings with it, so
     the caller is expected to show this number before asking the user to
     confirm (M11.2b).
     """
-    row = conn.execute(
+    reading_row = conn.execute(
         "SELECT COUNT(*) AS total FROM readings WHERE profile_id = ?", (profile_id,)
     ).fetchone()
-    return int(row["total"])
+    oracle_row = conn.execute(
+        "SELECT COUNT(*) AS total FROM oracle_consultations WHERE profile_id = ?", (profile_id,)
+    ).fetchone()
+    return int(reading_row["total"]) + int(oracle_row["total"])
 
 
 def delete_profile(conn: sqlite3.Connection, profile_id: str) -> int:
@@ -119,6 +122,9 @@ def delete_profile(conn: sqlite3.Connection, profile_id: str) -> int:
         deleted_readings = conn.execute(
             "DELETE FROM readings WHERE profile_id = ?", (profile_id,)
         ).rowcount
+        deleted_oracles = conn.execute(
+            "DELETE FROM oracle_consultations WHERE profile_id = ?", (profile_id,)
+        ).rowcount
         conn.execute("DELETE FROM interpretive_summaries WHERE profile_id = ?", (profile_id,))
         conn.execute("DELETE FROM profiles WHERE id = ?", (profile_id,))
     except Exception:
@@ -126,4 +132,4 @@ def delete_profile(conn: sqlite3.Connection, profile_id: str) -> int:
         raise
     else:
         conn.execute("COMMIT")
-    return deleted_readings
+    return deleted_readings + deleted_oracles
