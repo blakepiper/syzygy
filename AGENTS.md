@@ -108,6 +108,45 @@ certainly a design violation, not a shortcut.
   always fine; other copyleft licenses need review) — see
   `docs/adr/0001-agpl-license-for-kerykeion.md`.
 
+## Keep licensing in proportion
+
+Syzygy is a non-monetized personal art project built on divinatory traditions
+that are centuries or millennia old and have no owner. The tarot, the I Ching,
+astrology, the Qabalah, hexagram and trigram structure, decan attributions,
+planetary and zodiacal correspondences — none of this is anyone's property, and
+free, usable sources for all of it exist. Treat that as the default, and go
+find one.
+
+There are exactly two real licensing constraints in this repository, both
+already decided:
+
+1. **The three modern books** (`docs/*.pdf` — Crowley, DuQuette, Ziegler) are
+   under copyright. That is why the shipped index carries citations and vectors
+   but never passages (ADR 0003). This is settled; apply it, don't re-derive it.
+2. **Dependencies must be AGPL-3.0 compatible** (the bullet above).
+
+Everything else is ordinary work. So:
+
+- Do not open a task, milestone, or ADR with a licensing review, and do not
+  make one a blocker or a gate on work that is otherwise ready. If a specific
+  modern *translation or edition* is in copyright, that is a two-line note and
+  a pointer to a free alternative — not a milestone precondition, and not a
+  reason to consider shipping structural data with no commentary as an
+  "acceptable outcome."
+- Do not extend rule 1 by analogy. The three books are a specific, narrow
+  exception with a written rationale. They are not a template to apply to every
+  text Syzygy might ever read.
+- State a legal caveat once, plainly, where it changes what gets built. Don't
+  restate it in the summary, the commit message, and the definition of done.
+- When the answer is "a free source almost certainly exists," the task is to
+  find and cite one, not to write a plan for evaluating whether one may be
+  sought.
+
+Grounding discipline is a *separate* concern and is not relaxed here: canonical
+data still comes from a real source and a real citation, never from model
+memory (see the `thoth_deck.yaml` invariant above). "Public domain" means you
+may use it freely — it does not mean you may invent it.
+
 ## Repository map
 
 | Path | What lives here |

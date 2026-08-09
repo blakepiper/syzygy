@@ -480,40 +480,39 @@ recommendation each one starts from.
 
 ---
 
-## M20 — I Ching (conditional on M19 and a sourcing review)
+## M20 — I Ching
 
-Do not start this before M19 ships. It is listed now because the Oracle's
-shape should not foreclose it, not because it is scheduled.
+Do not start this before M19 ships — it reuses the Oracle's flow, storage, and
+prompt shape wholesale. It is listed now because M19's design should not
+foreclose it.
 
-The open question is not mechanical — casting six lines with correct
-probabilities is trivial next to `sortes.draw`, and the three-coin and
-yarrow-stalk methods have *different* probability distributions for changing
-lines, which is a deliberate choice the ADR must make rather than an
-implementation detail.
+The I Ching is three thousand years old and belongs to nobody. Legge (1882) is
+public domain and complete — judgments, images, and line texts — and is the
+working source unless something better turns up. Use it and move on. (Wilhelm/
+Baynes is the translation people quote and it is still in copyright, so simply
+don't reach for it; that is the whole of the licensing consideration here.)
 
-The real blocker is text. The Wilhelm/Baynes translation everyone quotes is
-under copyright; Legge (1882) is public domain. Syzygy's knowledge policy
-already has the right shape for this (`docs/KNOWLEDGE_SOURCES.md`), and this
-work inherits it wholesale.
+The genuinely open question is mechanical. Casting six lines is trivial next to
+`sortes.draw`, but the three-coin and yarrow-stalk methods produce *different*
+probabilities for changing lines — 1/8 vs 1/16 for a moving yang, among others.
+That is a real divinatory choice about which tradition Syzygy is practising,
+and it belongs in the ADR.
 
-- [ ] M20.1 Sourcing review before any code: identify a public-domain or
-      explicitly licensed hexagram text (Legge is the leading candidate),
-      confirm AGPL-3.0 compatibility, and decide whether the judgment/image
-      text ships in the package or follows the citations-only pattern of
-      ADR 0003. If nothing clears review, the fallback is Syzygy-authored
-      structural data only (hexagram number, name, trigrams, changing lines)
-      with no quoted commentary — and that is an acceptable outcome.
-- [ ] M20.2 ADR: cast method and its probability distribution (three-coin vs
+- [ ] M20.1 ADR: cast method and its probability distribution (three-coin vs
       yarrow-stalk), whether changing lines and the resulting second hexagram
       are in scope, and how the hexagram composes with the Thoth card — a
       second chance object in the same consultation, or an alternative mode the
       user selects. Recommendation: an alternative mode, so no consultation
       carries two competing oracles.
-- [ ] M20.3 Canonical hexagram data as a resource file with the same grounding
-      discipline as `thoth_deck.yaml`: sourced, cited, never from model memory.
-- [ ] M20.4 Cast mechanics reusing `EntropyCollector` and rejection sampling —
+- [ ] M20.2 Canonical hexagram data as a resource file with the same grounding
+      discipline as `thoth_deck.yaml`: hexagram number, King Wen sequence,
+      name, trigrams, judgment, image, and the six line texts, transcribed from
+      Legge with a citation per entry. Sourced and cited, never from model
+      memory — that rule is about accuracy, not permission, and it applies at
+      full strength to a public-domain text.
+- [ ] M20.3 Cast mechanics reusing `EntropyCollector` and rejection sampling —
       never `random.random()`, never modulo over a raw byte — with tests
       asserting the chosen method's exact line probabilities over a large
       seeded sample.
-- [ ] M20.5 Prompt contract, TUI mode, storage, and archive treatment mirroring
+- [ ] M20.4 Prompt contract, TUI mode, storage, and archive treatment mirroring
       M19's, with its own prompt version.
