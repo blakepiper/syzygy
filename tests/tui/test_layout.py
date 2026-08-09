@@ -188,6 +188,29 @@ async def test_oracle_question_and_result_keep_essential_controls_visible(
         assert len(pilot.app.screen.query(".cast-line")) == 6
 
 
+@pytest.mark.parametrize("size", EVERY_TIER)
+async def test_the_question_box_is_centred_on_the_terminal(app: SyzygyApp, profile, size):
+    """The box has a reading measure of its own, narrower than a wide
+    terminal, so it has to be told where to sit - it used to sit hard
+    against the left edge with 110 blank columns beside it.
+
+    Measured as equal blank on both sides rather than as a column number,
+    so it holds at the floor too, where the box fills the width and there
+    is no blank on either side.
+    """
+    async with app.run_test(size=size) as pilot:
+        await settle(pilot)
+        await pilot.press("o")
+        await settle(pilot)
+        screen = pilot.app.screen
+        box = region_of(pilot, "#oracle-ask-body")
+
+        assert abs(box.x - (screen.region.right - box.right)) <= 1, (
+            f"{size}: box at {box} is off-centre on a {screen.size.width}-column screen"
+        )
+        assert on_screen(screen.query_one("#oracle-ask-body"))
+
+
 # -- reading ----------------------------------------------------------------
 
 

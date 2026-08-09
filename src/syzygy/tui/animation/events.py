@@ -160,6 +160,12 @@ class Animations:
         Whatever the level, `complete` runs exactly once and is what
         decides where the launch lands - so a dropped frame, a keypress,
         or motion `off` all arrive at the same screen.
+
+        The mark never spells the name. It used to resolve to
+        `S Y Z Y G Y`, one row above a logo whose art is that same word -
+        so the opening said "syzygy" twice, in two typefaces, at once. The
+        mark's job is the gathering *before* the logo arrives; it stays
+        glyphs and clears when the wordmark takes over.
         """
         logo.styles.opacity = 0.0
         if mascot is not None:
@@ -167,7 +173,7 @@ class Animations:
 
         if self.motion.allows_large_motion:
             beats: list[Step] = [
-                glyph_morph(mark, ("·", "·  ✦  ·", "S · Z · G", "S Y Z Y G Y"), 0.45),
+                glyph_morph(mark, ("·", "·  ✦  ·", "·  ✦  ⋆  ✦  ·", "✦  ⋆  ✧  ⋆  ✦"), 0.45),
                 Parallel([reveal(logo, 0.4), pulse(mark, 0.3)]),
                 reveal(mascot, 0.35) if mascot is not None else Delay(0.35),
                 Delay(0.2),
@@ -177,7 +183,7 @@ class Animations:
             if mascot is not None:
                 reveals.append(reveal(mascot, 0.3))
             beats = [
-                glyph_morph(mark, ("·", "S Y Z Y G Y"), 0.3),
+                glyph_morph(mark, ("·", "✦  ⋆  ✧  ⋆  ✦"), 0.3),
                 Parallel(reveals),
                 Delay(0.3),
             ]

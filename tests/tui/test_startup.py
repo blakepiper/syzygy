@@ -102,6 +102,40 @@ async def test_the_startup_brand_is_centered_on_the_terminal(app: SyzygyApp, pro
         assert mascot.region.center[0] == terminal_center
 
 
+@pytest.mark.parametrize("level", [MotionLevel.FULL, MotionLevel.REDUCED])
+async def test_the_mark_never_spells_the_name_the_logo_already_carries(services, level):
+    """The mark used to morph to `S Y Z Y G Y` one row above a logo whose
+    art is that same word, so the opening said the name twice at once.
+
+    Seeking is the honest way to ask this: every frame the sequence can
+    render is a point on the timeline, so sampling it densely covers what
+    a viewer could see, including the states a dropped frame would skip
+    straight past.
+    """
+    from textual.widgets import Static
+
+    from syzygy.tui.animation.animator import Animator
+    from syzygy.tui.animation.events import Animations
+    from syzygy.tui.animation.motion import MotionSettings
+
+    mark = Static()
+    shown: list[str] = []
+    mark.update = lambda renderable="": shown.append(str(renderable))  # type: ignore[method-assign]
+
+    animations = Animations(Animator(MotionSettings(level=level)))
+    handle = animations.startup(mark, Static(), Static(), lambda: None)
+    step = handle._step
+    for frame in range(201):
+        step.seek(step.duration * frame / 200)
+    step.finish()
+
+    assert shown, "the mark was never written to"
+    for text in shown:
+        letters = {character for character in text.upper() if character.isalpha()}
+        assert not letters, f"the mark spelled {text!r}"
+    assert "" in shown, "the mark has to clear once the wordmark has taken over"
+
+
 # -- and is never detained by it --------------------------------------------
 
 

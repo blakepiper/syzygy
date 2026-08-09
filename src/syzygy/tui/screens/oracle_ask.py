@@ -8,7 +8,7 @@ the question, its budget, and the framing of what is about to happen.
 from __future__ import annotations
 
 from textual.app import ComposeResult
-from textual.containers import Center, Vertical
+from textual.containers import Center, Horizontal, Vertical
 from textual.widgets import Button, Footer, Input, Static
 
 from syzygy.domain.oracle import MAX_QUESTION_LENGTH
@@ -30,7 +30,10 @@ class OracleAskScreen(SyzygyScreen):
 
     def compose(self) -> ComposeResult:
         yield TitleBar("THE ORACLE")
-        with Vertical(id="oracle-ask-body"):
+        # `#oracle-ask-frame` exists only to centre the body: the body has
+        # a reading measure of its own, so without a container to sit in it
+        # hugs the left edge of any terminal wider than that.
+        with Horizontal(id="oracle-ask-frame"), Vertical(id="oracle-ask-body"):
             yield Static("Ask one question.", classes="lede")
             yield Static(
                 "Your question is stored locally and sent only to your selected interpreter. "

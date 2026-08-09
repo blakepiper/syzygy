@@ -236,9 +236,21 @@ Input:focus {
     border: tall $syz-accent;
 }
 
-#oracle-ask-body {
+/* The measure lives on `#oracle-ask-body`, so on anything wider than 90
+ * columns the box is narrower than the screen and has to be told where to
+ * sit. Screen-level `align-horizontal` cannot do it: the title bar and
+ * footer are full width, so the arrangement's bounding box already fills
+ * the screen and nothing shifts. A container of its own is what centres
+ * the box. */
+#oracle-ask-frame {
     width: 1fr;
-    max-width: 90;
+    height: 1fr;
+    align-horizontal: center;
+}
+
+#oracle-ask-body {
+    width: 90;
+    max-width: 100%;
     height: 1fr;
     align: center middle;
     padding: 1 3;
