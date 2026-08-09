@@ -242,6 +242,18 @@ report.
 driver is older or different than the build expects. Choosing the
 processor-only route is slower but reliable.
 
+**A reading that sits on "INTERPRETING" for a while.** That is normal for
+a local model: the first answer after starting the server includes loading
+the weights, and the counter beside the label tells you it is still alive.
+Nothing is being decided while you wait — the card, and the Oracle's cast,
+were committed before the model was asked anything.
+
+If you want to watch what the machine is actually doing during that wait,
+run Syzygy with `SYZYGY_LOG_FILE=~/syzygy.log`. Everything the libraries
+log — including the health poll of a server that is still starting — goes
+to that file. It never goes to the screen: the interface owns the terminal
+while it is running, and a log line printed over it stays there.
+
 Nothing that goes wrong here affects your readings. A card already drawn
 stays drawn, a reading already written stays written, and the ritual keeps
 working.

@@ -324,6 +324,12 @@ def run(database_path: Path | str | None = None, *, audio: bool = True) -> None:
     """
     from syzygy.audio import create_theme_player
     from syzygy.config import default_app_paths
+    from syzygy.logs import quiet_library_logging
+
+    # First, and before anything imports a dependency that might configure
+    # logging on our behalf: under a full-screen application, a stray INFO
+    # line is not a log, it is damage to the frame. See `syzygy.logs`.
+    quiet_library_logging()
 
     services = default_services(database_path)
     settings_path = (

@@ -237,6 +237,15 @@ def create_theme_player(
     except ImportError:
         return SilentTheme("the `audio` extra is not installed")
 
+    # `just_playback` calls `logging.basicConfig(level=INFO)` at import
+    # time, which hands the root logger a stderr handler and turns every
+    # dependency's INFO chatter into text painted over the interface. The
+    # entry points configure logging before this is ever reached; this is
+    # the belt to that braces, next to the import that causes it.
+    from syzygy.logs import quiet_library_logging
+
+    quiet_library_logging()
+
     path = _theme_path()
     if path is None:
         return SilentTheme("the bundled theme is not readable as a file")

@@ -188,8 +188,9 @@ def _pending_text(
     if in_flight:
         # A retry is running right now. Checked before the stored status,
         # which still reads INTERPRETATION_FAILED until the call returns.
+        # The activity itself is the waiting indicator's to report
+        # (`syzygy.tui.widgets.waiting`); this says what is already true.
         text.append("THE ALIGNMENT IS FIXED.\n", style=_HEADING)
-        text.append("INTERPRETATION IN PROGRESS…\n", style=_MUTED)
         return text
     if reading.status == ReadingStatus.INTERPRETATION_FAILED:
         # The exact copy docs/old/DESIGN.md section 23 specifies: the oracle stands

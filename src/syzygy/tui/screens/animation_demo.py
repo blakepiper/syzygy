@@ -35,6 +35,7 @@ from syzygy.tui.animation.motion import (
 )
 from syzygy.tui.widgets.brand import Logo, Mascot
 from syzygy.tui.widgets.marked_list import MarkedListItem
+from syzygy.tui.widgets.waiting import WaitingIndicator
 
 #: Every entry is "run this and return whatever it returns" - the demo
 #: never inspects the `Handle`, and typing it as one would mean the two
@@ -76,6 +77,10 @@ class AnimationDemoApp(App[None]):
                 yield Static("THE SUBJECT", id="demo-target", classes="lede")
                 yield Static("", id="demo-heading", classes="section-heading")
                 yield Static("", id="demo-particles", classes="particles")
+                yield WaitingIndicator(
+                    note="the card and the cast are committed and will not change",
+                    id="demo-waiting",
+                )
                 yield Mascot(id="demo-mascot")
         yield Static("", id="demo-message", classes="muted", markup=False)
         yield Footer()
@@ -143,6 +148,10 @@ class AnimationDemoApp(App[None]):
                 "choreography · transient-value",
                 lambda: animations.transient_value(target, self._done),
             ),
+            # The only entry that runs until something stops it, which is
+            # the thing to look at: it has to stay legible for a minute
+            # without becoming what the screen is about.
+            ("choreography · awaiting", self._play_awaiting),
         ]
         return entries
 
@@ -167,12 +176,20 @@ class AnimationDemoApp(App[None]):
         self._reset_stage()
         play()
 
+    def _play_awaiting(self) -> Any:
+        indicator = self.query_one("#demo-waiting", WaitingIndicator)
+        indicator.display = True
+        return self.animations.awaiting(indicator)
+
     def _reset_stage(self) -> None:
         for widget in self.query("#demo-stage > *"):
             widget.styles.opacity = 1.0
             widget.styles.offset = (0, 0)
         self.query_one("#demo-target", Static).update("THE SUBJECT")
         self.query_one("#demo-message", Static).update("")
+        # `_play` finishes every running timeline first, so the sweep is
+        # already stopped by the time this hides it.
+        self.query_one("#demo-waiting", WaitingIndicator).display = False
 
     def _say(self, message: str) -> None:
         self.query_one("#demo-message", Static).update(message)

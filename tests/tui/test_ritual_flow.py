@@ -181,9 +181,14 @@ async def test_inputs_view_shows_the_exact_model_inputs(app: SyzygyApp, profile)
         assert "PROVENANCE" in body
         assert "fixture" in body  # provider identity is never hidden
         # Only policy-passing transits reach the model: the Moon sextile
-        # in the fixture sky is outside the transiting-Moon cap.
-        assert "Saturn" in body or "♄" in body
-        assert "Pluto" not in body
+        # in the fixture sky is outside the transiting-Moon cap. Read from
+        # the transit section rather than the whole body - the natal
+        # placements below it are chosen partly from the *card*, so a
+        # Scorpio- or Pluto-attributed draw legitimately supplies natal
+        # Pluto and used to fail this at the odds of drawing one.
+        transits = body.split("SELECTED TRANSITS", 1)[1].split("NATAL PLACEMENTS", 1)[0]
+        assert "Saturn" in transits or "♄" in transits
+        assert "Pluto" not in transits and "♇" not in transits
         # No source chunks were retrieved, and the screen says so rather
         # than implying Crowley grounding (docs/old/DESIGN.md section 23).
         assert "PASSAGES SENT TO THE MODEL" in body

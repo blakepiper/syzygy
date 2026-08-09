@@ -83,6 +83,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from syzygy import __version__
+from syzygy.logs import quiet_library_logging
 from syzygy.sortes.deck import DeckValidationError, load_deck
 
 if TYPE_CHECKING:
@@ -1707,6 +1708,11 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # Every command here prints a deliberate report; a dependency's INFO
+    # chatter interleaved with it is noise at best, and over the TUI it is
+    # damage to the frame (`syzygy.logs`). `SYZYGY_LOG_FILE` gets it back.
+    quiet_library_logging()
+
     parser = build_parser()
     args = parser.parse_args(argv)
 

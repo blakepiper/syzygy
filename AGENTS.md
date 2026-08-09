@@ -357,7 +357,17 @@ service, migration 11, the `oracle-v2` contract, and
 chart stayed. The `oracle-v1` and `iching-v1` rites are read-only history
 whose tables, rows, and archive entries are untouched.
 
-All tasks through M22 are implemented, except M16.10f - the manual
+Added in M23: the terminal belongs to the interface. `syzygy.logs` claims
+the root logger at both entry points before a dependency can - the leak
+was `just_playback` calling `logging.basicConfig(level=INFO)` at import
+time, which put every `httpx` request on screen over the Oracle; set
+`SYZYGY_LOG_FILE` to read those records instead of losing them. What the
+INFO lines were covering is now `tui/widgets/waiting.py`, driven by
+`Animations.awaiting`/`stop_awaiting`: the second looping timeline in the
+application after the Wheel's rim, running exactly while a provider call
+is in flight on the daily reading and the Oracle's result.
+
+All tasks through M23 are implemented, except M16.10f - the manual
 clean-machine matrix, of which only Linux x86-64 CPU has actually been
 performed (recorded in `docs/LOCAL_MODEL_MAINTENANCE.md`). M12.3 (a
 Cinzel display treatment) was dropped rather than deferred - `TASKS.md`

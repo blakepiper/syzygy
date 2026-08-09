@@ -22,6 +22,7 @@ from syzygy.tui.screens.base import SyzygyScreen, TitleBar
 from syzygy.tui.widgets.reading_panel import ReadingPanel, ReadingView
 from syzygy.tui.widgets.tarot_card import TarotCardWidget
 from syzygy.tui.widgets.transit_badge import TransitBadge
+from syzygy.tui.widgets.waiting import WaitingIndicator
 
 
 class ReadingScreen(SyzygyScreen):
@@ -48,6 +49,14 @@ class ReadingScreen(SyzygyScreen):
         #: left behind by a process that died mid-call, and the difference
         #: decides whether the spinner is telling the truth.
         self._interpreting = False
+        #: Held rather than queried: `on_unmount` runs after the screen's
+        #: children are gone, and stopping the sweep is exactly the thing
+        #: that must still work then.
+        self._waiting = WaitingIndicator(
+            label="INTERPRETING",
+            note="the card and the sky are committed and will not change",
+            id="reading-waiting",
+        )
 
     def compose(self) -> ComposeResult:
         """The alignment on one side, what was made of it on the other
@@ -68,6 +77,7 @@ class ReadingScreen(SyzygyScreen):
                     pass
             with Vertical(id="reading-main"):
                 yield Static("", id="reading-title", classes="lede")
+                yield self._waiting
                 yield ReadingPanel(glyphs=self.syzygy.glyphs, id="reading-panel")
         yield Static("", id="reading-keys", classes="keys", markup=False)
         yield Footer()
@@ -121,7 +131,28 @@ class ReadingScreen(SyzygyScreen):
             return False
         return self.reading.status == ReadingStatus.INTERPRETATION_FAILED or self._is_interrupted()
 
+    def _set_waiting(self, waiting: bool) -> None:
+        """Show and drive the indicator exactly while a provider is working.
+
+        `self._interpreting` and not the stored status: a row left in
+        `INTERPRETING` by a process that died has nothing working on it,
+        and an indicator sweeping over it would be the screen claiming
+        activity that does not exist (M11.4).
+        """
+        if waiting == self._waiting.display:
+            return
+        self._waiting.display = waiting
+        if waiting:
+            self.syzygy.animations.awaiting(self._waiting)
+        else:
+            self.syzygy.animations.stop_awaiting(self._waiting)
+
+    def on_unmount(self) -> None:
+        """Leaving mid-interpretation must not leave a loop running."""
+        self.syzygy.animations.stop_awaiting(self._waiting)
+
     def _show(self, view: ReadingView | None = None) -> None:
+        self._set_waiting(self._interpreting)
         panel = self.query_one("#reading-panel", ReadingPanel)
         panel.show(
             self.reading,
@@ -160,17 +191,16 @@ class ReadingScreen(SyzygyScreen):
 
     def _begin_interpretation(self) -> None:
         self._interpreting = True
-        self._show()  # the spinner is now telling the truth
-        self.syzygy.animations.trigger(
-            "processing-start", self.query_one("#reading-panel", ReadingPanel)
-        )
+        # `_show` starts the waiting indicator, which is now the whole of
+        # "something is happening" - the panel used to pulse underneath as
+        # well, which next to a real indicator is two answers to one
+        # question.
+        self._show()
         self._interpret()
 
     def _end_interpretation(self) -> None:
+        # Every caller follows this with `_show`, which stops the sweep.
         self._interpreting = False
-        self.syzygy.animations.trigger(
-            "processing-stop", self.query_one("#reading-panel", ReadingPanel)
-        )
 
     @work(exclusive=True, group="interpret")
     async def _interpret(self) -> None:

@@ -140,6 +140,20 @@ class MotionSettings:
         scale = REDUCED_DURATION_SCALE if self.level is MotionLevel.REDUCED else 1.0
         return scale / _clamp_speed(self.speed)
 
+    @property
+    def sustained_time_scale(self) -> float:
+        """`time_scale` for a loop that runs until something stops it.
+
+        A shorter *transition* is calmer, which is why `reduced` shrinks
+        durations. A faster *loop* is not calmer - it is the same motion,
+        agitated. So the reduced factor does not apply to the two
+        animations that repeat indefinitely (the Wheel's rim, the waiting
+        indicator); only the debug speed multiplier does.
+        """
+        if self.level is MotionLevel.OFF:
+            return 0.0
+        return 1.0 / _clamp_speed(self.speed)
+
 
 def _clamp_speed(speed: float) -> float:
     return min(MAX_SPEED, max(MIN_SPEED, speed))

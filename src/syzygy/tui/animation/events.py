@@ -26,6 +26,7 @@ from textual.widget import Widget
 from textual.widgets import Static
 
 from syzygy.tui.animation.animator import Animator, Handle
+from syzygy.tui.animation.easing import linear
 from syzygy.tui.animation.primitives import (
     brighten,
     decode,
@@ -37,8 +38,9 @@ from syzygy.tui.animation.primitives import (
     shake,
     typewriter,
 )
-from syzygy.tui.animation.timeline import Call, Delay, Parallel, Step, stagger
+from syzygy.tui.animation.timeline import Call, Delay, Parallel, Step, Tween, stagger
 from syzygy.tui.animation.timeline import Sequence as TimelineSequence
+from syzygy.tui.widgets.waiting import WaitingIndicator
 
 #: One channel for the whole application, not one per screen: exactly one
 #: screen is entering at any moment, so a new entry should *retarget* the
@@ -58,6 +60,12 @@ TITLE_DECODE_DURATION: Final = 0.42
 EXIT_DURATION: Final = 0.16
 EXIT_OPACITY: Final = 0.4
 
+#: One there-and-back sweep of the waiting indicator. Long enough that the
+#: core drifts rather than darts - a fast loop next to a model that is
+#: going to take thirty seconds reads as agitation, not activity
+#: (`docs/animation.md` section 16: active, never dominant).
+AWAITING_CYCLE: Final = 2.6
+
 
 class SemanticEvent(StrEnum):
     ENTER = "enter"
@@ -68,6 +76,11 @@ class SemanticEvent(StrEnum):
     PROCESSING_START = "processing-start"
     PROCESSING_STOP = "processing-stop"
     VALUE_CHANGE = "value-change"
+
+
+def _awaiting_channel(indicator: WaitingIndicator) -> tuple[str, object]:
+    """One channel per indicator, computed the same way by both ends."""
+    return ("awaiting", indicator.id or id(indicator))
 
 
 class Animations:
@@ -132,6 +145,41 @@ class Animations:
         if title is not None and title_text:
             steps.append(decode(title, title_text, TITLE_DECODE_DURATION))
         return self.animator.run(Parallel(steps), channel=SCREEN_ENTER_CHANNEL)
+
+    def awaiting(self, indicator: WaitingIndicator) -> Handle:
+        """A model is working: sweep the indicator until told to stop.
+
+        The only looping animation in the application besides the Wheel's
+        rim, and for the same reason - it reports something that is
+        genuinely still happening, and it stops the moment that stops
+        being true. `stop_awaiting` is the other half; a screen that
+        starts one and never ends it is a lie the frame loop keeps
+        telling.
+
+        Motion `off` gets one still frame instead of a loop, which is the
+        final state of a sweep that never runs.
+        """
+        indicator.begin()
+        channel = _awaiting_channel(indicator)
+        motion = self.motion
+        if not motion.enabled:
+            return self.animator.run(Call(indicator.set_still), channel=channel)
+        # `Animator.run` will scale this by `time_scale`, which shortens
+        # durations under `reduced` - right for a transition, wrong for a
+        # loop, which would just sweep faster for someone who asked for
+        # less motion. Pre-divide so what survives the animator's scaling
+        # is `sustained_time_scale`: the debug speed multiplier, and
+        # nothing else.
+        cycle = AWAITING_CYCLE * motion.sustained_time_scale / motion.time_scale
+        return self.animator.run(
+            Tween(indicator.set_phase, duration=cycle, easing=linear),
+            channel=channel,
+            loop=True,
+        )
+
+    def stop_awaiting(self, indicator: WaitingIndicator) -> None:
+        """The work finished, failed, or the screen went away."""
+        self.animator.cancel(_awaiting_channel(indicator))
 
     def transient_value(
         self, target: Widget, settle: Callable[[], None], duration: float = 0.6

@@ -280,3 +280,64 @@ Today's transits leave the Oracle entirely. The natal chart stays.
 
 Yarrow-stalk casting, a second card, reversals, a correspondence table between
 hexagrams and cards, transits returning to the Oracle in any form, and horary.
+
+---
+
+## M23 — The wait is part of the rite
+
+While the Oracle waited on a local model, the screen filled with this:
+
+```
+INFO: HTTP Request: GET http://127.0.0.1:40933/health "HTTP/1.1 503 …"
+```
+
+Two separate defects in one moment. Library logging was reaching the terminal
+a full-screen application owns, and the moment it was covering had nothing to
+show anyway — one static line of text for a wait that can last a minute.
+
+- [x] M23.1 `syzygy.logs`: configure the root logger once, at both entry
+      points (`cli.main`, `tui.app.run`), before anything can configure it for
+      us. The leak was `just_playback` calling `logging.basicConfig(level=INFO)`
+      at *import* time, which hands root a stderr handler and makes every
+      `httpx` request visible; `basicConfig` is a no-op once root has a
+      handler, so claiming it first closes the general case, not just this
+      library's. Silencing is not discarding: `SYZYGY_LOG_FILE` routes the
+      same records to a file at INFO, which is how you read a local server's
+      health poll without wearing it. A belt-and-braces call sits next to the
+      offending import in `syzygy.audio`.
+- [x] M23.2 `syzygy.tui.widgets.waiting`: the indicator `docs/animation.md`
+      section 16 asks for — a core sweeping through a field of the
+      application's own motes, a dot sequence, and elapsed seconds once the
+      wait is long enough for "is this alive?" to be a real question. The
+      frame is a pure function of one phase, so it is tested without a
+      terminal. It reports activity, never progress: there is no fraction to
+      report and nothing here implies one.
+- [x] M23.3 `Animations.awaiting`/`stop_awaiting` drive it off the one
+      application animator — the second looping timeline in the application
+      after the Wheel's rim, and it stops on completion, on failure, and on
+      unmount. Motion `off` gets one still frame. Both waiting screens (the
+      Oracle's result and the daily reading) show it exactly while a provider
+      call is in flight: a row stranded in `INTERPRETING` by a dead process
+      still says "interrupted" and animates nothing.
+- [x] M23.3b `MotionSettings.sustained_time_scale`: `reduced` shortens
+      durations, which is calmer for a transition and simply *faster* for a
+      loop. The waiting indicator's cycle is pre-divided so what survives the
+      animator's scaling is the debug speed multiplier and nothing else —
+      someone who asked for less motion does not get a brisker sweep.
+- [x] M23.4 The panel copy that used to carry the wait is gone from both
+      screens (the indicator says it once, above the panel), and the reading
+      screen's `processing-start` pulse of the whole panel with it — two
+      answers to one question.
+- [x] M23.5 `syzygy dev animate` gains an `awaiting` entry, because whether an
+      indefinite loop stays legible for a minute without becoming what the
+      screen is about is an eye's judgement, not a test's.
+- [x] M23.6 Fixed a pre-existing flake found by this milestone's full runs:
+      `test_inputs_view_shows_the_exact_model_inputs` asserted "Pluto" appeared
+      nowhere in the inputs view to prove the filtered Moon sextile never
+      reached the model — but `relevant_natal_placements` is chosen partly from
+      the *card*, so a Scorpio- or Pluto-attributed draw legitimately supplies
+      natal Pluto. The assertion now reads the transit section only.
+
+Not done here, and deliberately: the `[G]` summaries on the chart and cosmos
+screens have the same unbounded wait behind a one-line static in a small
+panel. Same fix, different layout problem; it was not what was asked for.

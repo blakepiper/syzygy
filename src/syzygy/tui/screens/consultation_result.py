@@ -39,6 +39,7 @@ from syzygy.tui import palette
 from syzygy.tui.screens.base import SyzygyScreen, TitleBar
 from syzygy.tui.widgets.reading_panel import NO_PASSAGES_ACTION, NO_PASSAGES_NOTE
 from syzygy.tui.widgets.tarot_card import TarotCardWidget
+from syzygy.tui.widgets.waiting import WaitingIndicator
 
 #: A cast is conventionally *made* bottom upward and *displayed* top line
 #: first. Both orders matter here: the reveal animates the first, the
@@ -178,6 +179,14 @@ class ConsultationResultScreen(SyzygyScreen):
         self._may_interpret = interpret and not self.record.is_legacy
         self._interpreting = False
         self._view = ConsultationView.ANSWER
+        #: Held rather than queried: `on_unmount` runs after the screen's
+        #: children are gone, and stopping the sweep is exactly the thing
+        #: that must still work then.
+        self._waiting = WaitingIndicator(
+            label="INTERPRETING",
+            note="the card and the cast are committed and will not change",
+            id="consultation-waiting",
+        )
 
     # -- composition ------------------------------------------------------
 
@@ -202,6 +211,7 @@ class ConsultationResultScreen(SyzygyScreen):
                     id="consultation-question",
                     classes="muted",
                 )
+                yield self._waiting
                 yield VerticalScroll(
                     Static("", id="consultation-body"), id="consultation-panel"
                 )
@@ -277,8 +287,13 @@ class ConsultationResultScreen(SyzygyScreen):
         heading = f"bold {palette.ACCENT}"
         body = palette.BONE
         muted = palette.MUTED
-        if result is None and self._interpreting:
-            text.append("INTERPRETATION IN PROGRESS…\n", style=muted)
+        waiting = result is None and self._interpreting
+        self._set_waiting(waiting)
+        if waiting:
+            # The panel stays empty: the indicator above it already says
+            # both that work is happening and that nothing about the
+            # consultation can change while it does.
+            text.append("")
         elif result is None:
             # The rite survives a failed interpretation: the question, the
             # card, and the cast are all still on screen beside this.
@@ -323,6 +338,25 @@ class ConsultationResultScreen(SyzygyScreen):
         if self._may_retry():
             keys += "   [R] RETRY   [F] FIXTURE   [M] MODEL"
         self.query_one("#consultation-keys", Static).update(keys + "   [Q] QUIT")
+
+    def _set_waiting(self, waiting: bool) -> None:
+        """Show and drive the indicator exactly while a provider is working.
+
+        Driven from `_show`, which every path through this screen already
+        goes through, so there is no state in which the sweep is running
+        and nothing is being waited for.
+        """
+        if waiting == self._waiting.display:
+            return
+        self._waiting.display = waiting
+        if waiting:
+            self.syzygy.animations.awaiting(self._waiting)
+        else:
+            self.syzygy.animations.stop_awaiting(self._waiting)
+
+    def on_unmount(self) -> None:
+        """Leaving mid-interpretation must not leave a loop running."""
+        self.syzygy.animations.stop_awaiting(self._waiting)
 
     def _append_inputs(self, text: Text, heading: str, body: str, muted: str) -> None:
         record = self.record
