@@ -12,7 +12,7 @@ Syzygy; it never calculates astrology, selects a card, causes a reroll, or
 reads application state outside `InterpretationContext`. That holds for the
 Oracle in M19 exactly as it holds for the daily reading.
 
-## Completed history (M0–M16)
+## Completed history (M0–M18)
 
 All milestones in this section are complete except where the note says
 otherwise.
@@ -36,6 +36,8 @@ otherwise.
 | M14 | Semantic, tier-aware animation system; startup, SELF, Wheel, reveal, and reading choreography; reduced/off motion preferences; and deterministic animation tests. |
 | M15 | Bundled looping theme, global mute and persisted preference, clean shutdown, and failure-safe `SilentTheme`. Audio and birthplace geocoding are included in the main install; their former extras remain compatibility aliases. |
 | M16 | Guided local-model setup end to end: machine inventory and conservative fit estimation, a pinned publisher-owned model catalog and llama.cpp runtime manifest, discovery and qualification of an existing server or binary, resumable digest-verified downloads with safe archive extraction, a localhost-only supervisor with typed startup diagnosis, a no-side-effect smoke test gating activation, a resumable TUI wizard, and `syzygy model setup-local` / `model local status\|doctor\|list\|start\|stop\|remove`. Catalog entries ship `provisional`: the evaluation harness exists and is runnable but has not been run against them, and the UI says so. Carried open below: M16.10f. |
+| M17 | Startup on every launch rather than only the first, default entry/exit transitions on every screen, the mascot past first launch, an unmistakable list highlight, arrow-key navigation through every menu, and centred card art. Four deliberate departures, all reasoned where a reader will hit them: entry durations exceed `docs/animation.md` section 5's figures (five frames is not a transition — see `animation/events.py`'s module docstring); directional focus is *bindings*, not an `on_key` handler, so `Input` and `ListView` keep their own arrows; no global `escape`, because the too-small gate must not be dismissable; and `timeline.Sequence.finish` had a real float-accumulation bug that silently dropped a sequence's trailing `Call`, fixed here. |
+| M18 | Source material reaches the reading or says exactly why not. Retrieval's citations are persisted on the `Reading` (migration 6), separately from `InterpretationContext` — the textless filter is untouched, so citations reach the user and passages reach the provider. `[I]` shows both lists; `[K]` opens a source-material screen that reports every source's state, ingests a PDF you already have on a worker with progress, never downloads a book, and refuses a file that is not the edition the shipped citations describe; home carries a one-line dismissible note; and `doctor`/`knowledge status` separate "citations only (normal)" from "broken". All 78 cards are proven to carry a Tier 0 citation against the artifact that actually ships. |
 
 Historical implementation details remain discoverable in git. Do not expand
 this section back into a task-by-task ledger.
@@ -55,298 +57,6 @@ this section back into a task-by-task ledger.
       memory/time, with no personal machine identifiers. Blocks nothing
       below; it blocks calling the local-model path validated on those
       platforms.
-
----
-
-## M17 — The ritual you can actually see and drive
-
-### Outcome
-
-Every launch opens with the startup sequence, screens transition instead of
-cutting, the mascot appears beyond first launch, the highlighted row in a list
-is unmistakable, arrow keys move between the controls of any menu, and the card
-sits centred inside its frame.
-
-This milestone is *observed* behaviour, not new subsystems. M14 built the
-animation layer and M12 bundled the brand art; the defects below are all
-"built, but unreachable on the path a returning user takes".
-
-### M17.1 — Startup runs on every launch, not only first launch
-
-Root cause: `SyzygyApp.on_mount` (`tui/app.py`) routes straight to `home` or
-`profile_select` when profiles exist, and `Animations.startup` is only ever
-called from `WelcomeScreen.on_mount` (`tui/screens/welcome.py`). A user with a
-saved profile therefore never sees the wordmark, the logo, the mascot, or a
-single frame of the startup choreography — the app "unceremoniously sends me to
-the profile selection screen".
-
-- [x] M17.1a Add `tui/screens/startup.py` owning the opening sequence: the
-      glyph-morph mark, the logo reveal, the mascot, and the routing decision.
-      `SyzygyApp.on_mount` pushes `startup` unconditionally; the profile-count
-      routing (`none → welcome`, `one → home`, `many → profile_select`) moves
-      into the startup screen's completion callback and stays in exactly one
-      place. `WelcomeScreen` keeps its first-launch copy and its `[N]`/`[M]`
-      keys but stops owning startup.
-- [x] M17.1b Budget the sequence: about 1.4 s at `full`, about 0.5 s at
-      `reduced`, and zero frames at `off` (route immediately). Any keypress
-      finishes it and routes at once — reuse the existing `finish_all` escape
-      hatch in `welcome.py` rather than inventing a second one. Never gate a
-      returning user behind an animation they cannot skip.
-- [x] M17.1c Keep `SyzygyApp.startup_seen` meaningful: it suppresses a *second*
-      startup within one process (e.g. after profile deletion routes back
-      through `welcome`), not the first one of a launch.
-- [x] M17.1d Tests: pilot launches with 0, 1, and 2+ profiles all pass through
-      the startup screen and land on the same destination as today; motion
-      `off` lands there with no animation handle created; a keypress mid-sequence
-      lands there immediately; the too-small gate still wins over startup.
-
-### M17.2 — Transitions and screen entry are actually perceptible
-
-Root cause is two-part. Coverage: only `wheel.py` calls
-`animations.trigger("enter", …)` on mount, so most screens simply appear.
-Perceptibility: the primitives that do run are short and low-amplitude
-(`pulse` 0.10–0.24 s, `reveal` 0.15–0.28 s opacity), which in a terminal at
-`FRAME_INTERVAL` is a handful of frames — easy to miss entirely.
-
-- [x] M17.2a Move screen entry into `SyzygyScreen` (`tui/screens/base.py`) so
-      every screen animates in by default: a staggered reveal of the screen's
-      top-level regions plus a decode/typewriter pass on the title bar. Give a
-      screen a way to opt out or supply its own choreography (`reveal.py` and
-      `wheel.py` already have theirs) rather than double-animating.
-- [x] M17.2b Add screen *exit* and cross-screen transition to the same place,
-      driven through `SemanticEvent.EXIT`, so `push_screen`/`switch_screen`
-      reads as a move rather than a cut. Do not block navigation on the
-      animation: the transition runs, the screen switches, and a dropped frame
-      never strands the user.
-- [x] M17.2c Perceptibility pass over `animation/primitives.py` and the
-      durations in `animation/events.py`. Raise entry durations to a range a
-      person notices (roughly 0.35–0.6 s at `full`), and prefer effects that
-      survive terminals with poor opacity blending — staged text/glyph reveal
-      and colour ramps over opacity alone. Verify the default motion level in
-      `animation/motion.py` is `full` for a fresh install and that
-      `resolve_motion` is not silently reading a stale/absent settings section.
-- [x] M17.2d Verify the pump: `Animator.on_active`/`on_idle` starts and pauses
-      a `set_interval` timer in `app.py`. Add a test that a queued step
-      actually advances frames under a real (test-driven) clock, so "no
-      animation at all" can never again be a silent scheduling failure.
-- [x] M17.2e Add `syzygy dev animate` (gated on `SYZYGY_DEV`, alongside the
-      existing `syzygy.dev` affordances): a demo screen that plays every
-      semantic event and every named choreography on demand, at the current
-      motion level. This is the manual check that motion is visible on a real
-      terminal, which no headless pilot test can make.
-- [x] M17.2f Tests: every screen registers an entry animation on mount; each
-      choreography is reachable from the screen that owns it; `reduced` and
-      `off` degrade as M14 specifies; no test asserts wall-clock timing.
-
-### M17.3 — The mascot appears past the first launch
-
-Root cause: `Mascot` is constructed in exactly one place, `welcome.py:41`, a
-screen a returning user never sees.
-
-- [x] M17.3a Place the mascot on the startup screen (M17.1) and as a companion
-      on `home` at `-wide`/`-tall`, where there are columns to spare. It must
-      never displace the SELF/COSMOS/CHANCE triad or push a control below the
-      fold at any tier — `tests/tui/test_layout.py` is the arbiter.
-- [x] M17.3b Give it two or three reactive states tied to existing semantic
-      events (waiting, drawing, reading complete) rather than a new animation
-      vocabulary. Reuse `widgets/brand.py` and `widgets/pixel_art.py`; add no
-      new asset without recording it in `docs/BRAND_ASSETS.md`.
-- [x] M17.3c Tests: mascot present at the tiers that allow it and absent at
-      `-compact`; layout assertions unchanged; a missing/undecodable asset
-      degrades to nothing, never to a traceback (the `SilentTheme` precedent).
-
-### M17.4 — The highlighted row is unmistakable
-
-Root cause: `ListItem.--highlight` in `syzygy.tcss` sets
-`background: $syz-panel; color: $syz-accent` over an `ListItem` background of
-`$syz-field` — two neighbouring dark greys. On the profile-select list this is
-"too subtle to see".
-
-- [x] M17.4a Restyle selection as a reversal, not a tint: accent background,
-      panel-dark text, bold, plus a leading marker glyph (`▍` or `▸`) so the
-      highlight survives monochrome terminals and colour-blind viewing. Change
-      `tui/palette.py` and `syzygy.tcss` together — a test keeps them in step.
-- [x] M17.4b Apply the same treatment to every list in the app
-      (`profile_select`, `archive`, the model list in `local_setup`, any list
-      the Oracle adds in M19) and to the focused `Button`, so "where am I" has
-      one answer everywhere.
-- [x] M17.4c Tests: the highlight rule is asserted as a contrast/inversion
-      relationship between named palette entries rather than as a hard-coded
-      hex pair, so a future palette change cannot quietly reintroduce a
-      two-greys highlight.
-
-### M17.5 — Keyboard drives every menu
-
-Root cause: nothing in `tui/screens/` handles arrow keys for focus. Textual
-moves focus on `tab`/`shift+tab` only, so any row of `Button`s — the
-delete-confirmation pair in `profile_select.py`, the eight buttons in
-`model_setup.py`, the three in `local_setup.py`, `profile_create.py`, `home.py`
-— is mouse- or tab-only, exactly as reported.
-
-- [x] M17.5a Implement directional focus once in `SyzygyScreen`: `up`/`left`
-      move to the previous focusable control, `down`/`right` to the next,
-      `enter` activates, `escape` cancels/backs out. Scope movement to the
-      focused control's container so a horizontal button row and a vertical
-      form both behave the way they look.
-- [x] M17.5b Do not steal keys from widgets that legitimately consume them:
-      `Input` (cursor movement), `ListView` (its own up/down), the wheel's
-      impulse keys, and any scrollable reading pane. The base handler must run
-      only when the focused widget did not handle the key.
-- [x] M17.5c Audit every screen for a reachable, ordered focus chain: a control
-      that can be clicked must be reachable by keyboard, in the order it is
-      read, with a visible focus indicator (M17.4a). Fix the ordering at the
-      composition site rather than with per-screen key handlers.
-- [x] M17.5d Tests: a pilot test per screen that navigates with arrows and
-      activates with `enter` only — no mouse events, no `tab` — and reaches
-      each control; plus regression tests that `Input` and `ListView` keep
-      their own arrow behaviour.
-
-### M17.6 — The card is centred in its frame
-
-Root cause: `TarotCardWidget._content()` returns
-`Group(pixels, Text(""), text)`. The tcss on `TarotCardWidget` sets
-`content-align: center middle; text-align: center`, but those do not centre the
-rows *inside* a composite Rich `Group` — the half-block art renders at its own
-width from the left edge of the content box, so a card narrower than the frame
-sits left while its caption looks centred.
-
-- [x] M17.6a Centre inside the renderable: wrap the pixel-art renderable in an
-      explicit centring container (`rich.align.Align.center`) and build the
-      caption `Text` with `justify="center"`, so alignment does not depend on
-      Textual style inheritance through a `Group`.
-- [x] M17.6b Check the same defect at the other art sites — `#reading-card`,
-      the reveal screen, and any brand art rendered through
-      `widgets/pixel_art.py` — and fix them the same way rather than
-      per-screen.
-- [x] M17.6c Tests: render the widget at several widths (including widths where
-      the art is narrower than the frame, and the text-only fallback) and
-      assert the leading and trailing padding of the art rows differ by at most
-      one cell; assert the card's words remain centred; keep the existing
-      `art_size_for` fallback behaviour intact.
-
-### Definition of done (M17)
-
-- [x] Launching with an existing profile plays the startup sequence, shows the
-      logo and mascot, and then routes — and any keypress skips it.
-- [x] Moving between screens is a visible transition at `full`, a shortened one
-      at `reduced`, and an instant cut at `off`.
-- [x] The highlighted list row is legible at a glance on a monochrome terminal.
-- [x] Every menu in the app is completable with arrows and `enter` alone.
-- [x] The card art is centred in its frame at every layout tier.
-- [x] `pytest`, `ruff check .`, `mypy src`, `syzygy dev deck`, and
-      `syzygy doctor` pass.
-
-### Notes on how M17 was built
-
-- **Directional focus is bindings, not an `on_key` handler.** A Textual
-  screen receives a key event *before* the focused widget does, so the
-  obvious handler stole `left`/`right` from `Input` and `up`/`down` from
-  `ListView`. Bindings resolve outward from the focused node instead,
-  which is exactly M17.5b's rule. Scrollable containers that hold
-  *controls* needed one more thing (`screens.base.FormScroll`), because a
-  scroller's own arrow bindings sit between the field and the screen.
-- **A real bug fell out of M17.1b.** `timeline.Sequence.finish()` seeked
-  to `duration`, and `sum(...)` disagrees in the last bit with the
-  offsets `seek` accumulates - so a skipped or interrupted sequence
-  silently dropped the trailing `Call`, which is how a timeline arranges
-  its *result*. Fixed in `Sequence.finish`/`Parallel.finish`, with the
-  reasoning in the docstring. Nothing before M17 had a long enough
-  sequence to hit it.
-- **Entry durations depart from `docs/animation.md`'s figures on
-  purpose.** M17.2c asks for 350-600 ms where section 5 says routine
-  navigation stays under 300 ms; at a 33 ms frame interval the shorter
-  number is five frames. `animation/events.py`'s module docstring states
-  the reason where anybody changing a duration will read it.
-- **The global `escape` in M17.5a was not added.** Every screen with
-  somewhere to back out to already binds it, and a base-class `escape`
-  would have made the too-small gate dismissable. A test asserts the
-  binding is present on exactly the screens that should have it.
-
----
-
-## M18 — Source material reaches the reading, or says exactly why not
-
-### Outcome
-
-"No source chunks were supplied to the model" stops being an unexplained
-dead end. A reading either carries real passages, or tells the user why it
-cannot and how to fix it — and either way, the `[I]` inputs view shows the
-citations that retrieval actually found.
-
-### Why this happens (read before planning a fix)
-
-Mechanically: the index shipped in `src/syzygy/resources/knowledge/` carries
-citations and vectors, not passages (ADR 0003 — settled, don't reopen it). So
-on an install where nobody has run `syzygy knowledge ingest` against the PDFs,
-every chunk has `has_text == False`, `reading_service._select_knowledge_chunks`
-drops all of them, and the message is literally true.
-
-The filter itself is a quality rule, not a legal one: a citation rendered under
-the prompt's `SOURCE PASSAGES` heading with nothing beneath it invites the
-model to invent what the page says, which is the exact failure mode the whole
-grounding discipline exists to prevent.
-
-So the fix is not "always send the chunks" — with nothing ingested there is
-nothing to send. The fix is three things: show the user the citations retrieval
-found (which are always there and are genuinely useful), say plainly that the
-passages aren't installed, and make ingestion a route in the interface instead
-of a CLI incantation buried in the docs.
-
-**Invariant that must survive this milestone:** citation-only chunks reach the
-*user*, never a *provider*. `_select_knowledge_chunks`' filter stays.
-
-- [x] M18.1a Persist what retrieval found, separately from what the provider
-      was given. Add the retrieved citations to the `Reading` (new column via
-      an append-only migration, never an edit to a merged one), *not* to
-      `InterpretationContext` — that type is the provider's entire input
-      surface per `AGENTS.md`, and citations must not enter it. Record per
-      citation: source id and tier, title, page range, chunk id, retrieval
-      method, and whether its text was available.
-- [x] M18.1b Rewrite the `SOURCE MATERIAL` block in
-      `widgets/reading_panel.py` (currently `reading_panel.py:115-125`) into
-      two labelled lists: **Passages sent to the model** (what
-      `context.knowledge_chunks` holds) and **Where this card is discussed**
-      (the citations from M18.1a, always populated). When the first list is
-      empty, say so in one plain sentence — Syzygy ships the references but not
-      the book text, and the text isn't installed — and name the action that
-      changes it. One sentence, no lecture.
-- [x] M18.1c Make ingestion reachable from the interface. Add a source-material
-      screen (or a section of the existing model-setup route) that reports
-      which of the three sources are ingested, explains that the user supplies
-      their own copies, shows the expected filenames/locations from
-      `docs/KNOWLEDGE_SOURCES.md`, and runs ingestion in a Textual worker with
-      progress. It must never download a book, and must refuse a file whose
-      hash does not match a known source rather than ingesting something
-      arbitrary.
-- [x] M18.1d Surface the state before the reading, not only after it: home
-      shows a one-line, dismissible note when no source text is ingested, and
-      `syzygy doctor` distinguishes "citations only (normal)" from "ingestion
-      present but broken". A citation-only install is not a failing
-      environment.
-- [x] M18.1e Prove retrieval never comes back empty. Add a test that
-      `retrieve_for_card` returns at least one Tier 0 citation for each of the
-      78 card ids against the shipped artifact, so the "where this card is
-      discussed" list is always populated even on a bare install.
-- [x] M18.1f With text ingested, confirm the passages actually flow end to end:
-      a test asserting `MAX_KNOWLEDGE_CHUNKS_PER_SOURCE` per-source capping,
-      Tier 0 ordering first, that the prompt's `SOURCE PASSAGES` section is
-      populated, and that the `[I]` view's two lists agree with what the prompt
-      contained.
-- [x] M18.1g Update `docs/KNOWLEDGE_SOURCES.md` and the README with the
-      user-facing version of this: what ships, what does not, what ingesting
-      your own copies changes about a reading, and that a reading without
-      passages is still a real reading grounded in `thoth_deck.yaml`.
-
-### Definition of done (M18)
-
-- [ ] `[I]` on any reading shows the citations retrieval found, whether or not
-      passages were sent.
-- [ ] A citation-only install explains itself in one sentence and offers a
-      route to ingestion.
-- [ ] No citation-only chunk can reach a provider; the filter and its test
-      remain.
-- [ ] `pytest`, `ruff check .`, `mypy src`, `syzygy dev deck`, and
-      `syzygy doctor` pass.
 
 ---
 
@@ -471,7 +181,7 @@ recommendation each one starts from.
       budget, plain-language framing of what will happen) → the existing wheel
       screen in an Oracle mode → `tui/screens/oracle_result.py` (card, answer,
       registers, `[I]` inputs view reusing `reading_panel`'s two-list treatment
-      from M18.1b). Keep domain logic out of the screens.
+      from M18). Keep domain logic out of the screens.
 - [ ] M19.4c Failure preserves the rite: an interpretation failure keeps the
       committed card and question, shows the fixed alignment, and offers retry
       / fixture / provider recovery — never a redraw. Reuse the existing
@@ -481,8 +191,9 @@ recommendation each one starts from.
       M8 established.
 - [ ] M19.4e Layout tiers and motion: the flow works at `-compact` through
       `-tall`, essential controls stay above the fold, focus order is
-      keyboard-only navigable (M17.5), and animation degrades with the motion
-      level. Add the screens to `tests/tui/test_layout.py`.
+      keyboard-only navigable (M17's directional focus), and animation
+      degrades with the motion level. Add the screens to
+      `tests/tui/test_layout.py`.
 
 ### M19.5 — CLI parity and docs
 
