@@ -74,6 +74,7 @@ def _inputs_text(reading: Reading, glyphs: GlyphSet) -> Text:
         return text
 
     card = context.card
+    assert card is not None  # stored reading contexts are validated to require it
     text.append("CARD\n", style=_HEADING)
     text.append(f"  {card.full_name} ({card.id})\n", style=_BODY)
     text.append(f"  {correspondence_label(card, glyphs)}\n", style=_BODY)

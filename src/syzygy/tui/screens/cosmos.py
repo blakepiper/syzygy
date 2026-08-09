@@ -23,19 +23,28 @@ Two invariants shape what is (and is not) here:
 
 from __future__ import annotations
 
+from zoneinfo import ZoneInfo
+
 from textual import work
 from textual.app import ComposeResult
 from textual.containers import Horizontal, VerticalScroll
 from textual.widgets import Footer, Static
 
 from syzygy.domain.astrology import RankedTransit, TransitSnapshot
+from syzygy.domain.interpretation import InterpretationKind, SummaryResult
 from syzygy.storage.reading_service import rank_current_transits
+from syzygy.storage.summaries import get_summary
+from syzygy.storage.summary_service import cosmos_summary
 from syzygy.tui.screens.base import SyzygyScreen, TitleBar
 from syzygy.tui.widgets.glyph import format_degrees, format_orb
 
 
 class CosmosScreen(SyzygyScreen):
-    BINDINGS = [("escape", "back", "back")]
+    BINDINGS = [("g", "summary", "summary"), ("escape", "back", "back")]
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._ranked: list[RankedTransit] | None = None
 
     def compose(self) -> ComposeResult:
         """Positions and transits as two lists, side by side when there is
@@ -47,6 +56,7 @@ class CosmosScreen(SyzygyScreen):
         with Horizontal(id="cosmos-columns"):
             yield VerticalScroll(Static("", id="cosmos-sky-body"), id="cosmos-sky")
             yield VerticalScroll(Static("", id="cosmos-transits-body"), id="cosmos-transits")
+        yield Static("[G] Generate today's summary", id="cosmos-summary", classes="summary-panel")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -84,6 +94,22 @@ class CosmosScreen(SyzygyScreen):
             return
         self._sky_body.update("\n".join(self._sky_lines(snapshot)))
         self._transits_body.update("\n".join(self._transit_lines(snapshot, ranked)))
+        self._ranked = ranked
+        profile = self.syzygy.profile
+        if profile is not None:
+            local_date = (
+                snapshot.instant_utc.astimezone(ZoneInfo(profile.birth_data.timezone))
+                .date()
+                .isoformat()
+            )
+            cached = get_summary(
+                self.syzygy.services.conn,
+                profile.id,
+                InterpretationKind.COSMOS_SUMMARY,
+                local_date,
+            )
+            if cached is not None:
+                self._show_summary(cached)
 
     def _failed(self, message: str) -> None:
         if not self.is_mounted:
@@ -93,6 +119,48 @@ class CosmosScreen(SyzygyScreen):
             f"Nothing here is cached: press [Escape] and open the screen again to retry."
         )
         self._transits_body.update("")
+
+    def action_summary(self) -> None:
+        if self.syzygy.profile is None or self._ranked is None:
+            self.app.bell()
+            self.query_one("#cosmos-summary", Static).update(
+                "Today's sky must finish resolving before it can be summarized."
+            )
+            return
+        self.query_one("#cosmos-summary", Static).update("Interpreting today's sky…")
+        self._generate_summary()
+
+    @work(exclusive=True, group="cosmos-summary")
+    async def _generate_summary(self) -> None:
+        profile = self.syzygy.profile
+        ranked = self._ranked
+        if profile is None or ranked is None:
+            return
+        services = self.syzygy.services
+        try:
+            result = await cosmos_summary(
+                services.conn,
+                profile,
+                ranked,
+                services.provider,
+                services.clock.now_utc(),
+            )
+        except Exception as exc:
+            self._summary_failed(f"{type(exc).__name__}: {exc}")
+            return
+        self._show_summary(result)
+
+    def _show_summary(self, result: SummaryResult) -> None:
+        if self.is_mounted:
+            self.query_one("#cosmos-summary", Static).update(
+                f"{result.headline}\n\n{result.body}\n\n[G] Show cached summary"
+            )
+
+    def _summary_failed(self, message: str) -> None:
+        if self.is_mounted:
+            self.query_one("#cosmos-summary", Static).update(
+                f"Summary unavailable — {message}\n[G] Retry"
+            )
 
     # -- rendering ---------------------------------------------------------
 

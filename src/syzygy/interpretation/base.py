@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from syzygy.domain.interpretation import InterpretationContext, InterpretationResult
+from syzygy.domain.interpretation import InterpretationContext, InterpretationResult, SummaryResult
 
 
 class InterpretationProvider(Protocol):
@@ -34,4 +34,8 @@ class InterpretationProvider(Protocol):
         retry-once-then-fail policy, which lives in the caller (the
         reading service), not in individual providers.
         """
+        ...
+
+    async def summarize(self, context: InterpretationContext) -> SummaryResult:
+        """Produce a structured natal or daily-cosmos summary."""
         ...

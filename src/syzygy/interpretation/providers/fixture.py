@@ -18,7 +18,9 @@ from syzygy.domain.interpretation import (
     ConventionalReading,
     EsotericReading,
     InterpretationContext,
+    InterpretationKind,
     InterpretationResult,
+    SummaryResult,
 )
 
 FIXTURE_PROMPT_VERSION = "fixture-v1"
@@ -36,6 +38,8 @@ class FixtureProvider:
 
     async def interpret(self, context: InterpretationContext) -> InterpretationResult:
         card = context.card
+        if card is None:
+            raise ValueError("daily interpretation requires a card")
         astro = card.astrology
         if astro is not None and astro.type == "planet":
             correspondence = f"the planet {astro.planet}"
@@ -85,4 +89,33 @@ class FixtureProvider:
             provider_id=self.provider_id,
             model_id=self.model_id,
             prompt_version=FIXTURE_PROMPT_VERSION,
+        )
+
+    async def summarize(self, context: InterpretationContext) -> SummaryResult:
+        """Deterministic copy so summaries never require a configured model."""
+        if context.kind is InterpretationKind.NATAL_SUMMARY:
+            headline = "A chart held in balance"
+            body = (
+                f"{context.profile_display_name}'s chart places the Sun in "
+                f"{context.sun_placement.sign}, the Moon in {context.moon_placement.sign}, "
+                f"with {context.ascendant_sign} rising. These are fixture notes: they show "
+                "where a configured model's durable chart synthesis will appear."
+            )
+        elif context.kind is InterpretationKind.COSMOS_SUMMARY:
+            headline = "The sky in motion"
+            count = len(context.significant_transits)
+            body = (
+                f"Syzygy ranked {count} significant transit{'s' if count != 1 else ''} for "
+                f"{context.consultation_local_date}. This fixture summary keeps the daily "
+                "horoscope available without a model while leaving every astrological fact "
+                "and its ranking unchanged."
+            )
+        else:
+            raise ValueError("summarize requires a summary context")
+        return SummaryResult(
+            headline=headline,
+            body=body,
+            provider_id=self.provider_id,
+            model_id=self.model_id,
+            prompt_version=context.prompt_version,
         )

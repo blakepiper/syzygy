@@ -21,11 +21,18 @@ from __future__ import annotations
 from typing import Any, Final
 
 from syzygy.domain.astrology import NatalPlacement, RankedTransit
-from syzygy.domain.interpretation import InterpretationContext, InterpretationResult
+from syzygy.domain.interpretation import (
+    InterpretationContext,
+    InterpretationKind,
+    InterpretationResult,
+    SummaryResult,
+)
 from syzygy.domain.knowledge import KnowledgeChunk
 from syzygy.domain.tarot import TarotCard
 
 PROMPT_VERSION: Final = "daily-v1"
+NATAL_SUMMARY_PROMPT_VERSION: Final = "natal-summary-v1"
+COSMOS_SUMMARY_PROMPT_VERSION: Final = "cosmos-summary-v1"
 
 #: Fields of `InterpretationResult` that Syzygy fills in itself. The model
 #: is never asked for them - it cannot know which provider is running it,
@@ -153,6 +160,33 @@ def _response_json_schema() -> dict[str, Any]:
 RESPONSE_JSON_SCHEMA: Final[dict[str, Any]] = _response_json_schema()
 
 
+def _summary_response_json_schema() -> dict[str, Any]:
+    schema = SummaryResult.model_json_schema()
+    for field in PROVENANCE_FIELDS:
+        schema["properties"].pop(field, None)
+    schema["required"] = [
+        name for name in schema.get("required", []) if name not in PROVENANCE_FIELDS
+    ]
+    schema["title"] = "SyzygySummary"
+    schema["additionalProperties"] = False
+    return schema
+
+
+SUMMARY_RESPONSE_JSON_SCHEMA: Final[dict[str, Any]] = _summary_response_json_schema()
+
+SUMMARY_SYSTEM_PROMPT: Final = """\
+You are the interpretive voice of Syzygy. The astrological facts supplied by
+the instrument are fixed and already calculated. Summarize only those facts;
+never calculate, add, correct, rank, or omit an aspect to improve the story.
+Use astrology as reflective language, not certain prediction. Make no medical,
+legal, financial, or safety-critical claims. Do not invent biography. Write
+plain, precise prose that acknowledges friction and uncertainty where present.
+
+Reply with one JSON object and nothing else, exactly:
+{"headline": "at most 8 words", "body": "2-4 short paragraphs"}
+"""
+
+
 def _format_degrees(longitude: float) -> str:
     """Position within its sign, as degrees and arcminutes: `14°22'`."""
     within_sign = longitude % 30
@@ -258,6 +292,8 @@ def build_user_prompt(context: InterpretationContext) -> str:
     comes off the context - this function must never read the database,
     the profile, or the astrology engine to enrich what it was handed.
     """
+    if context.kind is not InterpretationKind.DAILY_READING or context.card is None:
+        raise ValueError("build_user_prompt requires a daily-reading context with a card")
     lines: list[str] = [
         "CONSULTATION",
         f"  querent: {context.profile_display_name}",
@@ -309,6 +345,50 @@ def build_user_prompt(context: InterpretationContext) -> str:
         ]
     )
     return "\n".join(lines)
+
+
+def build_summary_prompt(context: InterpretationContext) -> str:
+    """Render either summary kind using only the shared context surface."""
+    if context.kind is InterpretationKind.DAILY_READING:
+        raise ValueError("daily reading contexts use build_user_prompt")
+    subject = "NATAL CHART" if context.kind is InterpretationKind.NATAL_SUMMARY else "TODAY'S SKY"
+    lines = [
+        subject,
+        f"  person: {context.profile_display_name}",
+        f"  local date: {context.consultation_local_date}",
+        "",
+        "NATAL PLACEMENTS SUPPLIED",
+        *(f"  {_format_placement(p)}" for p in context.relevant_natal_placements),
+        f"  Ascendant sign: {context.ascendant_sign}",
+    ]
+    if context.kind is InterpretationKind.COSMOS_SUMMARY:
+        lines.extend(["", "SIGNIFICANT TRANSITS (already filtered and ranked by Syzygy)"])
+        if context.significant_transits:
+            lines.extend(f"  {_format_transit(t)}" for t in context.significant_transits)
+        else:
+            lines.append("  none within orb today - describe a quiet sky, not missing data")
+        lines.extend(
+            [
+                "",
+                "Summarize the tone of this already-ranked sky against the supplied natal points.",
+            ]
+        )
+    else:
+        lines.extend(
+            [
+                "",
+                "Summarize the chart's durable themes and tensions. This is not a forecast.",
+            ]
+        )
+    return "\n".join(lines)
+
+
+def build_summary_repair_prompt(raw_output: str, error: str) -> str:
+    return (
+        "Your previous reply was invalid JSON for the required summary shape. "
+        "Reply with only {\"headline\": \"string\", \"body\": \"string\"}. "
+        f"Validation error: {error}\nPrevious reply:\n{raw_output}"
+    )
 
 
 def build_repair_prompt(raw_output: str, error: str) -> str:

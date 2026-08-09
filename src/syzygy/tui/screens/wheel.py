@@ -44,6 +44,7 @@ class WheelScreen(SyzygyScreen):
             with Center():
                 yield Static("Give the wheel motion.", id="wheel-lede", classes="lede")
             yield WheelWidget(self._collector, glyphs=self.syzygy.glyphs, id="wheel")
+            yield Static("", id="wheel-particles", classes="particles")
             with Center():
                 yield Static("", id="wheel-status", classes="muted")
             with Center():
@@ -56,7 +57,9 @@ class WheelScreen(SyzygyScreen):
 
     def on_mount(self) -> None:
         self._update_status()
-        self.query_one("#wheel", WheelWidget).focus()
+        wheel = self.query_one("#wheel", WheelWidget)
+        wheel.focus()
+        self.syzygy.animations.trigger("enter", wheel)
 
     def _update_status(self, message: str | None = None) -> None:
         wheel = self.query_one("#wheel", WheelWidget)
@@ -77,12 +80,15 @@ class WheelScreen(SyzygyScreen):
     def on_wheel_disturbance(self, event: WheelDisturbance) -> None:
         direction = "widdershins" if event.direction < 0 else "deosil"
         self._update_status(f"phase disturbed {direction}")
-        self.set_timer(0.6, self._update_status)
+        self.syzygy.animations.transient_value(
+            self.query_one("#wheel-status", Static), self._update_status
+        )
 
     def on_wheel_not_ready(self, event: WheelNotReady) -> None:
         self._update_status(
             f"the wheel is not turning enough — {event.required - event.impulses} more"
         )
+        self.syzygy.animations.trigger("error", self.query_one("#wheel-status", Static))
 
     def on_wheel_release(self, _event: WheelRelease) -> None:
         if self._releasing:
@@ -120,6 +126,8 @@ class WheelScreen(SyzygyScreen):
     def _drawn(self, reading: Reading) -> None:
         from syzygy.tui.screens.reveal import RevealScreen
 
+        # The fixed result is already committed. The Level-3 emphasis is
+        # rendered on the destination screen so navigation never waits.
         self.app.switch_screen(RevealScreen(reading))
 
     def _draw_failed(self, message: str) -> None:
@@ -128,6 +136,7 @@ class WheelScreen(SyzygyScreen):
         self._releasing = False
         self.query_one("#wheel-lede", Static).update("THE DRAW COULD NOT BE COMPLETED.")
         self._update_status(message)
+        self.syzygy.animations.trigger("error", self.query_one("#wheel-status", Static))
 
     def action_abandon(self) -> None:
         if self._releasing:

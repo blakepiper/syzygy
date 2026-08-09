@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from syzygy.domain.astrology import NatalPlacement, RankedTransit, sign_for_longitude
-from syzygy.domain.interpretation import InterpretationContext
+from syzygy.domain.interpretation import InterpretationContext, InterpretationKind
 from syzygy.domain.knowledge import KnowledgeChunk
 from syzygy.domain.profile import Profile
 from syzygy.domain.tarot import TarotCard
@@ -83,6 +83,7 @@ def build_context(
             include(astrology.planet)
 
     return InterpretationContext(
+        kind=InterpretationKind.DAILY_READING,
         profile_display_name=profile.display_name,
         consultation_local_date=consultation_local_date,
         consultation_local_timestamp=consultation_local_timestamp,
@@ -93,5 +94,59 @@ def build_context(
         moon_placement=moon,
         ascendant_sign=sign_for_longitude(profile.natal_chart.ascendant_longitude),
         knowledge_chunks=knowledge_chunks,
+        prompt_version=prompt_version,
+    )
+
+
+def build_natal_summary_context(
+    profile: Profile,
+    consultation_local_timestamp: str,
+    consultation_local_date: str,
+    prompt_version: str,
+) -> InterpretationContext:
+    """Build the immutable, provider-ready natal chart summary input."""
+    placements = profile.natal_chart.placements
+    return InterpretationContext(
+        kind=InterpretationKind.NATAL_SUMMARY,
+        profile_display_name=profile.display_name,
+        consultation_local_date=consultation_local_date,
+        consultation_local_timestamp=consultation_local_timestamp,
+        significant_transits=[],
+        relevant_natal_placements=list(placements),
+        sun_placement=_find_placement(placements, "Sun"),
+        moon_placement=_find_placement(placements, "Moon"),
+        ascendant_sign=sign_for_longitude(profile.natal_chart.ascendant_longitude),
+        knowledge_chunks=[],
+        prompt_version=prompt_version,
+    )
+
+
+def build_cosmos_summary_context(
+    profile: Profile,
+    ranked_transits: list[RankedTransit],
+    consultation_local_timestamp: str,
+    consultation_local_date: str,
+    prompt_version: str,
+) -> InterpretationContext:
+    """Build today's already-ranked sky summary input without a card."""
+    placements = profile.natal_chart.placements
+    relevant_bodies = {"Sun", "Moon"}
+    relevant_bodies.update(
+        transit.aspect.natal_target
+        for transit in ranked_transits
+        if transit.aspect.natal_target not in _NATAL_ANGLES
+    )
+    relevant = [p for p in placements if p.body in relevant_bodies]
+    return InterpretationContext(
+        kind=InterpretationKind.COSMOS_SUMMARY,
+        profile_display_name=profile.display_name,
+        consultation_local_date=consultation_local_date,
+        consultation_local_timestamp=consultation_local_timestamp,
+        significant_transits=ranked_transits,
+        relevant_natal_placements=relevant,
+        sun_placement=_find_placement(placements, "Sun"),
+        moon_placement=_find_placement(placements, "Moon"),
+        ascendant_sign=sign_for_longitude(profile.natal_chart.ascendant_longitude),
+        knowledge_chunks=[],
         prompt_version=prompt_version,
     )

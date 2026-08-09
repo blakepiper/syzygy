@@ -213,7 +213,10 @@ whole file), the looping theme behind the optional `audio` extra
 (`syzygy.audio`, which degrades to `SilentTheme` on every failure), and
 the layout tiers (M12.5), and today's cosmos — the full ranked sky
 against the natal chart, at `tui/screens/cosmos.py`, reached with `[T]`
-from home (M13.1).
+from home (M13.1), on-demand cached LLM summaries for the natal chart and
+daily cosmos (M13.2), and the elapsed-time animation layer under
+`tui/animation/` with semantic events and persisted full/reduced/off
+motion levels (M14).
 
 **Layout tiers.** `syzygy.tui.screens.base` owns the three thresholds and
 sets `-compact`/`-wide`/`-tall` on every screen; `syzygy.tcss` styles
@@ -224,12 +227,8 @@ numbers. `tests/tui/test_layout.py` checks each screen at the tier sizes,
 in both directions: nothing that matters is off-screen, and what should
 grow did.
 
-Not yet implemented (see `TASKS.md` for the ordered list, and don't
-assume a stub exists just because a directory is mentioned in
-`IMPLEMENTATION_PLAN.md`): LLM summaries for the chart and the daily
-cosmos (M13.2), and the whole animation system (M14, specified in
-`docs/animation.md`). M12.3 (a Cinzel display treatment) was dropped
-rather than deferred — `TASKS.md` records why.
+All tasks through M15 are implemented. M12.3 (a Cinzel display treatment)
+was dropped rather than deferred — `TASKS.md` records why.
 
 **Where the current work is written down.** `IMPLEMENTATION_PLAN.md`
 covers M0–M9 and is history now; anything from M10 onward is specified in

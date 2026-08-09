@@ -990,7 +990,7 @@ birthplace and no coordinate reaches the rendering.
 Reported: "Both natal chart and the daily horoscope should have an
 LLM summary that the user can read."
 
-- [ ] M13.2a Decide and write down the storage model before coding: a
+- [x] M13.2a Decide and write down the storage model before coding: a
       natal-chart summary is stable for the life of a profile (generate
       once, cache on the profile), while a cosmos summary is per-day
       (cache per `(profile_id, local_date)`). Neither is a *reading* —
@@ -998,25 +998,34 @@ LLM summary that the user can read."
       the daily card, and must never be able to trigger a draw. Add
       whatever storage they need as a new append-only migration in
       `syzygy.storage.migrations` (never edit a merged migration).
-- [ ] M13.2b Extend the interpretation layer properly rather than calling
+- [x] M13.2b Extend the interpretation layer properly rather than calling
       a provider ad hoc: these are new prompt kinds in
       `syzygy.interpretation.prompts` with their own versioned contract,
       fed by the existing context builder. `InterpretationContext` is the
       entire input surface a provider sees (`AGENTS.md`) — if a summary
       needs a fact, add it to the context builder's output; a provider
       must not reach into the database or the astrology engine.
-- [ ] M13.2c Both summaries must degrade the same way readings do: with no
+- [x] M13.2c Both summaries must degrade the same way readings do: with no
       model configured, `FixtureProvider` supplies canned copy and the
       screens still work. Nothing here may become a hard model dependency.
-- [ ] M13.2d UI: summary appears on `ChartScreen` and the M13.1 cosmos
+- [x] M13.2d UI: summary appears on `ChartScreen` and the M13.1 cosmos
       screen, generated on demand (a key press) rather than automatically
       on every open — an automatic call would mean a paid API request
       every time someone glances at their chart. Show a processing state
       while it runs and a retryable error state if it fails, reusing
       whatever M11.4d establishes.
-- [ ] M13.2e Tests: prompt-contract schema validation, the cache-hit path
+- [x] M13.2e Tests: prompt-contract schema validation, the cache-hit path
       (a second open makes no provider call), the fixture-fallback path,
       and that no `readings` row is created by either summary.
+
+      Implemented in migration 5 and recorded in ADR 0004: natal summaries
+      use one stable profile scope; cosmos summaries use the profile's local
+      date. Only successful structured results are cached. `[G]` generates
+      or retries on demand; opening a screen only reads an existing cache.
+      Both paths use `InterpretationContext` with explicit prompt kinds and
+      `FixtureProvider` supplies deterministic no-model copy. Tests assert
+      schema validation, one provider call across two requests, and zero
+      rows created in `readings`.
 
 ### M13.3 — Ship the processed knowledge sources
 
@@ -1135,35 +1144,35 @@ first, then the specific moments the user asked for.
 
 ### M14.1 — Animation framework
 
-- [ ] M14.1a Read `docs/animation.md` §2, §29, §30, §33 before writing code.
+- [x] M14.1a Read `docs/animation.md` §2, §29, §30, §33 before writing code.
       The mandatory separation is that animated values are never the
       source of truth: application state stays in `syzygy.domain`/storage,
       temporary visual state lives in the animation layer, and the app
       must remain correct with animation disabled entirely.
-- [ ] M14.1b Build the layer at `src/syzygy/tui/animation/` (a new package
+- [x] M14.1b Build the layer at `src/syzygy/tui/animation/` (a new package
       under `syzygy.tui` — Textual types stay inside `syzygy.tui` per
       `AGENTS.md`, and no domain module may import it). Use Textual's
       existing animation/timer machinery where it fits rather than writing
       a frame loop from scratch; `docs/animation.md`'s architecture is the
       contract to satisfy, not a mandate to reimplement what Textual
       already provides.
-- [ ] M14.1c Provide the primitives `docs/animation.md` §7 lists that Syzygy
+- [x] M14.1c Provide the primitives `docs/animation.md` §7 lists that Syzygy
       will actually use — reveal, pulse, flash, shake, dim/brighten, glyph
       morph, typewriter/decode, stagger — plus the easing set from §6
       (`easeOutCubic`, `easeInOutQuad`, `easeOutBack`, `easeInCubic`).
       Build only what M14.2–M14.6 consume; skip the rest until something
       needs it.
-- [ ] M14.1d Expose semantic events, not low-level calls (§30): screens
+- [x] M14.1d Expose semantic events, not low-level calls (§30): screens
       trigger `enter`/`exit`/`focus`/`success`/`error`/`processing-start`/
       `processing-stop`, and the animation layer maps those to visuals.
       This is the interface the rest of M14 is written against.
-- [ ] M14.1e Reduced motion (§34) as a real setting in
+- [x] M14.1e Reduced motion (§34) as a real setting in
       `AppPaths.settings_path`: `full` | `reduced` | `off`, with `off`
       rendering final states immediately. Add a CLI/TUI way to set it, and
       honor the terminal/OS reduced-motion signal if one is available.
       Add the debug slow-motion speed multiplier from §39 too — it makes
       every later task in this milestone easier to verify.
-- [ ] M14.1f Tests: easing functions are correct at t=0/0.5/1; animations
+- [x] M14.1f Tests: easing functions are correct at t=0/0.5/1; animations
       are cancelable and retargetable without leaving stale visual state;
       with `animations = off`, every screen reaches the same final state
       it reaches with animation on (this is the "definition of done"
@@ -1174,18 +1183,18 @@ first, then the specific moments the user asked for.
 Reported: "We need a startup animation, then a very cool welcome
 screen with 'press any button to continue'."
 
-- [ ] M14.2a Startup sequence on app launch: a Level 3 emphasis event
+- [x] M14.2a Startup sequence on app launch: a Level 3 emphasis event
       (`docs/animation.md` §36), 300–700 ms, using the logo/wordmark from
       M12.2/M12.3 — construct the wordmark rather than blitting it (border
       construction, glyph morph, brightness ramp).
-- [ ] M14.2b Redesign `WelcomeScreen` to fill the space (M12.5) and to end
+- [x] M14.2b Redesign `WelcomeScreen` to fill the space (M12.5) and to end
       the startup sequence in a settled state, with an explicit "press any
       key to continue" affordance that genuinely accepts *any* key — while
       keeping `[Q]` quit working, per M10.2's app-level binding.
-- [ ] M14.2c Skippable: any keypress during the startup animation jumps
+- [x] M14.2c Skippable: any keypress during the startup animation jumps
       straight to the settled welcome state (§1.3 — input must never wait
       on animation). Nobody should watch this twice.
-- [ ] M14.2d Tests: the app reaches the interactive welcome state with
+- [x] M14.2d Tests: the app reaches the interactive welcome state with
       animations off, with animations on after the sequence completes, and
       immediately when a key is pressed mid-sequence.
 
@@ -1193,14 +1202,14 @@ screen with 'press any button to continue'."
 
 Reported: "We need an animation for after the user selects a self."
 
-- [ ] M14.3a On profile selection, animate SELF resolving into the
+- [x] M14.3a On profile selection, animate SELF resolving into the
       alignment (`AlignmentWidget`'s `self_resolved`) rather than flipping
       it — the chart anchors stagger in (§11, 20–60 ms apart) as the
       profile's data lands. Level 2, 150–350 ms.
-- [ ] M14.3b Preserve spatial continuity into `HomeScreen` (§10): the
+- [x] M14.3b Preserve spatial continuity into `HomeScreen` (§10): the
       selected profile should visibly become the home screen's identity
       rather than the screen being replaced wholesale.
-- [ ] M14.3c Handle the slow path: chart data resolves asynchronously, so
+- [x] M14.3c Handle the slow path: chart data resolves asynchronously, so
       the animation must not assume data is present at trigger time — it
       animates the *state change*, whenever that arrives.
 
@@ -1209,18 +1218,18 @@ Reported: "We need an animation for after the user selects a self."
 Reported: "We need a transition animation for when a user selects to
 turn the wheel."
 
-- [ ] M14.4a Anticipation → transition → emphasis → settle (§1.2, §12) on
+- [x] M14.4a Anticipation → transition → emphasis → settle (§1.2, §12) on
       leaving `HomeScreen` for `WheelScreen`: the primary action reacts,
       the home layout gives way, the wheel arrives already turning.
-- [ ] M14.4b The wheel itself is the one place continuous motion is
+- [x] M14.4b The wheel itself is the one place continuous motion is
       justified (§35: a frame loop only while visibly animating). Verify
       idle CPU returns to baseline once the wheel stops — this is the
       screen most at risk of a permanent render loop.
-- [ ] M14.4c The draw moment is Level 3 with particles (§22), used once:
+- [x] M14.4c The draw moment is Level 3 with particles (§22), used once:
       the rim resolves, chance enters the alignment, and the transition to
       reveal begins. Particles are nonessential (§27) and must be
       cancelable.
-- [ ] M14.4d **The animation must not touch selection.** Entropy
+- [x] M14.4d **The animation must not touch selection.** Entropy
       collection and the unbiased draw (`syzygy.sortes`) are unchanged —
       the animation reacts to a card that has already been chosen and
       committed to storage. No animation state may feed the entropy pool
@@ -1231,35 +1240,50 @@ turn the wheel."
 Reported: "We need a transition animation for when a user opens
 today's reading."
 
-- [ ] M14.5a Reveal choreography on `RevealScreen` → `ReadingScreen`: the
+- [x] M14.5a Reveal choreography on `RevealScreen` → `ReadingScreen`: the
       card art (M11.5) settles, then the interpretation reveals beneath it
       (`REVEAL_VERTICAL`, §7) with a typewriter or decode pass on the
       headline only — never on the body copy (§24: animation may introduce
       text but must not delay access to it).
-- [ ] M14.5b Interpretation is asynchronous and may fail: wire
+- [x] M14.5b Interpretation is asynchronous and may fail: wire
       `processing-start`/`processing-stop` (§16 — an animated border or
       pulsing status, not a bare spinner) and the `error` event (§18 —
       one-cell shake plus a brief flash, never obscuring the error text)
       into the existing pending/failed states in
       `widgets/reading_panel.py`. This is where M11.4d's retry-in-flight
       state lands.
-- [ ] M14.5c Reopening an existing reading from the archive should *not*
+- [x] M14.5c Reopening an existing reading from the archive should *not*
       replay the full first-time reveal — first reveal is a Level 3
       event, revisiting is Level 1 (§36).
 
 ### M14.6 — Consistency pass
 
-- [ ] M14.6a Sweep every screen and replace one-off timing hacks with the
+- [x] M14.6a Sweep every screen and replace one-off timing hacks with the
       semantic events from M14.1d (`docs/animation.md` §40 Phase 5). Check
       `widgets/wheel.py` and `widgets/tarot_card.py` for existing bespoke
       timing that predates the framework.
-- [ ] M14.6b Verify against `docs/animation.md` §42's definition of done, item
+- [x] M14.6b Verify against `docs/animation.md` §42's definition of done, item
       by item, and record the result in this task — especially: no
       flicker, no input latency, no queued animations, and identical
       behavior with animation off.
-- [ ] M14.6c Test at the sizes and terminals §39 lists that are actually
+- [x] M14.6c Test at the sizes and terminals §39 lists that are actually
       available here, and note which were checked and which were not
       (SSH and slow terminals are easy to skip and easy to regress).
+
+      Verification: the reusable elapsed-time timeline owns all temporary
+      visual state; channels replace rather than queue; cancellation settles
+      final state; the pump pauses when idle; Wheel's own visible-only timer
+      pauses after release; `off` completes every timeline synchronously;
+      processing/error/success and the reveal stages use semantic events.
+      Automated Pilot coverage ran at the five M12.5 tiers from 80x24 through
+      200x55, in Textual's headless terminal, including full/reduced/off and
+      interrupted startup. This environment did not expose real SSH, a slow
+      terminal, or separate true-color/256-color emulators, so those three
+      manual §39 checks remain unavailable rather than falsely claimed. The
+      debug `SYZYGY_ANIMATION_SPEED` multiplier is available for them.
+      Current profiles already contain a completed natal chart (there is no
+      asynchronous chart-fetch slow path); the genuinely asynchronous sky
+      arrival is animated when its ranked state lands.
 
 ---
 

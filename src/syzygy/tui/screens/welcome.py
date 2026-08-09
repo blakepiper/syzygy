@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from textual import work
+from textual import events, work
 from textual.app import ComposeResult
 from textual.containers import Center, Horizontal, Middle, Vertical
 from textual.widgets import Footer, Static
 
+from syzygy.storage.profiles import list_profiles
 from syzygy.tui.screens.base import SyzygyScreen
 from syzygy.tui.screens.model_setup import load_status
 from syzygy.tui.widgets.brand import ASCII_WORDMARK, Logo, Mascot
@@ -33,6 +34,7 @@ class WelcomeScreen(SyzygyScreen):
     def compose(self) -> ComposeResult:
         with Middle():
             with Center():
+                yield Static("", id="welcome-startup-mark", classes="startup-mark")
                 yield Logo(id="welcome-logo")
             with Center():
                 with Horizontal(id="welcome-columns"):
@@ -40,8 +42,7 @@ class WelcomeScreen(SyzygyScreen):
                     with Vertical(id="welcome-body"):
                         yield Static("No self is configured.", classes="lede")
                         yield Static(
-                            "A reading needs a natal chart. Nothing is calculated,\n"
-                            "drawn, or interpreted before one exists.",
+                            "SELF · COSMOS · CHANCE\nThe alignment waits for you.",
                             classes="muted",
                         )
                         yield Static("", id="welcome-model-nudge", classes="muted", markup=False)
@@ -49,8 +50,48 @@ class WelcomeScreen(SyzygyScreen):
         yield Footer()
 
     def on_mount(self) -> None:
+        self._startup_settled = False
         self._render_keys()
         self._check_model_configured()
+        if self.syzygy.startup_seen:
+            self._settle_startup()
+            return
+        self.syzygy.animations.startup(
+            self.query_one("#welcome-startup-mark", Static),
+            self.query_one("#welcome-logo", Logo),
+            self._settle_startup,
+        )
+
+    def _settle_startup(self) -> None:
+        self._startup_settled = True
+        self.syzygy.startup_seen = True
+        self.query_one("#welcome-keys", Static).update(
+            "PRESS ANY KEY TO CONTINUE     [M] MODEL     [Q] QUIT"
+        )
+
+    def on_key(self, event: events.Key) -> None:
+        if event.key == "q":
+            return
+        if not self._startup_settled:
+            self.syzygy.animations.animator.finish_all()
+            if event.key in ("m", "n"):
+                return
+            event.stop()
+            return
+        if event.key in ("m", "n"):
+            return
+        event.stop()
+        self.action_continue()
+
+    def action_continue(self) -> None:
+        profiles = list_profiles(self.syzygy.services.conn)
+        if not profiles:
+            self.app.push_screen("profile_create")
+        elif len(profiles) == 1:
+            self.syzygy.set_profile(profiles[0])
+            self.app.switch_screen("home")
+        else:
+            self.app.switch_screen("profile_select")
 
     def _render_keys(self) -> None:
         """The key line, including the mute toggle when there is sound to

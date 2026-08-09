@@ -24,12 +24,20 @@ from typing import Final
 
 import httpx
 
-from syzygy.domain.interpretation import InterpretationContext, InterpretationResult
-from syzygy.interpretation.prompts import SYSTEM_PROMPT, build_repair_prompt, build_user_prompt
+from syzygy.domain.interpretation import InterpretationContext, InterpretationResult, SummaryResult
+from syzygy.interpretation.prompts import (
+    SUMMARY_SYSTEM_PROMPT,
+    SYSTEM_PROMPT,
+    build_repair_prompt,
+    build_summary_prompt,
+    build_summary_repair_prompt,
+    build_user_prompt,
+)
 from syzygy.interpretation.providers.api_keys import resolve_api_key
 from syzygy.interpretation.providers.structured_output import (
     ResponseValidationError,
     parse_and_validate,
+    parse_summary,
 )
 
 DEFAULT_BASE_URL: Final = "https://api.anthropic.com/v1"
@@ -64,7 +72,7 @@ class AnthropicProvider:
     async def interpret(self, context: InterpretationContext) -> InterpretationResult:
         messages: list[dict[str, str]] = [{"role": "user", "content": build_user_prompt(context)}]
         async with httpx.AsyncClient(timeout=self._timeout, transport=self._transport) as client:
-            raw = await self._complete(client, messages)
+            raw = await self._complete(client, messages, system=SYSTEM_PROMPT)
             try:
                 return parse_and_validate(
                     raw, context=context, provider_id=self.provider_id, model_id=self.model_id
@@ -72,7 +80,7 @@ class AnthropicProvider:
             except ResponseValidationError as exc:
                 messages.append({"role": "assistant", "content": raw})
                 messages.append({"role": "user", "content": build_repair_prompt(raw, str(exc))})
-                raw = await self._complete(client, messages)
+                raw = await self._complete(client, messages, system=SYSTEM_PROMPT)
                 # A second failure propagates: the reading service marks
                 # INTERPRETATION_FAILED and leaves the card/snapshot alone
                 # (DESIGN.md §13.4).
@@ -80,7 +88,29 @@ class AnthropicProvider:
                     raw, context=context, provider_id=self.provider_id, model_id=self.model_id
                 )
 
-    async def _complete(self, client: httpx.AsyncClient, messages: list[dict[str, str]]) -> str:
+    async def summarize(self, context: InterpretationContext) -> SummaryResult:
+        messages = [{"role": "user", "content": build_summary_prompt(context)}]
+        async with httpx.AsyncClient(timeout=self._timeout, transport=self._transport) as client:
+            raw = await self._complete(client, messages, system=SUMMARY_SYSTEM_PROMPT)
+            try:
+                return parse_summary(
+                    raw, context=context, provider_id=self.provider_id, model_id=self.model_id
+                )
+            except ResponseValidationError as exc:
+                messages.extend(
+                    [
+                        {"role": "assistant", "content": raw},
+                        {"role": "user", "content": build_summary_repair_prompt(raw, str(exc))},
+                    ]
+                )
+                raw = await self._complete(client, messages, system=SUMMARY_SYSTEM_PROMPT)
+                return parse_summary(
+                    raw, context=context, provider_id=self.provider_id, model_id=self.model_id
+                )
+
+    async def _complete(
+        self, client: httpx.AsyncClient, messages: list[dict[str, str]], *, system: str
+    ) -> str:
         response = await client.post(
             f"{self._base_url}/messages",
             headers={
@@ -90,7 +120,7 @@ class AnthropicProvider:
             json={
                 "model": self.model_id,
                 "max_tokens": self._max_output_tokens,
-                "system": SYSTEM_PROMPT,
+                "system": system,
                 "messages": messages,
             },
         )

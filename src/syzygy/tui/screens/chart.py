@@ -8,17 +8,21 @@ it.
 
 from __future__ import annotations
 
+from textual import work
 from textual.app import ComposeResult
 from textual.containers import Horizontal, VerticalScroll
 from textual.widgets import Footer, Static
 
 from syzygy.domain.astrology import sign_for_longitude
+from syzygy.domain.interpretation import InterpretationKind, SummaryResult
+from syzygy.storage.summaries import NATAL_SCOPE_DATE, get_summary
+from syzygy.storage.summary_service import natal_summary
 from syzygy.tui.screens.base import SyzygyScreen, TitleBar
 from syzygy.tui.widgets.glyph import format_degrees
 
 
 class ChartScreen(SyzygyScreen):
-    BINDINGS = [("escape", "back", "back")]
+    BINDINGS = [("g", "summary", "summary"), ("escape", "back", "back")]
 
     def compose(self) -> ComposeResult:
         """Placements and aspects as two lists, side by side when there is
@@ -33,6 +37,7 @@ class ChartScreen(SyzygyScreen):
         with Horizontal(id="chart-columns"):
             yield VerticalScroll(Static("", id="chart-body"), id="chart-placements")
             yield VerticalScroll(Static("", id="chart-aspects-body"), id="chart-aspects")
+        yield Static("[G] Generate chart summary", id="chart-summary", classes="summary-panel")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -82,6 +87,48 @@ class ChartScreen(SyzygyScreen):
                 f"{aspect.body_b} ({aspect.orb_degrees:.2f}°)"
             )
         aspects_body.update("\n".join(aspect_lines))
+        cached = get_summary(
+            self.syzygy.services.conn,
+            profile.id,
+            InterpretationKind.NATAL_SUMMARY,
+            NATAL_SCOPE_DATE,
+        )
+        if cached is not None:
+            self._show_summary(cached)
+
+    def action_summary(self) -> None:
+        if self.syzygy.profile is None:
+            self.app.bell()
+            return
+        self.query_one("#chart-summary", Static).update("Interpreting the natal chart…")
+        self._generate_summary()
+
+    @work(exclusive=True, group="chart-summary")
+    async def _generate_summary(self) -> None:
+        profile = self.syzygy.profile
+        if profile is None:
+            return
+        services = self.syzygy.services
+        try:
+            result = await natal_summary(
+                services.conn, profile, services.provider, services.clock.now_utc()
+            )
+        except Exception as exc:
+            self._summary_failed(f"{type(exc).__name__}: {exc}")
+            return
+        self._show_summary(result)
+
+    def _show_summary(self, result: SummaryResult) -> None:
+        if self.is_mounted:
+            self.query_one("#chart-summary", Static).update(
+                f"{result.headline}\n\n{result.body}\n\n[G] Show cached summary"
+            )
+
+    def _summary_failed(self, message: str) -> None:
+        if self.is_mounted:
+            self.query_one("#chart-summary", Static).update(
+                f"Summary unavailable — {message}\n[G] Retry"
+            )
 
     def action_back(self) -> None:
         if len(self.app.screen_stack) > 1:

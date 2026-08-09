@@ -26,6 +26,7 @@ from textual import events
 from textual.message import Message
 from textual.reactive import reactive
 from textual.strip import Strip
+from textual.timer import Timer
 from textual.widget import Widget
 
 from syzygy.sortes.entropy import EntropyCollector
@@ -122,6 +123,7 @@ class WheelWidget(Widget, can_focus=True):
         self.min_impulses = min_impulses
         self._direction = 1
         self._last_tick_ns = time.monotonic_ns()
+        self._frame_timer: Timer | None = None
 
     @property
     def is_ready(self) -> bool:
@@ -135,7 +137,9 @@ class WheelWidget(Widget, can_focus=True):
 
     def on_mount(self) -> None:
         self._last_tick_ns = time.monotonic_ns()
-        self.set_interval(FRAME_INTERVAL, self._tick)
+        animations = getattr(self.app, "animations", None)
+        if animations is None or animations.motion.allows_continuous:
+            self._frame_timer = self.set_interval(FRAME_INTERVAL, self._tick)
         self.focus()
 
     def _tick(self) -> None:
@@ -146,6 +150,8 @@ class WheelWidget(Widget, can_focus=True):
         if self.released:
             # Coast to a halt: the alignment is fixed, the motion is not.
             self.momentum = max(0.0, self.momentum - 4.0 * elapsed)
+            if self.momentum <= 0.0 and self._frame_timer is not None:
+                self._frame_timer.pause()
         else:
             excess = max(0.0, self.momentum - IDLE_SPEED)
             self.momentum = IDLE_SPEED + excess * (MOMENTUM_DECAY**elapsed)

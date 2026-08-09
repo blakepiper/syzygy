@@ -37,6 +37,7 @@ from typing import Any, Final
 #: Top-level keys. One per subsystem that persists a preference.
 PROVIDER_SECTION: Final = "provider"
 AUDIO_SECTION: Final = "audio"
+ANIMATION_SECTION: Final = "animations"
 
 
 def load_document(path: Path) -> dict[str, Any]:

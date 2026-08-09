@@ -13,13 +13,21 @@ prose is never accepted as the internal representation.
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
+from enum import StrEnum
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from syzygy.domain.astrology import NatalPlacement, RankedTransit
 from syzygy.domain.knowledge import KnowledgeChunk
 from syzygy.domain.tarot import TarotCard
 
-CONTEXT_SCHEMA_VERSION = "context-v1"
+CONTEXT_SCHEMA_VERSION = "context-v2"
+
+
+class InterpretationKind(StrEnum):
+    DAILY_READING = "daily_reading"
+    NATAL_SUMMARY = "natal_summary"
+    COSMOS_SUMMARY = "cosmos_summary"
 
 
 class InterpretationContext(BaseModel):
@@ -34,10 +42,11 @@ class InterpretationContext(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     context_schema_version: str = CONTEXT_SCHEMA_VERSION
+    kind: InterpretationKind = InterpretationKind.DAILY_READING
     profile_display_name: str
     consultation_local_date: str
     consultation_local_timestamp: str
-    card: TarotCard
+    card: TarotCard | None = None
     significant_transits: list[RankedTransit]
     relevant_natal_placements: list[NatalPlacement]
     sun_placement: NatalPlacement
@@ -45,6 +54,14 @@ class InterpretationContext(BaseModel):
     ascendant_sign: str
     knowledge_chunks: list[KnowledgeChunk]
     prompt_version: str
+
+    @model_validator(mode="after")
+    def validate_kind(self) -> InterpretationContext:
+        if self.kind is InterpretationKind.DAILY_READING and self.card is None:
+            raise ValueError("a daily reading context requires a fixed card")
+        if self.kind is not InterpretationKind.DAILY_READING and self.card is not None:
+            raise ValueError("summary contexts must not contain a card")
+        return self
 
 
 class EsotericReading(BaseModel):
@@ -76,6 +93,18 @@ class InterpretationResult(BaseModel):
     esoteric: EsotericReading
     conventional: ConventionalReading
     source_chunk_ids: list[str] = Field(default_factory=list)
+    provider_id: str
+    model_id: str
+    prompt_version: str
+
+
+class SummaryResult(BaseModel):
+    """Structured output for a natal or daily-cosmos summary."""
+
+    model_config = ConfigDict(frozen=True)
+
+    headline: str
+    body: str
     provider_id: str
     model_id: str
     prompt_version: str

@@ -13,7 +13,6 @@ from __future__ import annotations
 from textual import work
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
-from textual.timer import Timer
 from textual.widgets import Footer, Static
 
 from syzygy.domain.reading import Reading, ReadingStatus
@@ -23,8 +22,6 @@ from syzygy.tui.screens.base import SyzygyScreen, TitleBar
 from syzygy.tui.widgets.reading_panel import ReadingPanel, ReadingView
 from syzygy.tui.widgets.tarot_card import TarotCardWidget
 from syzygy.tui.widgets.transit_badge import TransitBadge
-
-_WAIT_FRAMES = ("◐", "◓", "◑", "◒")
 
 
 class ReadingScreen(SyzygyScreen):
@@ -40,15 +37,12 @@ class ReadingScreen(SyzygyScreen):
         ("escape", "back", "back"),
     ]
 
-    _wait_timer: Timer | None = None
-
     def __init__(self, reading: Reading, *, interpret: bool = True) -> None:
         super().__init__()
         self.reading = reading
         #: Archive views open a stored reading read-only; only the live
         #: daily flow may start or retry interpretation.
         self._may_interpret = interpret
-        self._wait_frame = 0
         #: True once *this* screen has a provider call in flight. A stored
         #: `INTERPRETING` status is not the same thing (M11.4): it can be
         #: left behind by a process that died mid-call, and the difference
@@ -90,6 +84,15 @@ class ReadingScreen(SyzygyScreen):
                 container.mount(TransitBadge(transit, glyphs=self.syzygy.glyphs))
 
         self._show()
+        card_widget = self.query_one("#reading-card", TarotCardWidget)
+        title = self.query_one("#reading-title", Static)
+        panel = self.query_one("#reading-panel", ReadingPanel)
+        if self._may_interpret and self.reading.interpretation is not None:
+            headline = self.reading.interpretation.alignment_title
+            self.syzygy.animations.reveal_reading(card_widget, title, headline, panel)
+        else:
+            self.syzygy.animations.trigger("enter", card_widget)
+            self.syzygy.animations.trigger("enter", panel)
         if self._may_interpret and self.reading.status not in (
             ReadingStatus.COMPLETE,
             ReadingStatus.INTERPRETING,
@@ -153,25 +156,21 @@ class ReadingScreen(SyzygyScreen):
         keys += "   [Q] QUIT"
         self.query_one("#reading-keys", Static).update(keys)
 
-    def _tick_wait(self) -> None:
-        self._wait_frame = (self._wait_frame + 1) % len(_WAIT_FRAMES)
-        self.query_one("#reading-title", Static).update(
-            f"THE ALIGNMENT IS FIXED. INTERPRETING… {_WAIT_FRAMES[self._wait_frame]}"
-        )
-
     # -- interpretation ---------------------------------------------------
 
     def _begin_interpretation(self) -> None:
         self._interpreting = True
-        self._wait_timer = self.set_interval(0.2, self._tick_wait)
         self._show()  # the spinner is now telling the truth
+        self.syzygy.animations.trigger(
+            "processing-start", self.query_one("#reading-panel", ReadingPanel)
+        )
         self._interpret()
 
     def _end_interpretation(self) -> None:
         self._interpreting = False
-        if self._wait_timer is not None:
-            self._wait_timer.stop()
-            self._wait_timer = None
+        self.syzygy.animations.trigger(
+            "processing-stop", self.query_one("#reading-panel", ReadingPanel)
+        )
 
     @work(exclusive=True, group="interpret")
     async def _interpret(self) -> None:
@@ -196,6 +195,12 @@ class ReadingScreen(SyzygyScreen):
         self.reading = reading
         self._end_interpretation()
         self._show()
+        event = "success" if reading.status is ReadingStatus.COMPLETE else "error"
+        self.syzygy.animations.trigger(event, self.query_one("#reading-panel", ReadingPanel))
+        if reading.interpretation is not None:
+            self.syzygy.animations.decode_heading(
+                self.query_one("#reading-title", Static), reading.interpretation.alignment_title
+            )
 
     def action_retry(self) -> None:
         # A correct no-op (nothing to retry) still needs a visible response

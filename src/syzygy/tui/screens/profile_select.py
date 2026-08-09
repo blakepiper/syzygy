@@ -38,6 +38,7 @@ class ProfileSelectScreen(SyzygyScreen):
 
     #: The profile the confirm panel is currently asking about.
     _pending_delete: Profile | None = None
+    _selecting = False
 
     def compose(self) -> ComposeResult:
         yield TitleBar("PROFILES")
@@ -72,9 +73,14 @@ class ProfileSelectScreen(SyzygyScreen):
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:
         item = event.item
-        if isinstance(item, ProfileListItem):
+        if isinstance(item, ProfileListItem) and not self._selecting:
+            self._selecting = True
             self.syzygy.set_profile(item.profile)
-            self.app.switch_screen("home")
+
+            def open_home() -> None:
+                self.app.switch_screen("home")
+
+            self.syzygy.animations.self_selected(item, open_home)
 
     def action_create_profile(self) -> None:
         self.app.push_screen("profile_create")

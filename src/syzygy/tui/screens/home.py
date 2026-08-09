@@ -44,6 +44,7 @@ class HomeScreen(SyzygyScreen):
     def __init__(self) -> None:
         super().__init__()
         self._reading: Reading | None = None
+        self._transitioning = False
 
     def compose(self) -> ComposeResult:
         """Three parallel regions under the alignment axis, one per point
@@ -158,6 +159,8 @@ class HomeScreen(SyzygyScreen):
         # may now exist, which changes the primary action. Coming back
         # from model setup (M10.4), the active provider may have changed.
         super().on_screen_resume()
+        self._transitioning = False
+        self.query_one("#primary-action", Button).disabled = False
         self._refresh_reading_state()
         self._load_model_status()
 
@@ -191,7 +194,17 @@ class HomeScreen(SyzygyScreen):
             f"{glyphs.body('Ascendant')} Asc    {glyphs.sign(ascendant_sign)} "
             f"{ascendant_sign:<12}{format_degrees(natal.ascendant_longitude)}"
         )
-        self.query_one("#home-alignment", AlignmentWidget).self_resolved = True
+        alignment = self.query_one("#home-alignment", AlignmentWidget)
+        alignment.self_resolved = False
+        anchors = [
+            self.query_one("#home-name", Static),
+            self.query_one("#anchor-sun", Glyph),
+            self.query_one("#anchor-moon", Glyph),
+            self.query_one("#anchor-asc", Glyph),
+        ]
+        for animated_target in anchors:
+            animated_target.styles.opacity = 0.0
+        self.syzygy.animations.resolve_self(anchors, alignment)
 
     # -- COSMOS -----------------------------------------------------------
 
@@ -222,8 +235,16 @@ class HomeScreen(SyzygyScreen):
         self.query_one("#home-sky", Static).update("Current sky resolved.")
         container = self.query_one("#home-transits", Vertical)
         container.remove_children()
+        badges: list[TransitBadge] = []
         for transit in ranked[:3]:
-            container.mount(TransitBadge(transit, glyphs=self.syzygy.glyphs))
+            badge = TransitBadge(transit, glyphs=self.syzygy.glyphs)
+            badge.styles.opacity = 0.0
+            container.mount(badge)
+            badges.append(badge)
+        self.syzygy.animations.enter_staggered(badges)
+        self.syzygy.animations.trigger(
+            "success", self.query_one("#home-alignment", AlignmentWidget)
+        )
 
     def _sky_failed(self, message: str) -> None:
         if not self.is_mounted:
@@ -231,6 +252,7 @@ class HomeScreen(SyzygyScreen):
         # Do not continue to a draw if Self/Cosmos cannot be calculated.
         self.query_one("#home-sky", Static).update(f"Sky calculation failed - {message}")
         self.query_one("#primary-action", Button).disabled = True
+        self.syzygy.animations.trigger("error", self.query_one("#home-sky", Static))
 
     # -- model provider status (M10.4) -------------------------------------
 
@@ -289,16 +311,24 @@ class HomeScreen(SyzygyScreen):
             self._do_reroll()
 
     def action_primary(self) -> None:
-        if self.syzygy.profile is None:
+        if self.syzygy.profile is None or self._transitioning:
             return
         if self._reading is not None and self._reading.card_draw is not None:
             from syzygy.tui.screens.reading import ReadingScreen
 
             self.app.push_screen(ReadingScreen(self._reading))
             return
-        from syzygy.tui.screens.wheel import WheelScreen
+        self._transitioning = True
+        button = self.query_one("#primary-action", Button)
+        button.disabled = True
 
-        self.app.push_screen(WheelScreen())
+        def open_wheel() -> None:
+            from syzygy.tui.screens.wheel import WheelScreen
+
+            self._transitioning = False
+            self.app.push_screen(WheelScreen())
+
+        self.syzygy.animations.turn_wheel(button, open_wheel)
 
     # -- navigation -------------------------------------------------------
 

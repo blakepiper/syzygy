@@ -24,10 +24,6 @@ from syzygy.tui.widgets.alignment import AlignmentWidget
 from syzygy.tui.widgets.tarot_card import TarotCardWidget
 from syzygy.tui.widgets.transit_badge import TransitBadge
 
-#: Seconds between stages. Short enough to stay a reveal rather than a
-#: loading screen; any key skips to the reading.
-STAGE_INTERVAL = 0.45
-
 
 class RevealScreen(SyzygyScreen):
     BINDINGS = [
@@ -46,6 +42,7 @@ class RevealScreen(SyzygyScreen):
         # Directly under the title, the same place `HomeScreen` puts it -
         # the axis is one motif across the app, not per-screen furniture.
         yield AlignmentWidget(id="reveal-alignment")
+        yield Static("", id="reveal-particles", classes="particles")
         # The slack belongs to `#reveal-stage`, not to the card: a `1fr`
         # card with a `max-height` had Textual reserve the full remainder
         # for it and then place the caption and the key hint past the
@@ -69,42 +66,47 @@ class RevealScreen(SyzygyScreen):
         # Quit is discoverable from the first frame - the rest of the hint
         # (any key skips the staged reveal) fills in once staging finishes.
         self.query_one("#reveal-hint", Static).update("[Q] QUIT")
-        self.set_timer(STAGE_INTERVAL, self._stage_card)
+        self.syzygy.animations.draw_complete(
+            self.query_one("#reveal-particles", Static), self._start_stages
+        )
+
+    def _start_stages(self) -> None:
+        if self.is_mounted and not self._advanced:
+            self.syzygy.animations.ritual_reveal(
+                self._stage_card, self._stage_transits, self._stage_done, self.action_read
+            )
 
     def _stage_card(self) -> None:
         if self.reading.card_draw is None:
             return
         card_widget = self.query_one("#reveal-card", TarotCardWidget)
         card_widget.set_card(get_card(self.reading.card_draw.card_id))
-        card_widget.styles.opacity = 0.0
-        card_widget.styles.animate("opacity", value=1.0, duration=0.35)
+        self.syzygy.animations.trigger("enter", card_widget)
         self.query_one("#reveal-alignment", AlignmentWidget).chance_resolved = True
-        self.set_timer(STAGE_INTERVAL, self._stage_transits)
 
     def _stage_transits(self) -> None:
         context = self.reading.interpretation_context
         transits = list(context.significant_transits) if context is not None else []
         container = self.query_one("#reveal-transits", Horizontal)
-        for index, transit in enumerate(transits[:4]):
-            self.set_timer(
-                index * 0.12,
-                lambda transit=transit: container.mount(
-                    TransitBadge(transit, glyphs=self.syzygy.glyphs)
-                ),
-            )
+        badges = [
+            TransitBadge(transit, glyphs=self.syzygy.glyphs) for transit in transits[:4]
+        ]
+        for badge in badges:
+            badge.styles.opacity = 0.0
+            container.mount(badge)
+        self.syzygy.animations.enter_staggered(badges)
         self.query_one("#reveal-caption", Static).update(
             "SELF, COSMOS, and CHANCE are aligned. The result is fixed."
         )
-        self.set_timer(STAGE_INTERVAL, self._stage_done)
 
     def _stage_done(self) -> None:
         self.query_one("#reveal-hint", Static).update("[ENTER] read the alignment   [Q] QUIT")
-        self.set_timer(STAGE_INTERVAL * 2, self.action_read)
 
     def action_read(self) -> None:
         if self._advanced:
             return
         self._advanced = True
+        self.syzygy.animations.animator.cancel("ritual-reveal")
         from syzygy.tui.screens.reading import ReadingScreen
 
         self.app.switch_screen(ReadingScreen(self.reading))

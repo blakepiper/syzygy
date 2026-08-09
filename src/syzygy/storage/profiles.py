@@ -119,6 +119,7 @@ def delete_profile(conn: sqlite3.Connection, profile_id: str) -> int:
         deleted_readings = conn.execute(
             "DELETE FROM readings WHERE profile_id = ?", (profile_id,)
         ).rowcount
+        conn.execute("DELETE FROM interpretive_summaries WHERE profile_id = ?", (profile_id,))
         conn.execute("DELETE FROM profiles WHERE id = ?", (profile_id,))
     except Exception:
         conn.execute("ROLLBACK")

@@ -14,16 +14,21 @@ from typing import Final
 
 import httpx
 
-from syzygy.domain.interpretation import InterpretationContext, InterpretationResult
+from syzygy.domain.interpretation import InterpretationContext, InterpretationResult, SummaryResult
 from syzygy.interpretation.prompts import (
     RESPONSE_JSON_SCHEMA,
+    SUMMARY_RESPONSE_JSON_SCHEMA,
+    SUMMARY_SYSTEM_PROMPT,
     SYSTEM_PROMPT,
     build_repair_prompt,
+    build_summary_prompt,
+    build_summary_repair_prompt,
     build_user_prompt,
 )
 from syzygy.interpretation.providers.structured_output import (
     ResponseValidationError,
     parse_and_validate,
+    parse_summary,
 )
 
 #: Localhost only, per DESIGN.md section 28 - a user must deliberately pass
@@ -74,7 +79,44 @@ class LlamaCppProvider:
                     raw, context=context, provider_id=self.provider_id, model_id=self.model_id
                 )
 
-    async def _complete(self, client: httpx.AsyncClient, messages: list[dict[str, str]]) -> str:
+    async def summarize(self, context: InterpretationContext) -> SummaryResult:
+        messages = [
+            {"role": "system", "content": SUMMARY_SYSTEM_PROMPT},
+            {"role": "user", "content": build_summary_prompt(context)},
+        ]
+        async with httpx.AsyncClient(timeout=self._timeout, transport=self._transport) as client:
+            raw = await self._complete(
+                client, messages, schema=SUMMARY_RESPONSE_JSON_SCHEMA, schema_name="SyzygySummary"
+            )
+            try:
+                return parse_summary(
+                    raw, context=context, provider_id=self.provider_id, model_id=self.model_id
+                )
+            except ResponseValidationError as exc:
+                messages.extend(
+                    [
+                        {"role": "assistant", "content": raw},
+                        {"role": "user", "content": build_summary_repair_prompt(raw, str(exc))},
+                    ]
+                )
+                raw = await self._complete(
+                    client,
+                    messages,
+                    schema=SUMMARY_RESPONSE_JSON_SCHEMA,
+                    schema_name="SyzygySummary",
+                )
+                return parse_summary(
+                    raw, context=context, provider_id=self.provider_id, model_id=self.model_id
+                )
+
+    async def _complete(
+        self,
+        client: httpx.AsyncClient,
+        messages: list[dict[str, str]],
+        *,
+        schema: dict[str, object] = RESPONSE_JSON_SCHEMA,
+        schema_name: str = "SyzygyDailyReading",
+    ) -> str:
         response = await client.post(
             f"{self._base_url}/chat/completions",
             json={
@@ -83,8 +125,8 @@ class LlamaCppProvider:
                 "response_format": {
                     "type": "json_schema",
                     "json_schema": {
-                        "name": "SyzygyDailyReading",
-                        "schema": RESPONSE_JSON_SCHEMA,
+                        "name": schema_name,
+                        "schema": schema,
                         "strict": True,
                     },
                 },

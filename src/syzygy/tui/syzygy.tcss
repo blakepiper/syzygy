@@ -34,6 +34,44 @@ Screen {
     display: none;
 }
 
+.summary-panel {
+    height: auto;
+    max-height: 12;
+    padding: 1 2;
+    border-top: solid $syz-dim;
+    color: $syz-bone;
+}
+
+.startup-mark {
+    height: 1;
+    width: 100%;
+    text-align: center;
+    color: $syz-bone;
+    text-style: bold;
+}
+
+.particles {
+    height: 1;
+    width: 100%;
+    text-align: center;
+    color: $syz-ember;
+    text-style: bold;
+}
+
+.-anim-flash {
+    background: $syz-dim;
+}
+
+.-anim-success {
+    color: $syz-bone;
+    text-style: bold;
+}
+
+.-anim-error {
+    color: $syz-ember;
+    text-style: bold;
+}
+
 /* Layout tiers (M12.5d).
  *
  * `syzygy.tui.screens.base` owns the thresholds - it is the one place

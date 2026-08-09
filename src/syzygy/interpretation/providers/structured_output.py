@@ -19,7 +19,7 @@ import json
 
 from pydantic import ValidationError
 
-from syzygy.domain.interpretation import InterpretationContext, InterpretationResult
+from syzygy.domain.interpretation import InterpretationContext, InterpretationResult, SummaryResult
 
 #: Raised for both "not JSON" and "JSON but wrong shape" so callers can
 #: catch one exception type when deciding whether to attempt the single
@@ -69,3 +69,24 @@ def parse_and_validate(
         "prompt_version": context.prompt_version,
     }
     return InterpretationResult.model_validate(payload)
+
+
+def parse_summary(
+    raw_text: str,
+    *,
+    context: InterpretationContext,
+    provider_id: str,
+    model_id: str,
+) -> SummaryResult:
+    """Parse and provenance-stamp a natal/cosmos summary response."""
+    payload = json.loads(_strip_markdown_fence(raw_text))
+    if not isinstance(payload, dict):
+        raise json.JSONDecodeError("expected a JSON object", raw_text, 0)
+    return SummaryResult.model_validate(
+        {
+            **payload,
+            "provider_id": provider_id,
+            "model_id": model_id,
+            "prompt_version": context.prompt_version,
+        }
+    )

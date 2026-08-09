@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from textual.app import App
+from textual.timer import Timer
 
 from syzygy.astrology.base import AstrologyEngine
 from syzygy.audio import SilentTheme, ThemePlayer
@@ -28,6 +29,14 @@ from syzygy.domain.reading import Reading
 from syzygy.interpretation.base import InterpretationProvider
 from syzygy.storage import readings as readings_store
 from syzygy.storage.profiles import list_profiles
+from syzygy.tui.animation import Animations
+from syzygy.tui.animation.animator import FRAME_INTERVAL, Animator
+from syzygy.tui.animation.motion import (
+    MotionSettings,
+    next_level,
+    resolve_motion,
+    save_motion_level,
+)
 from syzygy.tui.screens.archive import ArchiveScreen
 from syzygy.tui.screens.chart import ChartScreen
 from syzygy.tui.screens.cosmos import CosmosScreen
@@ -51,6 +60,7 @@ class SyzygyServices:
     clock: Clock
     astrology: AstrologyEngine
     provider: InterpretationProvider
+    settings_path: Path | None = None
 
 
 def default_services(database_path: Path | str | None = None) -> SyzygyServices:
@@ -95,6 +105,7 @@ def default_services(database_path: Path | str | None = None) -> SyzygyServices:
         clock=SystemClock(),
         astrology=KerykeionAstrologyEngine(),
         provider=provider,
+        settings_path=settings_path,
     )
 
 
@@ -111,6 +122,7 @@ class SyzygyApp(App[None]):
     BINDINGS = [
         ("q", "quit", "quit"),
         ("s", "toggle_sound", "sound"),
+        ("f2", "cycle_motion", "motion"),
     ]
 
     SCREENS = {
@@ -136,11 +148,31 @@ class SyzygyApp(App[None]):
         self.services = services
         self.glyphs = glyphs or default_glyphs()
         self.profile: Profile | None = None
+        self.startup_seen = False
         #: Silent unless a caller supplies a real one. Tests and CI get
         #: silence by construction rather than by mocking a device.
         # Not `self.theme`: Textual's `App.theme` is its own colour-theme
         # name, and shadowing it breaks the app's styling.
         self.theme_player = theme_player or SilentTheme("no theme player supplied")
+        self._animation_timer: Timer | None = None
+        animator = Animator(
+            resolve_motion(services.settings_path),
+            on_active=self._start_animation_pump,
+            on_idle=self._stop_animation_pump,
+        )
+        self.animations = Animations(animator)
+
+    def _start_animation_pump(self) -> None:
+        if self._animation_timer is None:
+            self._animation_timer = self.set_interval(
+                FRAME_INTERVAL, self.animations.animator.pump, pause=False
+            )
+        else:
+            self._animation_timer.resume()
+
+    def _stop_animation_pump(self) -> None:
+        if self._animation_timer is not None:
+            self._animation_timer.pause()
 
     def on_mount(self) -> None:
         self.theme_player.start()
@@ -187,6 +219,16 @@ class SyzygyApp(App[None]):
             return
         muted = self.theme_player.toggle_mute()
         self.notify("Theme muted." if muted else "Theme unmuted.", timeout=2)
+
+    def action_cycle_motion(self) -> None:
+        """Cycle full/reduced/off and persist only the animation section."""
+        current = self.animations.motion
+        level = next_level(current.level)
+        self.animations.animator.finish_all()
+        self.animations.animator.motion = MotionSettings(level=level, speed=current.speed)
+        if self.services.settings_path is not None:
+            save_motion_level(self.services.settings_path, level)
+        self.notify(f"Animations: {level.value}.", timeout=2)
 
     def on_unmount(self) -> None:
         """Release the audio device however the app is ending - `[Q]`, an

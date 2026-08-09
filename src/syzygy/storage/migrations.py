@@ -153,6 +153,24 @@ _MIGRATIONS: list[tuple[int, str, str]] = [
         ALTER TABLE knowledge_chunks ADD COLUMN word_count INTEGER;
         """,
     ),
+    (
+        5,
+        "interpretive summaries: stable natal cache and per-local-day cosmos cache (M13.2)",
+        """
+        CREATE TABLE interpretive_summaries (
+            profile_id       TEXT NOT NULL REFERENCES profiles(id),
+            kind             TEXT NOT NULL CHECK (kind IN ('natal_summary', 'cosmos_summary')),
+            scope_date       TEXT NOT NULL,
+            context_json     TEXT NOT NULL,
+            result_json      TEXT NOT NULL,
+            provider_id      TEXT NOT NULL,
+            model_id         TEXT NOT NULL,
+            prompt_version   TEXT NOT NULL,
+            created_at       TEXT NOT NULL,
+            PRIMARY KEY (profile_id, kind, scope_date)
+        );
+        """,
+    ),
 ]
 
 
