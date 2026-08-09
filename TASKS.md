@@ -323,11 +323,11 @@ of a CLI incantation buried in the docs.
       `syzygy doctor` distinguishes "citations only (normal)" from "ingestion
       present but broken". A citation-only install is not a failing
       environment.
-- [ ] M18.1e Prove retrieval never comes back empty. Add a test that
+- [x] M18.1e Prove retrieval never comes back empty. Add a test that
       `retrieve_for_card` returns at least one Tier 0 citation for each of the
       78 card ids against the shipped artifact, so the "where this card is
       discussed" list is always populated even on a bare install.
-- [ ] M18.1f With text ingested, confirm the passages actually flow end to end:
+- [x] M18.1f With text ingested, confirm the passages actually flow end to end:
       a test asserting `MAX_KNOWLEDGE_CHUNKS_PER_SOURCE` per-source capping,
       Tier 0 ordering first, that the prompt's `SOURCE PASSAGES` section is
       populated, and that the `[I]` view's two lists agree with what the prompt
