@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from textual.app import ComposeResult
-from textual.containers import Center, Vertical
+from textual.containers import Center, Horizontal, Vertical
 from textual.widgets import Button, Footer, Input, Static
 
-from syzygy.domain.oracle import MAX_QUESTION_LENGTH
+from syzygy.domain.iching_consultation import IChingConsultation
+from syzygy.domain.oracle import MAX_QUESTION_LENGTH, OracleConsultation
 from syzygy.sortes.entropy import EntropyCollector
 from syzygy.storage.oracle_service import ask_question
 from syzygy.tui.screens.base import SyzygyScreen, TitleBar
@@ -25,11 +26,11 @@ class OracleAskScreen(SyzygyScreen):
     def compose(self) -> ComposeResult:
         yield TitleBar("THE ORACLE")
         with Vertical(id="oracle-ask-body"):
-            yield Static("Ask one question in your own words.", classes="lede")
+            yield Static("Ask one question. Choose one oracle.", classes="lede")
             yield Static(
                 "Your question is stored locally and sent only to your selected interpreter. "
-                "You will turn the wheel once; that card remains fixed even if "
-                "interpretation fails.",
+                "You will turn the wheel once; the card or six-line cast remains fixed even "
+                "if interpretation fails.",
                 classes="muted",
             )
             yield Input(
@@ -39,8 +40,9 @@ class OracleAskScreen(SyzygyScreen):
             )
             yield Static(f"0 / {MAX_QUESTION_LENGTH}", id="oracle-budget", classes="muted")
             yield Static("", id="oracle-error", classes="error")
-            with Center():
-                yield Button("ASK & TURN THE WHEEL", id="oracle-submit", variant="primary")
+            with Center(), Horizontal(id="oracle-mode-buttons"):
+                yield Button("THOTH CARD", id="oracle-submit", variant="primary")
+                yield Button("I CHING", id="iching-submit")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -60,19 +62,32 @@ class OracleAskScreen(SyzygyScreen):
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "oracle-submit":
-            self._submit()
+            self._submit("tarot")
+        elif event.button.id == "iching-submit":
+            self._submit("iching")
 
-    def _submit(self) -> None:
+    def _submit(self, mode: str = "tarot") -> None:
         if self._submitting or self.syzygy.profile is None:
             return
         question = self.query_one("#oracle-question", Input).value
+        consultation: IChingConsultation | OracleConsultation
         try:
-            consultation = ask_question(
-                self.syzygy.services.conn,
-                self.syzygy.profile,
-                self.syzygy.services.clock,
-                question,
-            )
+            if mode == "iching":
+                from syzygy.storage.iching_service import ask_question as ask_iching
+
+                consultation = ask_iching(
+                    self.syzygy.services.conn,
+                    self.syzygy.profile,
+                    self.syzygy.services.clock,
+                    question,
+                )
+            else:
+                consultation = ask_question(
+                    self.syzygy.services.conn,
+                    self.syzygy.profile,
+                    self.syzygy.services.clock,
+                    question,
+                )
         except ValueError as exc:
             self.query_one("#oracle-error", Static).update(str(exc))
             self.app.bell()

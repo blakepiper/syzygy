@@ -8,17 +8,17 @@ A local-first terminal application for a daily divination ritual combining:
 
 - **Self** — your saved natal chart
 - **Cosmos** — deterministic current astrological transits against that chart
-- **Chance** — one truly random upright card from the 78-card Crowley-Harris Thoth Tarot
+- **Chance** — one truly random upright Thoth card, or a six-line I Ching cast in the Oracle
 - **Interpretation** — an LLM synthesizing those fixed inputs, grounded in Aleister Crowley's *The Book of Thoth*
 
-The LLM interprets; it never calculates astrology, selects the card, or rerolls it.
+The LLM interprets; it never calculates astrology, selects a card or hexagram, or rerolls it.
 
 ## Status
 
 Pre-release, under active development, but the full daily ritual works
 end to end: create a profile, turn the Wheel, draw a card, and read an
 interpretation. The question-led Oracle works alongside it: ask in your
-own words, turn the Wheel for a separate fixed card, and receive a direct
+own words, choose a separate fixed Thoth card or I Ching cast, turn the Wheel, and receive a direct
 response in the same esoteric and conventional registers. Interpretation
 can come from a model Syzygy sets up and
 runs on your own computer (guided, no terminal required — see
@@ -79,13 +79,21 @@ today’s reading; `[C]` opens the natal chart, `[A]` the archive.
 
 ### The Oracle
 
-Press `[O]` from home to ask a question. The Oracle is separate from the
+Press `[O]` from home to ask a question and choose **Thoth Card** or **I
+Ching**. The Oracle is separate from the
 canonical daily reading: it neither consumes nor changes today's card, and it
 is available whether or not the daily rite is complete. Consultations are
 unlimited, but each is its own act — one question, one turn of the Wheel, and
-one independently drawn upright Thoth card. Retrying a failed interpretation
-always reuses that committed card; asking again creates a visibly new
+exactly one chance object. Retrying a failed interpretation always reuses that
+committed card or cast; asking again creates a visibly new
 consultation rather than a reroll or second opinion on the old one.
+
+The I Ching uses the three-coin method, casting six lines from bottom to top.
+Changing lines are read and produce a resulting hexagram; that result is the
+direction of the same cast, not a second oracle. The exact probabilities and
+ritual choice are recorded in [ADR 0007](docs/adr/0007-i-ching-as-an-alternative-oracle.md).
+All 64 judgments, Images, and line texts come from James Legge's 1882
+translation, with page citations stored on every canonical entry.
 
 The original question is stored locally with the consultation in Syzygy's
 SQLite database. It is sent only to the configured interpretation provider;
@@ -97,6 +105,7 @@ The same rite is available from the command line:
 
 ```bash
 syzygy oracle ask "What am I not seeing clearly?"
+syzygy oracle ask "What is changing?" --mode iching
 syzygy oracle list
 syzygy oracle show <consultation-id>
 ```

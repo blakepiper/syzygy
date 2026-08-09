@@ -2571,3 +2571,32 @@ M19 implements the “separate free-consultation mode” anticipated in section
 
 ADR 0006 records the decisions and the reason migration 7, rather than the
 already-used migration 6, owns the new table.
+
+---
+
+# 37. Successor Notes — M20 I Ching
+
+M20 makes the I Ching an alternative mode of the question-led Oracle, not an
+extra object added to a Thoth consultation:
+
+- The question screen chooses one oracle before the Wheel. A consultation has
+  one upright Thoth card or one six-line I Ching cast, never both.
+- The cast uses three equiprobable coins per line, bottom upward. Totals 6, 7,
+  8, and 9 therefore occur with probabilities 1/8, 3/8, 3/8, and 1/8. The same
+  `EntropyCollector` and rejection sampler used by Sortes supply chance.
+- Old yin and old yang are changing lines. Their changes form a resulting
+  hexagram, read as the direction of the original cast rather than a second
+  independent oracle. With no changing lines, the primary hexagram stands.
+- All 64 canonical entries in `resources/iching_legge.yaml` carry the King Wen
+  number and pattern, name, trigrams, Judgment, Image, six line texts, and
+  entry-level page citations to James Legge's 1882 translation. The model is
+  never asked to recall or select any of those facts.
+- `iching_consultations` and its own state machine commit the cast before
+  astrology context or provider work. Failure, interruption, retry, archive
+  reopening, and profile deletion preserve the same boundaries as M19.
+- I Ching uses `iching-v1`, its own injection-resistant prompt contract. SELF
+  and ranked COSMOS remain supporting context; the fixed cast and quoted
+  question dominate.
+
+ADR 0007 records the mechanical and compositional decisions. Migration 9 owns
+the parallel storage table.

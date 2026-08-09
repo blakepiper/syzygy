@@ -410,12 +410,23 @@ def _oracle_profile(conn: sqlite3.Connection, profile_id: str | None):
 
 
 def _print_oracle(consultation) -> None:
+    from syzygy.iching.book import get_hexagram
     from syzygy.sortes.deck import get_card
 
     print(f"Oracle {consultation.id}")
     print(f"Question: {consultation.question.text}")
-    if consultation.card_draw is not None:
-        print(f"Card: {get_card(consultation.card_draw.card_id).full_name} (upright)")
+    card_draw = getattr(consultation, "card_draw", None)
+    if card_draw is not None:
+        print(f"Card: {get_card(card_draw.card_id).full_name} (upright)")
+    cast = getattr(consultation, "cast", None)
+    if cast is not None:
+        primary = get_hexagram(cast.primary_hexagram_number)
+        print(f"Cast: {primary.unicode} {primary.number}. {primary.name}")
+        print(f"Lines (bottom first): {' '.join(str(int(line)) for line in cast.lines)}")
+        print(f"Changing lines: {', '.join(map(str, cast.changing_lines)) or 'none'}")
+        if cast.changing_lines:
+            resulting = get_hexagram(cast.resulting_hexagram_number)
+            print(f"Resulting: {resulting.unicode} {resulting.number}. {resulting.name}")
     print(f"Status: {consultation.status.value}")
     if consultation.result is None:
         print("The alignment is fixed; interpretation is unavailable.")
@@ -431,7 +442,10 @@ def _print_oracle(consultation) -> None:
 def _cmd_oracle_ask(args: argparse.Namespace) -> int:
     import asyncio
 
+    from syzygy.domain.iching_consultation import IChingConsultation
+    from syzygy.domain.oracle import OracleConsultation
     from syzygy.sortes.entropy import EntropyCollector
+    from syzygy.storage.iching_service import consult_iching
     from syzygy.storage.oracle_service import consult_oracle
     from syzygy.tui.app import default_services, stop_managed_model
 
@@ -454,17 +468,31 @@ def _cmd_oracle_ask(args: argparse.Namespace) -> int:
                 collector.record("impulse")
             input("Press Enter to release the wheel: ")
             collector.record("release")
-        consultation = asyncio.run(
-            consult_oracle(
-                services.conn,
-                profile,
-                services.clock,
-                services.astrology,
-                collector,
-                services.provider,
-                args.question,
+        consultation: IChingConsultation | OracleConsultation
+        if args.mode == "iching":
+            consultation = asyncio.run(
+                consult_iching(
+                    services.conn,
+                    profile,
+                    services.clock,
+                    services.astrology,
+                    collector,
+                    services.provider,
+                    args.question,
+                )
             )
-        )
+        else:
+            consultation = asyncio.run(
+                consult_oracle(
+                    services.conn,
+                    profile,
+                    services.clock,
+                    services.astrology,
+                    collector,
+                    services.provider,
+                    args.question,
+                )
+            )
         _print_oracle(consultation)
         return 0 if consultation.result is not None else 1
     finally:
@@ -473,7 +501,11 @@ def _cmd_oracle_ask(args: argparse.Namespace) -> int:
 
 
 def _cmd_oracle_list(args: argparse.Namespace) -> int:
+    from syzygy.domain.iching_consultation import IChingConsultation
+    from syzygy.domain.oracle import OracleConsultation
+    from syzygy.iching.book import get_hexagram
     from syzygy.sortes.deck import get_card
+    from syzygy.storage.iching import list_consultations as list_iching_consultations
     from syzygy.storage.oracle import list_consultations
 
     conn = _open_profile_db()
@@ -484,30 +516,51 @@ def _cmd_oracle_list(args: argparse.Namespace) -> int:
             print(str(exc), file=sys.stderr)
             return 1
         consultations = list_consultations(conn, profile.id)
+        iching_consultations = list_iching_consultations(conn, profile.id)
     finally:
         conn.close()
-    if not consultations:
+    if not consultations and not iching_consultations:
         print("No Oracle consultations yet.")
         return 0
-    for consultation in consultations:
-        card = (
-            get_card(consultation.card_draw.card_id).full_name
-            if consultation.card_draw is not None
-            else "—"
-        )
+    entries: list[
+        tuple[datetime, str, IChingConsultation | OracleConsultation]
+    ] = [
+        (consultation.question.asked_at_utc, "THOTH", consultation)
+        for consultation in consultations
+    ]
+    entries.extend(
+        (consultation.question.asked_at_utc, "I CHING", consultation)
+        for consultation in iching_consultations
+    )
+    for _asked_at, mode, consultation in sorted(entries, reverse=True, key=lambda item: item[0]):
+        chance = "—"
+        card_draw = getattr(consultation, "card_draw", None)
+        cast = getattr(consultation, "cast", None)
+        if card_draw is not None:
+            chance = get_card(card_draw.card_id).full_name
+        elif cast is not None:
+            hexagram = get_hexagram(cast.primary_hexagram_number)
+            chance = f"{hexagram.unicode} {hexagram.name}"
         print(
             f"{consultation.id}  {consultation.question.consultation_local_date}  "
-            f"{consultation.status.value:22s}  {card}  {consultation.question.normalized_text}"
+            f"{mode:7s}  {consultation.status.value:22s}  {chance}  "
+            f"{consultation.question.normalized_text}"
         )
     return 0
 
 
 def _cmd_oracle_show(args: argparse.Namespace) -> int:
+    from syzygy.domain.iching_consultation import IChingConsultation
+    from syzygy.domain.oracle import OracleConsultation
+    from syzygy.storage.iching import get_by_id as get_iching_by_id
     from syzygy.storage.oracle import get_by_id
 
     conn = _open_profile_db()
     try:
+        consultation: OracleConsultation | IChingConsultation | None
         consultation = get_by_id(conn, args.consultation_id)
+        if consultation is None:
+            consultation = get_iching_by_id(conn, args.consultation_id)
     finally:
         conn.close()
     if consultation is None:
@@ -1420,6 +1473,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     oracle_ask_parser.add_argument("question")
     oracle_ask_parser.add_argument("--profile-id", default=None)
+    oracle_ask_parser.add_argument(
+        "--mode",
+        choices=("thoth", "iching"),
+        default="thoth",
+        help="chance oracle to consult",
+    )
     oracle_ask_parser.set_defaults(func=_cmd_oracle_ask)
     oracle_list_parser = oracle_subparsers.add_parser("list", help="list Oracle consultations")
     oracle_list_parser.add_argument("--profile-id", default=None)

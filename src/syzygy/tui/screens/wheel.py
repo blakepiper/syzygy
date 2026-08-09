@@ -15,6 +15,7 @@ from textual.app import ComposeResult
 from textual.containers import Center, Vertical
 from textual.widgets import Footer, Static
 
+from syzygy.domain.iching_consultation import IChingConsultation
 from syzygy.domain.oracle import OracleConsultation
 from syzygy.domain.reading import Reading
 from syzygy.sortes.entropy import EntropyCollector
@@ -39,7 +40,8 @@ class WheelScreen(SyzygyScreen):
 
     def __init__(
         self,
-        consultation: OracleConsultation | None = None,
+        consultation: OracleConsultation | IChingConsultation | None = None,
+        iching_consultation: IChingConsultation | None = None,
         *,
         collector: EntropyCollector | None = None,
     ) -> None:
@@ -47,7 +49,11 @@ class WheelScreen(SyzygyScreen):
         # One collector per draw attempt. Default `os_random` - production
         # code must never inject a fixed source here (AGENTS.md).
         self._collector = collector or EntropyCollector()
+        if consultation is not None and isinstance(consultation, IChingConsultation):
+            iching_consultation = consultation
+            consultation = None
         self._oracle = consultation
+        self._iching = iching_consultation
         self._releasing = False
 
     def compose(self) -> ComposeResult:
@@ -123,8 +129,19 @@ class WheelScreen(SyzygyScreen):
             return
         services = self.syzygy.services
         try:
-            reading: Reading | OracleConsultation
-            if self._oracle is not None:
+            reading: Reading | OracleConsultation | IChingConsultation
+            if self._iching is not None:
+                from syzygy.storage.iching_service import cast_consultation
+
+                reading = cast_consultation(
+                    services.conn,
+                    self._iching,
+                    profile,
+                    services.clock,
+                    services.astrology,
+                    self._collector,
+                )
+            elif self._oracle is not None:
                 reading = draw_oracle_consultation(
                     services.conn,
                     self._oracle,
@@ -146,7 +163,12 @@ class WheelScreen(SyzygyScreen):
             return
         self.app.call_from_thread(self._drawn, reading)
 
-    def _drawn(self, reading: Reading | OracleConsultation) -> None:
+    def _drawn(self, reading: Reading | OracleConsultation | IChingConsultation) -> None:
+        if isinstance(reading, IChingConsultation):
+            from syzygy.tui.screens.iching_result import IChingResultScreen
+
+            self.app.switch_screen(IChingResultScreen(reading))
+            return
         if isinstance(reading, OracleConsultation):
             from syzygy.tui.screens.oracle_result import OracleResultScreen
 

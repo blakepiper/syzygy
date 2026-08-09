@@ -18,15 +18,17 @@ from enum import StrEnum
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from syzygy.domain.astrology import NatalPlacement, RankedTransit
+from syzygy.domain.iching import Hexagram, IChingCast
 from syzygy.domain.knowledge import KnowledgeChunk
 from syzygy.domain.tarot import TarotCard
 
-CONTEXT_SCHEMA_VERSION = "context-v3"
+CONTEXT_SCHEMA_VERSION = "context-v4"
 
 
 class InterpretationKind(StrEnum):
     DAILY_READING = "daily_reading"
     ORACLE = "oracle"
+    I_CHING = "i_ching"
     NATAL_SUMMARY = "natal_summary"
     COSMOS_SUMMARY = "cosmos_summary"
 
@@ -48,6 +50,9 @@ class InterpretationContext(BaseModel):
     consultation_local_date: str
     consultation_local_timestamp: str
     card: TarotCard | None = None
+    iching_cast: IChingCast | None = None
+    primary_hexagram: Hexagram | None = None
+    resulting_hexagram: Hexagram | None = None
     significant_transits: list[RankedTransit]
     relevant_natal_placements: list[NatalPlacement]
     sun_placement: NatalPlacement
@@ -62,12 +67,30 @@ class InterpretationContext(BaseModel):
         if self.kind in (InterpretationKind.DAILY_READING, InterpretationKind.ORACLE):
             if self.card is None:
                 raise ValueError("a reading context requires a fixed card")
-        elif self.card is not None:
-            raise ValueError("summary contexts must not contain a card")
-        if self.kind is InterpretationKind.ORACLE and self.question is None:
-            raise ValueError("an oracle context requires a question")
-        if self.kind is not InterpretationKind.ORACLE and self.question is not None:
-            raise ValueError("only oracle contexts carry a question")
+            if self.iching_cast is not None:
+                raise ValueError("a card consultation cannot carry an I Ching cast")
+        elif self.kind is InterpretationKind.I_CHING:
+            if self.card is not None:
+                raise ValueError("an I Ching consultation cannot carry a card")
+            if self.iching_cast is None or self.primary_hexagram is None:
+                raise ValueError("an I Ching context requires its fixed cast and hexagram")
+            if self.resulting_hexagram is None:
+                raise ValueError("an I Ching context requires the resulting hexagram")
+        elif any(
+            value is not None
+            for value in (
+                self.card,
+                self.iching_cast,
+                self.primary_hexagram,
+                self.resulting_hexagram,
+            )
+        ):
+            raise ValueError("summary contexts must not contain a chance object")
+        question_kinds = (InterpretationKind.ORACLE, InterpretationKind.I_CHING)
+        if self.kind in question_kinds and self.question is None:
+            raise ValueError("a question-led context requires a question")
+        if self.kind not in question_kinds and self.question is not None:
+            raise ValueError("only question-led contexts carry a question")
         return self
 
 

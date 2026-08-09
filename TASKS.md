@@ -251,23 +251,29 @@ probabilities for changing lines — 1/8 vs 1/16 for a moving yang, among others
 That is a real divinatory choice about which tradition Syzygy is practising,
 and it belongs in the ADR.
 
-- [ ] M20.1 ADR: cast method and its probability distribution (three-coin vs
+- [x] M20.1 ADR: cast method and its probability distribution (three-coin vs
       yarrow-stalk), whether changing lines and the resulting second hexagram
       are in scope, and how the hexagram composes with the Thoth card — a
       second chance object in the same consultation, or an alternative mode the
       user selects. Recommendation: an alternative mode, so no consultation
       carries two competing oracles.
-- [ ] M20.2 Canonical hexagram data as a resource file with the same grounding
+- [x] M20.2 Canonical hexagram data as a resource file with the same grounding
       discipline as `thoth_deck.yaml`: hexagram number, King Wen sequence,
       name, trigrams, judgment, image, and the six line texts, transcribed from
       Legge with a citation per entry. Transcribed and cited, never from model
       memory — the same accuracy rule `thoth_deck.yaml` lives under.
-- [ ] M20.3 Cast mechanics reusing `EntropyCollector` and rejection sampling —
+- [x] M20.3 Cast mechanics reusing `EntropyCollector` and rejection sampling —
       never `random.random()`, never modulo over a raw byte — with tests
       asserting the chosen method's exact line probabilities over a large
       seeded sample.
-- [ ] M20.4 Prompt contract, TUI mode, storage, and archive treatment mirroring
+- [x] M20.4 Prompt contract, TUI mode, storage, and archive treatment mirroring
       M19's, with its own prompt version.
+
+Implementation note: ADR 0007 selects the three-coin method and treats the
+resulting hexagram as the direction of one cast. I Ching is a mutually
+exclusive Oracle mode backed by migration 9, `iching-v1`, and the complete
+page-cited Legge (1882) resource. The CLI selects it with `oracle ask --mode
+iching`; the default remains Thoth for compatibility.
 
 ---
 

@@ -50,6 +50,16 @@ def test_oracle_has_its_own_non_unique_indexed_table(conn):
     } <= columns
     indexes = conn.execute("PRAGMA index_list(oracle_consultations)").fetchall()
     assert any(row["name"] == "idx_oracle_consultations_profile_asked_at" for row in indexes)
+
+
+def test_iching_has_its_own_non_unique_indexed_table(conn):
+    apply_all(conn)
+    columns = {
+        row["name"] for row in conn.execute("PRAGMA table_info(iching_consultations)")
+    }
+    assert {"question_text", "status", "cast_json", "interpretation_context_json"} <= columns
+    indexes = conn.execute("PRAGMA index_list(iching_consultations)").fetchall()
+    assert any(row["name"] == "idx_iching_consultations_profile_asked_at" for row in indexes)
     assert not any(row["unique"] for row in indexes if row["origin"] != "pk")
 
 

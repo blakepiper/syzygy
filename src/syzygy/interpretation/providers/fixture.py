@@ -38,6 +38,8 @@ class FixtureProvider:
     async def interpret(
         self, context: InterpretationContext
     ) -> InterpretationResult | OracleResult:
+        if context.kind is InterpretationKind.I_CHING:
+            return self._interpret_iching(context)
         card = context.card
         if card is None:
             raise ValueError("daily interpretation requires a card")
@@ -102,6 +104,45 @@ class FixtureProvider:
                 }
             )
         return result
+
+    def _interpret_iching(self, context: InterpretationContext) -> OracleResult:
+        cast = context.iching_cast
+        primary = context.primary_hexagram
+        resulting = context.resulting_hexagram
+        if cast is None or primary is None or resulting is None:
+            raise ValueError("I Ching interpretation requires a complete cast")
+        change = (
+            f"changing through line{'s' if len(cast.changing_lines) != 1 else ''} "
+            f"{', '.join(map(str, cast.changing_lines))} toward {resulting.name}"
+            if cast.changing_lines
+            else "with no changing lines"
+        )
+        return OracleResult(
+            alignment_title=f"{primary.unicode} {primary.name}",
+            esoteric=EsotericReading(
+                summary=f"Hexagram {primary.number}, {primary.name}, {change}.",
+                body=f"The fixed three-coin cast presents {primary.name}, {change}. "
+                "[fixture provider: replace with a synthesis grounded in the supplied Legge text]",
+            ),
+            conventional=ConventionalReading(
+                summary=f"The cast centers on {primary.name}.",
+                body=(
+                    f"The situation is framed by {primary.name}, {change}. "
+                    "This fixture preserves the rite without pretending to be a full "
+                    "interpretation."
+                ),
+                watch_for=["Where the situation is already changing without being forced."],
+                reflection="What becomes clearer if you let the situation show its own direction?",
+            ),
+            source_chunk_ids=[],
+            question_response=(
+                f"For “{context.question}”, {primary.name} asks you to examine the situation "
+                "as a pattern in motion rather than a certain prediction."
+            ),
+            provider_id=self.provider_id,
+            model_id=self.model_id,
+            prompt_version=context.prompt_version,
+        )
 
     async def summarize(self, context: InterpretationContext) -> SummaryResult:
         """Deterministic copy so summaries never require a configured model."""

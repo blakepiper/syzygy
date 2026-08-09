@@ -22,23 +22,18 @@ import httpx
 
 from syzygy.domain.interpretation import (
     InterpretationContext,
-    InterpretationKind,
     InterpretationResult,
     OracleResult,
     SummaryResult,
 )
 from syzygy.interpretation.prompts import (
-    ORACLE_RESPONSE_JSON_SCHEMA,
-    ORACLE_SYSTEM_PROMPT,
     RESPONSE_JSON_SCHEMA,
     SUMMARY_RESPONSE_JSON_SCHEMA,
     SUMMARY_SYSTEM_PROMPT,
-    SYSTEM_PROMPT,
-    build_oracle_prompt,
     build_repair_prompt,
     build_summary_prompt,
     build_summary_repair_prompt,
-    build_user_prompt,
+    interpretation_contract,
 )
 from syzygy.interpretation.providers.api_keys import resolve_api_key
 from syzygy.interpretation.providers.structured_output import (
@@ -75,17 +70,10 @@ class OpenAIProvider:
     async def interpret(
         self, context: InterpretationContext
     ) -> InterpretationResult | OracleResult:
-        oracle = context.kind is InterpretationKind.ORACLE
-        schema = ORACLE_RESPONSE_JSON_SCHEMA if oracle else RESPONSE_JSON_SCHEMA
-        schema_name = "SyzygyOracleConsultation" if oracle else "SyzygyDailyReading"
+        system, user_prompt, schema, schema_name = interpretation_contract(context)
         messages: list[dict[str, str]] = [
-            {"role": "system", "content": ORACLE_SYSTEM_PROMPT if oracle else SYSTEM_PROMPT},
-            {
-                "role": "user",
-                "content": (
-                    build_oracle_prompt(context) if oracle else build_user_prompt(context)
-                ),
-            },
+            {"role": "system", "content": system},
+            {"role": "user", "content": user_prompt},
         ]
         async with httpx.AsyncClient(timeout=self._timeout, transport=self._transport) as client:
             raw = await self._complete(client, messages, schema=schema, schema_name=schema_name)

@@ -15,9 +15,12 @@ from textual.app import ComposeResult
 from textual.containers import VerticalScroll
 from textual.widgets import Footer, ListView, Static
 
+from syzygy.domain.iching_consultation import IChingConsultation, IChingStatus
 from syzygy.domain.oracle import OracleConsultation, OracleStatus
 from syzygy.domain.reading import Reading, ReadingStatus
+from syzygy.iching.book import get_hexagram
 from syzygy.sortes.deck import get_card
+from syzygy.storage.iching import list_consultations as list_iching_consultations
 from syzygy.storage.oracle import list_consultations
 from syzygy.storage.readings import card_frequency, list_readings, suit_frequency
 from syzygy.tui.screens.base import SyzygyScreen, TitleBar
@@ -58,6 +61,29 @@ class OracleListItem(MarkedListItem):
         self.consultation = consultation
 
 
+class IChingListItem(MarkedListItem):
+    def __init__(self, consultation: IChingConsultation) -> None:
+        hexagram = (
+            get_hexagram(consultation.cast.primary_hexagram_number)
+            if consultation.cast is not None
+            else None
+        )
+        cast_label = f"{hexagram.unicode} {hexagram.name}" if hexagram is not None else "—"
+        status = (
+            ""
+            if consultation.status is IChingStatus.COMPLETE
+            else f" [{consultation.status.value}]"
+        )
+        question = consultation.question.normalized_text
+        if len(question) > 42:
+            question = question[:39] + "…"
+        super().__init__(
+            f"{consultation.question.consultation_local_date}   I CHING   "
+            f"{question} — {cast_label}{status}"
+        )
+        self.consultation = consultation
+
+
 class ArchiveScreen(SyzygyScreen):
     BINDINGS = [
         ("escape", "back", "back"),
@@ -79,6 +105,9 @@ class ArchiveScreen(SyzygyScreen):
             return
         readings = list_readings(self.syzygy.services.conn, profile.id)
         consultations = list_consultations(self.syzygy.services.conn, profile.id)
+        iching_consultations = list_iching_consultations(
+            self.syzygy.services.conn, profile.id
+        )
         listing = self.query_one("#archive-list", ListView)
         entries: list[tuple[str, MarkedListItem]] = [
             (reading.consultation_utc_timestamp.isoformat(), ReadingListItem(reading))
@@ -88,10 +117,15 @@ class ArchiveScreen(SyzygyScreen):
             (consultation.question.asked_at_utc.isoformat(), OracleListItem(consultation))
             for consultation in consultations
         )
+        entries.extend(
+            (consultation.question.asked_at_utc.isoformat(), IChingListItem(consultation))
+            for consultation in iching_consultations
+        )
         for _, item in sorted(entries, key=lambda entry: entry[0], reverse=True):
             listing.append(item)
         self.query_one("#archive-summary", Static).update(
-            f"Readings {len(readings)}  ·  Oracle consultations {len(consultations)}"
+            f"Readings {len(readings)}  ·  Thoth {len(consultations)}  ·  "
+            f"I Ching {len(iching_consultations)}"
             if entries
             else "No readings yet. No Oracle consultations yet."
         )
@@ -109,6 +143,10 @@ class ArchiveScreen(SyzygyScreen):
             from syzygy.tui.screens.oracle_result import OracleResultScreen
 
             self.app.push_screen(OracleResultScreen(item.consultation, interpret=False))
+        elif isinstance(item, IChingListItem):
+            from syzygy.tui.screens.iching_result import IChingResultScreen
+
+            self.app.push_screen(IChingResultScreen(item.consultation, interpret=False))
 
     def action_toggle_frequency(self) -> None:
         listing = self.query_one("#archive-list", ListView)

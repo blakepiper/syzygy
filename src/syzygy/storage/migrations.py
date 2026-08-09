@@ -235,6 +235,35 @@ _MIGRATIONS: list[tuple[int, str, str]] = [
         WHERE kind = 'natal_summary' AND scope_date = '';
         """,
     ),
+    (
+        9,
+        "I Ching consultations: immutable alternative Oracle rite (M20)",
+        """
+        CREATE TABLE iching_consultations (
+            id                           TEXT PRIMARY KEY,
+            profile_id                   TEXT NOT NULL REFERENCES profiles(id),
+            question_text                TEXT NOT NULL,
+            question_normalized          TEXT NOT NULL,
+            asked_at_utc                 TEXT NOT NULL,
+            consultation_local_date      TEXT NOT NULL,
+            consultation_local_timestamp TEXT NOT NULL,
+            consultation_timezone        TEXT NOT NULL,
+            status                       TEXT NOT NULL,
+            cast_json                    TEXT,
+            transit_snapshot_json        TEXT,
+            interpretation_context_json  TEXT,
+            result_json                  TEXT,
+            provider_id                  TEXT,
+            model_id                     TEXT,
+            prompt_version               TEXT,
+            created_at                   TEXT NOT NULL,
+            updated_at                   TEXT NOT NULL
+        );
+
+        CREATE INDEX idx_iching_consultations_profile_asked_at
+            ON iching_consultations (profile_id, asked_at_utc DESC);
+        """,
+    ),
 ]
 
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from syzygy.domain.astrology import NatalPlacement, RankedTransit, sign_for_longitude
+from syzygy.domain.iching import IChingCast
 from syzygy.domain.interpretation import InterpretationContext, InterpretationKind
 from syzygy.domain.knowledge import KnowledgeChunk
 from syzygy.domain.profile import Profile
@@ -121,6 +122,44 @@ def build_oracle_context(
     payload = daily.model_dump()
     payload.update(kind=InterpretationKind.ORACLE, question=question)
     return InterpretationContext.model_validate(payload)
+
+
+def build_iching_context(
+    profile: Profile,
+    cast: IChingCast,
+    ranked_transits: list[RankedTransit],
+    consultation_local_timestamp: str,
+    consultation_local_date: str,
+    prompt_version: str,
+    question: str,
+) -> InterpretationContext:
+    """Build an I Ching context from a committed cast and ranked sky."""
+    from syzygy.iching.book import get_hexagram
+
+    placements = profile.natal_chart.placements
+    relevant_bodies = {"Sun", "Moon"}
+    relevant_bodies.update(
+        transit.aspect.natal_target
+        for transit in ranked_transits
+        if transit.aspect.natal_target not in _NATAL_ANGLES
+    )
+    return InterpretationContext(
+        kind=InterpretationKind.I_CHING,
+        profile_display_name=profile.display_name,
+        consultation_local_date=consultation_local_date,
+        consultation_local_timestamp=consultation_local_timestamp,
+        iching_cast=cast,
+        primary_hexagram=get_hexagram(cast.primary_hexagram_number),
+        resulting_hexagram=get_hexagram(cast.resulting_hexagram_number),
+        significant_transits=ranked_transits,
+        relevant_natal_placements=[p for p in placements if p.body in relevant_bodies],
+        sun_placement=_find_placement(placements, "Sun"),
+        moon_placement=_find_placement(placements, "Moon"),
+        ascendant_sign=sign_for_longitude(profile.natal_chart.ascendant_longitude),
+        knowledge_chunks=[],
+        prompt_version=prompt_version,
+        question=question,
+    )
 
 
 def build_natal_summary_context(

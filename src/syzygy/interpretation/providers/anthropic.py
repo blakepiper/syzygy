@@ -26,20 +26,16 @@ import httpx
 
 from syzygy.domain.interpretation import (
     InterpretationContext,
-    InterpretationKind,
     InterpretationResult,
     OracleResult,
     SummaryResult,
 )
 from syzygy.interpretation.prompts import (
-    ORACLE_SYSTEM_PROMPT,
     SUMMARY_SYSTEM_PROMPT,
-    SYSTEM_PROMPT,
-    build_oracle_prompt,
     build_repair_prompt,
     build_summary_prompt,
     build_summary_repair_prompt,
-    build_user_prompt,
+    interpretation_contract,
 )
 from syzygy.interpretation.providers.api_keys import resolve_api_key
 from syzygy.interpretation.providers.structured_output import (
@@ -80,9 +76,7 @@ class AnthropicProvider:
     async def interpret(
         self, context: InterpretationContext
     ) -> InterpretationResult | OracleResult:
-        oracle = context.kind is InterpretationKind.ORACLE
-        system = ORACLE_SYSTEM_PROMPT if oracle else SYSTEM_PROMPT
-        user_prompt = build_oracle_prompt(context) if oracle else build_user_prompt(context)
+        system, user_prompt, _schema, _schema_name = interpretation_contract(context)
         messages: list[dict[str, str]] = [{"role": "user", "content": user_prompt}]
         async with httpx.AsyncClient(timeout=self._timeout, transport=self._transport) as client:
             raw = await self._complete(client, messages, system=system)

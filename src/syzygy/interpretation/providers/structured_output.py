@@ -75,7 +75,9 @@ def parse_and_validate(
         "prompt_version": context.prompt_version,
     }
     result_type = (
-        OracleResult if context.kind is InterpretationKind.ORACLE else InterpretationResult
+        OracleResult
+        if context.kind in (InterpretationKind.ORACLE, InterpretationKind.I_CHING)
+        else InterpretationResult
     )
     return result_type.model_validate(payload)
 

@@ -249,6 +249,11 @@ Input:focus {
     height: auto;
 }
 
+#oracle-mode-buttons {
+    width: auto;
+    height: auto;
+}
+
 #oracle-result-columns {
     height: 1fr;
     padding: 0 2;
@@ -302,6 +307,61 @@ Input:focus {
 
 .-compact #oracle-result-card {
     height: 10;
+}
+
+#iching-result-columns {
+    height: 1fr;
+    padding: 0 2;
+}
+
+#iching-result-aside {
+    width: 34;
+    height: 1fr;
+}
+
+#iching-result-cast {
+    height: auto;
+    min-height: 10;
+    text-align: center;
+    color: $syz-accent;
+    padding: 1;
+}
+
+#iching-result-transits {
+    height: auto;
+}
+
+#iching-result-main {
+    width: 1fr;
+    height: 1fr;
+}
+
+#iching-result-question,
+#iching-result-keys {
+    height: auto;
+}
+
+#iching-result-question {
+    max-height: 4;
+}
+
+#iching-result-panel {
+    height: 1fr;
+    padding: 1 2;
+}
+
+#iching-result-body {
+    width: 1fr;
+    max-width: 88;
+    height: auto;
+}
+
+.-compact #iching-result-columns {
+    padding: 0 1;
+}
+
+.-compact #iching-result-aside {
+    width: 24;
 }
 
 ListView {

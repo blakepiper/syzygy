@@ -23,6 +23,7 @@ from textual.widget import Widget
 from syzygy.tui.app import SyzygyApp
 from syzygy.tui.screens.base import IDEAL_HEIGHT, IDEAL_WIDTH, TALL_HEIGHT, WIDE_WIDTH
 from syzygy.tui.screens.chart import ChartScreen
+from syzygy.tui.screens.iching_result import IChingResultScreen
 from syzygy.tui.screens.oracle_ask import OracleAskScreen
 from syzygy.tui.screens.oracle_result import OracleResultScreen
 from syzygy.tui.screens.reveal import RevealScreen
@@ -182,6 +183,27 @@ async def test_oracle_question_and_result_keep_essential_controls_visible(
         for selector in ("#oracle-result-card", "#oracle-result-panel", "#oracle-result-keys"):
             assert on_screen(pilot.app.screen.query_one(selector)), selector
         assert region_of(pilot, "#oracle-result-panel").height >= 6
+
+
+@pytest.mark.parametrize("size", EVERY_TIER)
+async def test_iching_result_keeps_cast_and_interpretation_visible(
+    app: SyzygyApp, profile, size
+):
+    async with app.run_test(size=size) as pilot:
+        await settle(pilot)
+        await pilot.press("o")
+        await settle(pilot)
+        pilot.app.screen.query_one("#oracle-question").value = "What is changing?"
+        await pilot.click("#iching-submit")
+        await settle(pilot)
+        for _ in range(3):
+            await pilot.press("space")
+        await pilot.press("enter")
+        await settle(pilot, 6)
+        assert isinstance(pilot.app.screen, IChingResultScreen)
+        for selector in ("#iching-result-cast", "#iching-result-panel", "#iching-result-keys"):
+            assert on_screen(pilot.app.screen.query_one(selector)), selector
+        assert region_of(pilot, "#iching-result-panel").height >= 6
 
 
 # -- reading ----------------------------------------------------------------

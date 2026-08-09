@@ -11,7 +11,8 @@ code.
 
 ```
 SELF (saved natal chart) + COSMOS (current transits) + CHANCE (one random
-Thoth card) → SYZYGY → an LLM interprets the fixed result in two
+Thoth card, or one I Ching cast in that Oracle mode) → SYZYGY → an LLM
+interprets the fixed result in two
 registers (Esoteric, Conventional). The LLM never calculates astrology,
 never selects or changes the card, and can never cause a reroll.
 ```
@@ -66,6 +67,12 @@ certainly a design violation, not a shortcut.
   The Emperor/The Star, and the counter-elemental court-card decan spans)
   before changing it, and update the ingestion map's citation alongside
   the fix.
+- **Canonical I Ching data comes from
+  `src/syzygy/resources/iching_legge.yaml`, never model memory.** Its 64
+  judgments, Images, and line texts are transcribed and page-cited from James
+  Legge's 1882 translation. The three-coin method, changing-line treatment,
+  and alternative-mode decision are fixed by ADR 0007; a provider receives
+  the committed cast and source text and may not select or alter either.
 - **The knowledge base is multi-source, but only one source is canonical.**
   `docs/book_of_thoth.pdf` is Tier 0 — the only source `thoth_deck.yaml`
   is grounded against, and the only source `Milestone 6`'s deterministic
@@ -318,7 +325,13 @@ source-material screen, a one-line home note, and `doctor` telling
 in the invariants above and did not move: citation-only chunks reach the
 user, never a provider.
 
-All tasks through M18 are implemented, except M16.10f - the manual
+Added in M19–M20: the question-led Oracle as a rite separate from the daily
+reading, with mutually exclusive Thoth-card and I Ching modes. I Ching uses a
+committed three-coin cast with changing lines and a resulting hexagram,
+source-grounded Legge (1882) text, its own `iching-v1` prompt and storage state
+machine, and the same retry-without-reroll provider boundary.
+
+All tasks through M20 are implemented, except M16.10f - the manual
 clean-machine matrix, of which only Linux x86-64 CPU has actually been
 performed (recorded in `docs/LOCAL_MODEL_MAINTENANCE.md`). M12.3 (a
 Cinzel display treatment) was dropped rather than deferred - `TASKS.md`
