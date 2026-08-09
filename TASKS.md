@@ -249,21 +249,22 @@ citations that retrieval actually found.
 
 ### Why this happens (read before planning a fix)
 
-This is working as designed, and the design is a licensing constraint, not a
-bug. Per ADR 0003, the index shipped in `src/syzygy/resources/knowledge/` is
-citations plus non-invertible vectors — **the passages are deliberately not
-distributable**. `reading_service._select_knowledge_chunks` therefore drops
-every chunk with `has_text == False`, because a citation rendered under the
-prompt's `SOURCE PASSAGES` heading invites the model to invent what the page
-says. On an install where the user has not run `syzygy knowledge ingest`
-against their own PDF copies, there are no passages to supply, and the message
-is literally true.
+Mechanically: the index shipped in `src/syzygy/resources/knowledge/` carries
+citations and vectors, not passages (ADR 0003 — settled, don't reopen it). So
+on an install where nobody has run `syzygy knowledge ingest` against the PDFs,
+every chunk has `has_text == False`, `reading_service._select_knowledge_chunks`
+drops all of them, and the message is literally true.
 
-So the fix is not "always send the chunks" — that would either ship the books
-or feed the model empty citations. The fix is three things: tell the user the
-truth in the place they asked the question, show them the citations (which
-*are* shippable and *are* useful to a human), and make ingestion a route rather
-than a documented CLI incantation.
+The filter itself is a quality rule, not a legal one: a citation rendered under
+the prompt's `SOURCE PASSAGES` heading with nothing beneath it invites the
+model to invent what the page says, which is the exact failure mode the whole
+grounding discipline exists to prevent.
+
+So the fix is not "always send the chunks" — with nothing ingested there is
+nothing to send. The fix is three things: show the user the citations retrieval
+found (which are always there and are genuinely useful), say plainly that the
+passages aren't installed, and make ingestion a route in the interface instead
+of a CLI incantation buried in the docs.
 
 **Invariant that must survive this milestone:** citation-only chunks reach the
 *user*, never a *provider*. `_select_knowledge_chunks`' filter stays.
@@ -280,9 +281,9 @@ than a documented CLI incantation.
       two labelled lists: **Passages sent to the model** (what
       `context.knowledge_chunks` holds) and **Where this card is discussed**
       (the citations from M18.1a, always populated). When the first list is
-      empty, state the reason in one plain sentence — the source books are not
-      redistributable, so Syzygy ships the references but not the text — and
-      name the action that changes it.
+      empty, say so in one plain sentence — Syzygy ships the references but not
+      the book text, and the text isn't installed — and name the action that
+      changes it. One sentence, no lecture.
 - [ ] M18.1c Make ingestion reachable from the interface. Add a source-material
       screen (or a section of the existing model-setup route) that reports
       which of the three sources are ingested, explains that the user supplies
@@ -486,11 +487,9 @@ Do not start this before M19 ships — it reuses the Oracle's flow, storage, and
 prompt shape wholesale. It is listed now because M19's design should not
 foreclose it.
 
-The I Ching is three thousand years old and belongs to nobody. Legge (1882) is
-public domain and complete — judgments, images, and line texts — and is the
-working source unless something better turns up. Use it and move on. (Wilhelm/
-Baynes is the translation people quote and it is still in copyright, so simply
-don't reach for it; that is the whole of the licensing consideration here.)
+Legge (1882) is the working source: complete — judgments, images, and all six
+line texts per hexagram — freely available, and already cleanly digitized. Take
+it and go.
 
 The genuinely open question is mechanical. Casting six lines is trivial next to
 `sortes.draw`, but the three-coin and yarrow-stalk methods produce *different*
@@ -507,9 +506,8 @@ and it belongs in the ADR.
 - [ ] M20.2 Canonical hexagram data as a resource file with the same grounding
       discipline as `thoth_deck.yaml`: hexagram number, King Wen sequence,
       name, trigrams, judgment, image, and the six line texts, transcribed from
-      Legge with a citation per entry. Sourced and cited, never from model
-      memory — that rule is about accuracy, not permission, and it applies at
-      full strength to a public-domain text.
+      Legge with a citation per entry. Transcribed and cited, never from model
+      memory — the same accuracy rule `thoth_deck.yaml` lives under.
 - [ ] M20.3 Cast mechanics reusing `EntropyCollector` and rejection sampling —
       never `random.random()`, never modulo over a raw byte — with tests
       asserting the chosen method's exact line probabilities over a large
