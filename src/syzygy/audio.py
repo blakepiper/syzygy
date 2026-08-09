@@ -1,6 +1,6 @@
 """The theme, looping under the whole application (M15).
 
-## Why an optional extra, and why this library
+## Why this library
 
 Playback needs an MP3 decoder and an audio device, neither of which the
 standard library has. Two shapes were considered:
@@ -11,19 +11,20 @@ standard library has. Two shapes were considered:
   has no standard one, and muting means killing the process and losing
   the playback position - restarting a 2:47 track from the top every time
   someone toggles the key.
-- **A small audio library**, behind an optional extra. `just_playback`
+- **A small audio library.** `just_playback`
   (MIT, so AGPL-compatible) wraps miniaudio and ships prebuilt wheels for
   glibc and musl Linux, macOS on both architectures, and Windows, so it
   needs no compiler on any mainstream target. It decodes MP3 itself, and
   gives real `pause`/`resume` that hold position - which is what makes the
   mute key feel like a mute key.
 
-The second, per `TASKS.md` M15.1a's recommendation.
+The second is bundled in the main install so the shipped theme works without
+a second installation step.
 
 ## Nothing here is allowed to matter
 
 A terminal divination app must not fail to start because it cannot open
-an audio device. Every failure - extra not installed, no device, headless
+an audio device. Every failure - damaged dependency, no device, headless
 CI, a corrupt file, a backend that raises on some platform we have never
 seen - resolves to `SilentTheme`, which satisfies the same interface and
 does nothing. `start()` never raises, and neither does anything else here.

@@ -1,10 +1,9 @@
 """Birthplace geocoding: a free-text place label -> coordinates + timezone.
 
 Onboarding convenience only (DESIGN.md section 6.1, AGENTS.md) - never
-part of astrological calculation, and the rest of the application must
-keep working without the `geocoding` extra installed. `geopy` and
-`timezonefinder` are therefore imported lazily inside `resolve_birthplace`,
-never at module load.
+part of astrological calculation. `geopy` and `timezonefinder` ship in the
+main install but remain lazy imports inside `resolve_birthplace`, so a
+damaged dependency cannot prevent the rest of the application from starting.
 
 The resolved timezone is always the **birthplace's** zone - the zone
 needed to convert a local birth time to UTC for the natal chart - never a
@@ -19,13 +18,12 @@ from dataclasses import dataclass
 
 
 class GeocodingUnavailable(Exception):
-    """The `geocoding` extra (`geopy`, `timezonefinder`) isn't installed."""
+    """A required geocoding runtime dependency is unavailable."""
 
 
 class GeocodingFailed(Exception):
-    """The extra is installed, but resolution failed: no network, no
-    geocoder match for the place label, or no timezone match for the
-    resolved coordinates."""
+    """Resolution failed: no network, no geocoder match for the place
+    label, or no timezone match for the resolved coordinates."""
 
 
 @dataclass(frozen=True)
@@ -38,7 +36,7 @@ class ResolvedPlace:
 def resolve_birthplace(place_label: str) -> ResolvedPlace:
     """Resolve a free-text place label to `(latitude, longitude, timezone)`.
 
-    Raises `GeocodingUnavailable` if the `geocoding` extra isn't installed,
+    Raises `GeocodingUnavailable` if a runtime dependency cannot be imported,
     or `GeocodingFailed` for any other resolution failure. Callers must
     treat both as non-fatal - manual latitude/longitude/timezone entry is
     always the fallback (DESIGN.md section 6.1).
@@ -48,8 +46,7 @@ def resolve_birthplace(place_label: str) -> ResolvedPlace:
         from timezonefinder import TimezoneFinder
     except ImportError as exc:
         raise GeocodingUnavailable(
-            "birthplace geocoding requires the 'geocoding' extra "
-            '(pip install "syzygy[geocoding]")'
+            "birthplace geocoding dependencies are unavailable; reinstall syzygy"
         ) from exc
 
     try:

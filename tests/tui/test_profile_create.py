@@ -3,7 +3,7 @@ keyboard path through the form (M11.1).
 
 Exercises the prefill, manual-override, and failure paths through the real
 form -> confirm flow, with `resolve_birthplace` faked at the screen's
-import site so no real network call or geocoding-extra behavior is
+import site so no real network call or geocoding dependency behavior is
 involved (M10.1e).
 
 The M11.1 tests at the bottom deliberately drive the screen with *keys

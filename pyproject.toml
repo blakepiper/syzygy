@@ -29,30 +29,28 @@ dependencies = [
     # queried with plain numpy - no vector database, no hosted service,
     # no inference runtime (AGENTS.md). BSD-3, so AGPL-compatible.
     "numpy>=1.26",
+    # Profile onboarding resolves a typed birthplace to coordinates and
+    # its IANA timezone. Both are runtime features of the default install;
+    # imports remain lazy so a damaged installation cannot block startup.
+    "geopy>=2.4",
+    "timezonefinder>=6.5",
+    # Bundled theme playback. MIT/AGPL-compatible, backed by miniaudio,
+    # with prebuilt wheels on mainstream platforms. Audio-device failures
+    # still degrade to SilentTheme rather than blocking the application.
+    "just_playback>=0.1.8",
 ]
 
 [project.optional-dependencies]
-# Onboarding-only: birthplace geocoding/timezone resolution (DESIGN.md 6.1,
-# 46). Never imported by the astrology/reading/oracle path itself.
-geocoding = [
-    "geopy>=2.4",
-    "timezonefinder>=6.5",
-]
+# Compatibility aliases: these capabilities moved into the default install.
+# Keeping the old names means existing `pip install .[geocoding,audio]`
+# commands continue to work without maintaining duplicate constraints.
+geocoding = []
+audio = []
 # Remote LLM providers (DESIGN.md 13.3) - not needed for the fixture
 # provider or local-inference path.
 providers = [
     "httpx>=0.27",
     "keyring>=25.0",
-]
-# The looping theme (M15). Optional on purpose: a terminal divination app
-# must not fail to start because it cannot open an audio device, so
-# without this the app runs silent and says nothing about audio.
-# `just_playback` is MIT (AGPL-compatible), wraps miniaudio, decodes MP3
-# itself, and ships prebuilt wheels for glibc/musl Linux, macOS on both
-# architectures, and Windows - no compiler needed on any mainstream
-# target.
-audio = [
-    "just_playback>=0.1.8",
 ]
 dev = [
     "pytest>=8.0",

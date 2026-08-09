@@ -1316,6 +1316,10 @@ repository root has been removed as a byte-identical duplicate.
       specifically, not on portability alone: killing a player loses the
       playback position, so every toggle would restart a 2:47 track from
       the top. `just_playback` has real `pause`/`resume`.
+      Distribution update (2026-08-08): audio and geocoding were promoted
+      into the main install at the user's request. The old extra names remain
+      as empty compatibility aliases; runtime/device/network failures still
+      degrade exactly as documented here.
 - [x] M15.1b Bundle `theme.mp3` under `src/syzygy/resources/audio/` and
       commit it (it is untracked today). Note its size in the task — it
       ships in every wheel — and confirm the licensing of the track itself

@@ -35,28 +35,25 @@ git clone <this repository> syzygy
 cd syzygy
 python3.13 -m venv .venv        # or python3.11 / python3.12
 source .venv/bin/activate
-pip install .                   # base install: the TUI, CLI, local astrology,
-                                 # and the fixture interpretation provider
+pip install .                   # complete local app: TUI, CLI, astrology,
+                                 # birthplace lookup, theme music, and the
+                                 # fixture interpretation provider
 ```
 
-Three optional extras add capability without being required for the core
-ritual:
+One optional extra adds hosted-provider support:
 
 ```bash
 pip install ".[providers]"      # OpenAI / Anthropic hosted providers
                                  # (httpx, keyring - not needed for the
                                  # local llama.cpp provider, which has no
                                  # extra dependency)
-pip install ".[geocoding]"      # birthplace geocoding during profile
-                                 # creation, instead of entering
-                                 # latitude/longitude/timezone by hand
-pip install ".[audio]"          # the looping theme music
 ```
 
-Without `[audio]` the application runs exactly as it otherwise would, in
-silence, and does not offer a mute key. `syzygy --no-audio` starts a
-session without music whether or not the extra is installed, and `[S]`
-mutes and unmutes at any point (the choice is remembered).
+Birthplace geocoding and looping theme playback are included in the main
+install. If a geocoding request fails, coordinates and timezone can still
+be entered manually. If no audio device is available, the app starts
+silently. `syzygy --no-audio` explicitly starts a session without music,
+and `[S]` mutes and unmutes at any point (the choice is remembered).
 
 Then run `syzygy doctor` to confirm the install is healthy, and `syzygy`
 to launch the interface:
@@ -70,9 +67,9 @@ syzygy           # launch the TUI (same as `syzygy tui`); first run walks
 
 First launch creates a profile from birth data (date, time, place,
 coordinates, timezone — or resolved automatically from a place name if
-the `geocoding` extra is installed), calculates its natal chart, and
-drops you on the daily home screen. From there, `[Enter]` turns the Wheel
-for today's reading; `[C]` opens the natal chart, `[A]` the archive.
+the lookup service is reachable), calculates its natal chart, and drops
+you on the daily home screen. From there, `[Enter]` turns the Wheel for
+today's reading; `[C]` opens the natal chart, `[A]` the archive.
 
 By default, readings use the built-in fixture provider — deterministic
 placeholder prose, useful for trying the ritual with no setup. To use a

@@ -112,7 +112,7 @@ certainly a design violation, not a shortcut.
 | `src/syzygy/storage/` | SQLite connection + migrations (append-only, never edit a merged migration) |
 | `src/syzygy/knowledge/` | Ingestion (`normalize`/`segment`/`store`/`ingest`), retrieval (`retrieve`), and the shipped citations+vectors index (`artifact`, `embedding`) |
 | `src/syzygy/settings.py` | The namespaced settings document. Add a preference as a *section*; never write the whole file |
-| `src/syzygy/audio.py` | The looping theme, behind the optional `audio` extra. Degrades to `SilentTheme` on every failure |
+| `src/syzygy/audio.py` | The bundled looping theme. Degrades to `SilentTheme` on every failure |
 | `src/syzygy/dev.py` | Development-only affordances, all gated on `SYZYGY_DEV` |
 | `src/syzygy/resources/` | `thoth_deck.yaml` (canonical card metadata), `art/` (78 card PNGs), `brand/`, `audio/`, `knowledge/` (citations + vectors) |
 | `src/syzygy/tui/` | The Textual app: `app.py` (shell + injected `SyzygyServices`), `screens/`, `widgets/`, `palette.py`, `syzygy.tcss` |
@@ -209,7 +209,7 @@ dev-only reroll gated on `SYZYGY_DEV` (`syzygy.dev`), the shipped
 knowledge index of citations and vectors (`knowledge/artifact.py`,
 `knowledge/embedding.py`, ADR 0003), the namespaced settings document
 (`syzygy.settings` — add a preference as a *section*, never by writing the
-whole file), the looping theme behind the optional `audio` extra
+whole file), the looping theme bundled in the main install
 (`syzygy.audio`, which degrades to `SilentTheme` on every failure), and
 the layout tiers (M12.5), and today's cosmos — the full ranked sky
 against the natal chart, at `tui/screens/cosmos.py`, reached with `[T]`

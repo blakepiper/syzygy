@@ -63,9 +63,9 @@ nothing to regenerate and no source file at the repository root. It is the
 project author's own work, so there is no third-party licensing to clear
 for AGPL redistribution.
 
-It is 3.5 MB, which is most of the wheel. Playback is
-`syzygy.audio`, behind the optional `audio` extra; the app runs silent
-without it.
+It is 3.5 MB, which is most of the wheel. Playback through `syzygy.audio`
+ships in the main install and degrades to silence if no audio device is
+available.
 
 ## Sizes
 
