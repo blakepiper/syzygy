@@ -514,3 +514,89 @@ and it belongs in the ADR.
       seeded sample.
 - [ ] M20.4 Prompt contract, TUI mode, storage, and archive treatment mirroring
       M19's, with its own prompt version.
+
+---
+
+## M21 — Liber Syzygy
+
+Independent of M17–M20; it can be written at any point. Nothing depends on it
+and it depends on nothing.
+
+### Outcome
+
+One text — `docs/liber_syzygy.md` — that states what Syzygy is *for*. Not a
+README, not a design doc, not marketing. A composed work in the register of a
+grimoire, a Thelemic *Liber*, and a Tibetan *terma*, which a person could read
+once and understand why the application exists.
+
+**Keep it out of git until the author says otherwise.** `docs/liber_syzygy.md`
+is gitignored. Write it, iterate on it locally, and do not commit it, quote it
+into the README, or render it into the TUI until that changes.
+
+### The argument the text must carry
+
+These are the author's beats, not a suggestion of them. The order is open; the
+content is not.
+
+1. **The modern world is missing an oracle.** Ancient societies had them, and
+   consulting them was not superstition at the margins — the founding and
+   preservation of oracles was a first question of life and of statecraft. That
+   institution is gone and nothing replaced it.
+2. **The modern person is cut off** from the spiritual world and from the great
+   mystery that reveals itself through time, synchronicity, and chance.
+3. **The tripartite paradigm: SELF, COSMOS, CHANCE.** The same triad the
+   application is built on — the natal chart you were given, the sky as it
+   stands today, and the one card that no one chose. The text should make the
+   reader feel why it takes all three, and why two of them are not enough.
+4. **The channel is number, randomness, and intention.** Pythagorean: number as
+   the substance of things rather than a description of them. Randomness is not
+   noise but the surface through which the mystery is legible. Intention is
+   what makes a draw a question rather than an accident.
+5. **The gods do not control fate; they reveal its workings.** From the author's
+   inspiration excerpt: *"The true gods have a kind of power, but not the kind
+   the many imagine. Why should they care for mankind? They are rare and
+   precious, and it is for man to find, acknowledge, and honor them. This, at
+   least, was the ancient view: and the foundation and preservation of oracles
+   was the first question of life and also of statecraft. Gods could not control
+   nature or fate, but could reveal its workings at key times."* This is
+   inspiration for the register and the theology, not necessarily material to
+   quote.
+
+### Form
+
+- [ ] M21.1 Settle the form before drafting. Recommendation: short numbered
+      chapters of numbered verses (the *Liber* convention), so any line can be
+      cited as `II:7` — which is also what makes the text usable later in the
+      interface, an epigraph at a time. Terma supplies the framing device (a
+      text recovered rather than composed, with a colophon); grimoire supplies
+      the operative sections — what the instrument is, how it is approached,
+      what is asked of the one who turns it.
+- [ ] M21.2 Draft it. Aim for a text that is short enough to read in one
+      sitting and dense enough to reward a second — on the order of 800–1500
+      words, not a book. Every verse earns its place; nothing is there to make
+      the document feel long. Archaic register is welcome; archaic *padding* is
+      not.
+- [ ] M21.3 Keep it true to the instrument it describes. The text may not
+      promise mechanics Syzygy does not have: upright cards only, one card,
+      one canonical reading per day, the wheel turned by the querent's own
+      motion, the card fixed before it is interpreted and never redrawn. Where
+      the text is deliberately grander than the code, it should be grander in
+      register, never in claim.
+- [ ] M21.4 Attribution discipline. The work is Syzygy's own composition; the
+      recovered-text conceit is a literary device and that is fine. But any
+      line presented as a quotation from a real source must actually be one,
+      correctly attributed — including the author's excerpt above, whose source
+      needs identifying before it can be quoted in the text with a citation.
+      Invent no scripture, no lineage, and no scholar.
+- [ ] M21.5 Decide the register question explicitly and write the answer into
+      the text's own colophon: does *Liber Syzygy* speak in Syzygy's two voices
+      (esoteric and conventional), or only the esoteric one? Recommendation:
+      only the esoteric — the conventional register exists to translate a
+      reading for a person, and a founding text is not a reading.
+
+### Not in scope
+
+Placing the text in the application — a `[?]` reading screen, an epigraph on
+the startup sequence, a verse on the reveal, README material, or anything that
+would feed it to a model as tone guidance. Those become their own task once the
+author has decided the text is good and it comes out of `.gitignore`.

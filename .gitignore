@@ -36,3 +36,7 @@ docs/*.pdf
 # Working notes written while using the app. Feedback is transcribed into
 # TASKS.md as planned work; the scratch file itself is not history.
 /feedback.md
+
+# Liber Syzygy (M21). Withheld at the author's request until they judge it
+# good; remove this line to publish it, not before.
+docs/liber_syzygy.md
