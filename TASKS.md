@@ -175,3 +175,230 @@ and no better morning, the lot written down before the interpreter is summoned
 and unchanged across a retry, birthplace asked and current location never,
 every Oracle asking its own turn of the wheel, one chance object per question,
 and the record kept locally as the reading actually given.
+
+Note: V:11 and VII:2 are written against the one-chance-object rule that M22
+replaces. The text is not committed and the author has said it will be edited;
+M22.5e carries the correction so it is not forgotten.
+
+---
+
+## M22 — The Oracle as figure and ground
+
+Independent of M21. It changes the Oracle only: the daily reading's card,
+uniqueness, transits, prompt, and storage are untouched by every task below.
+
+### Outcome
+
+There is one Oracle rite and no mode to choose. Every consultation carries both
+chance objects — one upright Thoth card and one six-line I Ching cast — from a
+single turn of the wheel, with roles fixed by the instrument:
+
+| Object | Role |
+|---|---|
+| Hexagram Judgment (+ trigrams) | **the ground** — the character of the time the question is asked in |
+| The Thoth card | **the figure** — the specific thing the oracle puts in front of the querent |
+| Changing lines, resulting hexagram | where the ground is unstable, and its direction |
+| The Image | conduct — how to bear oneself in it |
+
+Today's transits leave the Oracle entirely. The natal chart stays.
+
+### What this supersedes
+
+- **ADR 0007's "alternative Oracle mode" decision.** A consultation now
+  contains exactly two chance objects with disjoint roles, not one of two.
+  Everything else in 0007 stands unchanged: the three-coin method and its
+  probabilities, changing lines, the resulting hexagram as direction, and the
+  Legge (1882) resource with page citations.
+- **ADR 0006 section 2, for the Oracle only.** SELF remains; COSMOS does not.
+
+### ADR 0008 — decisions to record before writing code
+
+1. **One rite, two chance objects, disjoint roles.** The roles above are fixed
+   by Syzygy in the prompt contract. The model is never asked which object
+   governs, and never asked to reconcile them.
+2. **Why figure and ground rather than a topical split.** A figure and its
+   ground cannot contradict each other; they can only qualify each other. The
+   Tower in a time of Waiting reads differently from the Tower in a time of
+   Great Vigour, and no arbiter is needed for that. This is what dissolves
+   0007's two-competing-oracles objection — structurally, not by instructing
+   the model to be careful. Record the rejected alternatives with their
+   reasons: *what it is / where it goes* (the cast's role goes empty on the
+   17.8% of casts with no changing lines); *inner/outer* (redundant — a
+   hexagram already encodes inner and outer in its lower and upper trigrams);
+   *roles varying by question type* (requires classifying the question, and
+   only the model could classify it — the same reason horary is out); and
+   *leaving the tension unresolved as information* (produces
+   on-one-hand/on-the-other prose, the failure mode this design exists to
+   avoid).
+3. **No correspondence between the 64 and the 78 is used, and none may be
+   invented.** There is no canonical mapping — the counts do not divide, the
+   published attempts are contested, and Crowley practising both systems is
+   biography, not a table. Resolution of the two objects is structural only.
+   Note for the record that no such table exists anywhere in this repository:
+   it was considered in design discussion and rejected, never built, so there
+   is nothing to remove.
+4. **Transits leave the Oracle.** A question is usually about a horizon a
+   transit is not on, and a Moon aspect exact for four hours will be woven in
+   earnest into an answer about a decision six months out, with nothing in the
+   text telling the reader it will be gone by dinner. That is an accuracy
+   defect, not a matter of taste. The natal chart is retained: it is the member
+   of the trio the card can actually speak to, since both use decans, planets,
+   signs, and elements while a hexagram has no astrological hook at all. The
+   daily rite keeps its transits, because a daily reading *is* about today.
+   Horary stays out of scope for its original reason — it needs current
+   location and momentary angles, which `AGENTS.md` forbids.
+5. **One entropy collection, two derivations.** The question's keystrokes and
+   one turn of the wheel feed a single `EntropyCollector`; the card draw and
+   each of the six lines come from domain-separated derivations of it. Both
+   objects are committed in one transaction before context building or any
+   provider call. Production code still never passes a non-default `os_random`.
+6. **Stillness is an answer.** `(3/4)^6` = 17.8% of casts have no changing
+   line; 35.6% have exactly one; the mean is 1.5. The contract must read an
+   unchanging hexagram as a settled ground with the figure standing in it,
+   never as a missing section to pad.
+7. **Legacy consultations are read-only history.** Existing `oracle-v1` and
+   `iching-v1` records stay readable in the archive forever and can never be
+   retried, resumed, or regenerated.
+
+### M22.1 — Domain and storage
+
+- [ ] M22.1a Add the combined consultation to `syzygy/domain/` — question,
+      card draw, and cast in one aggregate, reusing `TarotDraw` and the
+      existing cast type unchanged. Both objects are **non-nullable** once the
+      status is past `ASKED`, so a one-object consultation is not
+      representable. Reuse the `ASKED → DRAWN → CONTEXT_READY → INTERPRETING →
+      COMPLETE / INTERPRETATION_FAILED` shape and its `ALLOWED_TRANSITIONS`.
+- [ ] M22.1b Migration **11** (append-only; 10 is archive deletion) creating
+      the combined table: the columns `oracle_consultations` has, minus
+      `transit_snapshot_json`, plus the cast columns. Index by
+      `(profile_id, asked_at_utc DESC)`. No per-date uniqueness. Do not alter
+      or drop `oracle_consultations` or `iching_consultations`.
+- [ ] M22.1c Repository and service modelled on the existing pair, committing
+      both objects before any provider call and resumable from status alone.
+- [ ] M22.1d Demote `storage/oracle.py` and `storage/iching.py` to read-only
+      archive sources: keep their readers, remove or disable their write and
+      retry paths, and make the service layer refuse to advance a legacy row.
+- [ ] M22.1e Tests: every illegal transition rejected; a consultation with one
+      object absent cannot be constructed or stored; retry after a failed
+      interpretation reuses *both* committed objects; a crash between draw and
+      interpretation resumes without redrawing or recasting; legacy rows read
+      but never write; nothing touches `readings`.
+
+### M22.2 — One turn, two objects
+
+- [ ] M22.2a Draw the card and cast the six lines from one `EntropyCollector`
+      seeded by the question's keystrokes and the wheel, with distinct domain
+      separation per object and per line. Reuse `sortes.draw.draw_card` and the
+      existing cast function unchanged — all 78 cards equiprobable, rejection
+      sampled, no `random.random()` and no modulo over a raw byte.
+- [ ] M22.2b Commit both in a single transaction. There is no state in which
+      one exists and the other does not.
+- [ ] M22.2c Tests: one collector serves both; the card distribution and the
+      per-line probabilities are unchanged from M3 and M20 over a large seeded
+      sample; the two derivations are independent; both objects are on disk
+      before any provider is constructed.
+
+### M22.3 — Prompt contract (`oracle-v2`)
+
+- [ ] M22.3a Add `ORACLE_PROMPT_VERSION = "oracle-v2"` with the roles stated as
+      structure, not advice. Block order, which is also the narration order:
+      **the ground** (hexagram name, trigrams, Judgment) → **the figure** (card,
+      correspondences, retrieved passages) → **movement** (changing-line texts
+      and the resulting hexagram, or an explicit statement that nothing is
+      moving) → **conduct** (the Image) → SELF (natal anchors) → the question,
+      quoted as data that cannot alter any of the above or the output schema.
+      No transit block exists in this prompt at all.
+- [ ] M22.3b Require the reading to land the figure: `alignment_title` comes
+      from the card, and the esoteric body must name both the card and the
+      hexagram. This is the counterweight to the volume problem — a Judgment,
+      an Image, up to six line texts, and a resulting hexagram is several times
+      the text of a card's correspondence block, and a 4B or 8B local model
+      will follow the longest, most concrete block regardless of what the role
+      instructions say.
+- [ ] M22.3c **Keep the card's retrieved Book of Thoth passages**, under M18's
+      rules unchanged (`has_text` filter; citation-only chunks reach the user,
+      never a provider). Recommendation, and the default to implement: the
+      dropped transit block frees roughly the budget the hexagram consumes, and
+      the passages are what keep the figure from being swamped. If a local
+      model's context proves too tight, trim the *retrieval* budget — never a
+      committed line text. Dropping a line text would be Syzygy making an
+      unsourced significance judgment about which of the oracle's own words
+      matter, which is exactly what it must not do.
+- [ ] M22.3d **No new result fields.** Recommendation, and the default to
+      implement: `OracleResult` keeps `alignment_title`, the two registers,
+      `source_chunk_ids`, and `question_response`; the movement axis lives
+      inside the bodies. A dedicated per-object field invites two mini-readings
+      glued together, which is the mush this design is meant to prevent. Derive
+      the JSON schema the same way the existing contracts do so the
+      constraining schema cannot drift from the validating one.
+- [ ] M22.3e Retire `ORACLE_SYSTEM_PROMPT` (`oracle-v1`) and
+      `ICHING_SYSTEM_PROMPT` (`iching-v1`) once nothing can generate with them.
+      The version strings survive only as values on stored legacy rows, which
+      display fine without the prompt text. This is safe precisely because
+      M22.1d made legacy consultations unretryable.
+- [ ] M22.3f `FixtureProvider` returns a plausible combined consultation so the
+      rite completes with no model configured.
+- [ ] M22.3g Tests: schema derivation; block order and the absence of any
+      transit content; a question containing prompt-injection text changes
+      neither object nor the schema; the no-changing-lines case renders as a
+      settled ground rather than an empty section; the repair path on malformed
+      output; provenance recorded on every consultation.
+
+### M22.4 — The TUI
+
+- [ ] M22.4a Remove the mode buttons from `oracle_ask.py` — the ask screen is
+      question, budget, and framing only. `[O]` goes straight to the wheel.
+- [ ] M22.4b One result screen replacing `oracle_result.py` and
+      `iching_result.py`. **Reveal order is not narration order**: the card is
+      revealed first, as the wheel's payoff and the app's visual identity, with
+      the six lines building upward beneath it; the prose reads ground-first.
+      Both objects are legible at a glance, including whether anything is
+      moving. `[I]` keeps M18's two-list inputs treatment plus the question.
+- [ ] M22.4c Motion: the six lines building bottom-upward under the revealed
+      card is the new beat, and it is honest — both objects are committed
+      before it plays. It degrades with the motion level like everything else.
+- [ ] M22.4d Failure preserves the rite: an interpretation failure keeps the
+      question, the card, *and* the cast, shows them, and offers retry /
+      fixture / provider recovery. Never a redraw and never a recast.
+- [ ] M22.4e Archive: four record kinds now — daily reading, combined
+      consultation, and the two legacy kinds — each distinguishable at a
+      glance, all reopenable read-only, legacy kinds visibly historical.
+      `[D]` deletion behaviour is unchanged.
+- [ ] M22.4f Layout tiers `-compact` through `-tall`, keyboard-only focus
+      order, essential controls above the fold. Update
+      `tests/tui/test_layout.py` for the new screen and the removed ones.
+
+### M22.5 — CLI, docs, and the mental model
+
+- [ ] M22.5a `syzygy oracle ask` drops `--mode`. Accept the flag for one
+      release with a printed notice that both oracles are now cast together,
+      rather than failing on it.
+- [ ] M22.5b `oracle show` renders both objects and marks legacy records as
+      the single-object rite they were.
+- [ ] M22.5c Update `AGENTS.md`: the one-paragraph mental model still reads
+      "one random Thoth card, or one I Ching cast in that Oracle mode", and the
+      I Ching invariant still says a provider receives "the committed cast".
+      Both describe the superseded design.
+- [ ] M22.5d README: the Oracle casts both, chooses nothing, and does not use
+      the day's transits; the daily reading is unchanged.
+- [ ] M22.5e `docs/liber_syzygy.md` V:11 and VII:2 describe one chance object
+      per question. Edit them to the new rite. The text stays gitignored.
+
+### Definition of done (M22)
+
+- [ ] One question, one turn of the wheel, one card and one cast, one reading
+      that reads the figure in its ground.
+- [ ] No mode choice exists anywhere: TUI, CLI, or storage.
+- [ ] No Oracle code path reads a transit, and no Oracle prompt contains one.
+- [ ] Neither object can be redrawn, recast, or separated from the other, and a
+      failed interpretation retries against both.
+- [ ] Legacy consultations remain readable and cannot be advanced.
+- [ ] The daily reading's behaviour is byte-for-byte unchanged.
+- [ ] The rite completes with no model configured.
+- [ ] `pytest`, `ruff check .`, `mypy src`, `syzygy dev deck`, and
+      `syzygy doctor` pass.
+
+### Not in scope
+
+Yarrow-stalk casting, a second card, reversals, a correspondence table between
+hexagrams and cards, transits returning to the Oracle in any form, and horary.
