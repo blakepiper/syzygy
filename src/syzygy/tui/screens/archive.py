@@ -15,17 +15,22 @@ from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.widgets import Button, Footer, ListView, Static
 
+from syzygy.domain.consultation import Consultation, ConsultationStatus
 from syzygy.domain.iching_consultation import IChingConsultation, IChingStatus
 from syzygy.domain.oracle import OracleConsultation, OracleStatus
 from syzygy.domain.reading import Reading, ReadingStatus
 from syzygy.iching.book import get_hexagram
 from syzygy.sortes.deck import get_card
+from syzygy.storage.consultations import (
+    delete_consultation,
+    list_consultations,
+)
 from syzygy.storage.iching import (
     delete_consultation as delete_iching_consultation,
 )
 from syzygy.storage.iching import list_consultations as list_iching_consultations
 from syzygy.storage.oracle import delete_consultation as delete_oracle_consultation
-from syzygy.storage.oracle import list_consultations
+from syzygy.storage.oracle import list_consultations as list_legacy_oracle_consultations
 from syzygy.storage.readings import (
     card_frequency,
     delete_from_archive,
@@ -48,7 +53,40 @@ class ReadingListItem(MarkedListItem):
         self.reading = reading
 
 
+def _short_question(question: str) -> str:
+    return question if len(question) <= 42 else question[:39] + "…"
+
+
+class ConsultationListItem(MarkedListItem):
+    """The current Oracle rite: a card and a cast, in that order."""
+
+    def __init__(self, consultation: Consultation) -> None:
+        card_label = (
+            get_card(consultation.card_draw.card_id).full_name
+            if consultation.card_draw is not None
+            else "—"
+        )
+        if consultation.cast is not None:
+            hexagram = get_hexagram(consultation.cast.primary_hexagram_number)
+            ground = f"{hexagram.unicode} {hexagram.name}"
+        else:
+            ground = "—"
+        status = (
+            ""
+            if consultation.status is ConsultationStatus.COMPLETE
+            else f" [{consultation.status.value}]"
+        )
+        super().__init__(
+            f"{consultation.question.consultation_local_date}   ORACLE    "
+            f"{_short_question(consultation.question.normalized_text)} — "
+            f"{card_label} in {ground}{status}"
+        )
+        self.consultation = consultation
+
+
 class OracleListItem(MarkedListItem):
+    """A superseded `oracle-v1` record: one card, no cast. Read-only."""
+
     def __init__(self, consultation: OracleConsultation) -> None:
         card_label = (
             get_card(consultation.card_draw.card_id).full_name
@@ -60,17 +98,17 @@ class OracleListItem(MarkedListItem):
             if consultation.status is OracleStatus.COMPLETE
             else f" [{consultation.status.value}]"
         )
-        question = consultation.question.normalized_text
-        if len(question) > 42:
-            question = question[:39] + "…"
         super().__init__(
-            f"{consultation.question.consultation_local_date}   ORACLE   "
-            f"{question} — {card_label}{status}"
+            f"{consultation.question.consultation_local_date}   was: THOTH   "
+            f"{_short_question(consultation.question.normalized_text)} — "
+            f"{card_label}{status}"
         )
         self.consultation = consultation
 
 
 class IChingListItem(MarkedListItem):
+    """A superseded `iching-v1` record: one cast, no card. Read-only."""
+
     def __init__(self, consultation: IChingConsultation) -> None:
         hexagram = (
             get_hexagram(consultation.cast.primary_hexagram_number)
@@ -83,12 +121,10 @@ class IChingListItem(MarkedListItem):
             if consultation.status is IChingStatus.COMPLETE
             else f" [{consultation.status.value}]"
         )
-        question = consultation.question.normalized_text
-        if len(question) > 42:
-            question = question[:39] + "…"
         super().__init__(
-            f"{consultation.question.consultation_local_date}   I CHING   "
-            f"{question} — {cast_label}{status}"
+            f"{consultation.question.consultation_local_date}   was: I CHING "
+            f"{_short_question(consultation.question.normalized_text)} — "
+            f"{cast_label}{status}"
         )
         self.consultation = consultation
 
@@ -100,7 +136,9 @@ class ArchiveScreen(SyzygyScreen):
         ("d", "delete_entry", "delete"),
     ]
 
-    _pending_delete: ReadingListItem | OracleListItem | IChingListItem | None = None
+    _pending_delete: (
+        ReadingListItem | ConsultationListItem | OracleListItem | IChingListItem | None
+    ) = None
 
     def compose(self) -> ComposeResult:
         yield TitleBar("ARCHIVE")
@@ -128,11 +166,13 @@ class ArchiveScreen(SyzygyScreen):
         profile = self.syzygy.profile
         if profile is None:
             return
-        readings = list_readings(self.syzygy.services.conn, profile.id)
-        consultations = list_consultations(self.syzygy.services.conn, profile.id)
-        iching_consultations = list_iching_consultations(
-            self.syzygy.services.conn, profile.id
-        )
+        conn = self.syzygy.services.conn
+        readings = list_readings(conn, profile.id)
+        consultations = list_consultations(conn, profile.id)
+        # The two superseded rites. They are listed forever and open
+        # read-only; the labels say which rite they were.
+        legacy_thoth = list_legacy_oracle_consultations(conn, profile.id)
+        legacy_iching = list_iching_consultations(conn, profile.id)
         listing = self.query_one("#archive-list", ListView)
         listing.clear()
         entries: list[tuple[str, MarkedListItem]] = [
@@ -140,20 +180,25 @@ class ArchiveScreen(SyzygyScreen):
             for reading in readings
         ]
         entries.extend(
-            (consultation.question.asked_at_utc.isoformat(), OracleListItem(consultation))
+            (consultation.question.asked_at_utc.isoformat(), ConsultationListItem(consultation))
             for consultation in consultations
         )
         entries.extend(
+            (consultation.question.asked_at_utc.isoformat(), OracleListItem(consultation))
+            for consultation in legacy_thoth
+        )
+        entries.extend(
             (consultation.question.asked_at_utc.isoformat(), IChingListItem(consultation))
-            for consultation in iching_consultations
+            for consultation in legacy_iching
         )
         for _, item in sorted(entries, key=lambda entry: entry[0], reverse=True):
             listing.append(item)
+        summary = f"Readings {len(readings)}  ·  Oracle {len(consultations)}"
+        legacy_count = len(legacy_thoth) + len(legacy_iching)
+        if legacy_count:
+            summary += f"  ·  earlier single-oracle rites {legacy_count}"
         self.query_one("#archive-summary", Static).update(
-            f"Readings {len(readings)}  ·  Thoth {len(consultations)}  ·  "
-            f"I Ching {len(iching_consultations)}"
-            if entries
-            else "No readings yet. No Oracle consultations yet."
+            summary if entries else "No readings yet. No Oracle consultations yet."
         )
         if entries:
             listing.index = 0
@@ -167,14 +212,14 @@ class ArchiveScreen(SyzygyScreen):
             from syzygy.tui.screens.reading import ReadingScreen
 
             self.app.push_screen(ReadingScreen(item.reading, interpret=False))
-        elif isinstance(item, OracleListItem):
-            from syzygy.tui.screens.oracle_result import OracleResultScreen
+        elif isinstance(item, (ConsultationListItem, OracleListItem, IChingListItem)):
+            # One screen for all three question-led kinds; it renders the
+            # legacy two read-only and says which rite they were.
+            from syzygy.tui.screens.consultation_result import ConsultationResultScreen
 
-            self.app.push_screen(OracleResultScreen(item.consultation, interpret=False))
-        elif isinstance(item, IChingListItem):
-            from syzygy.tui.screens.iching_result import IChingResultScreen
-
-            self.app.push_screen(IChingResultScreen(item.consultation, interpret=False))
+            self.app.push_screen(
+                ConsultationResultScreen(item.consultation, interpret=False)
+            )
 
     def action_toggle_frequency(self) -> None:
         if not self.query_one("#archive-delete-confirm").has_class("hidden"):
@@ -222,7 +267,9 @@ class ArchiveScreen(SyzygyScreen):
             self.app.bell()
             return
         item = self.query_one("#archive-list", ListView).highlighted_child
-        if not isinstance(item, (ReadingListItem, OracleListItem, IChingListItem)):
+        if not isinstance(
+            item, (ReadingListItem, ConsultationListItem, OracleListItem, IChingListItem)
+        ):
             self.app.bell()
             return
 
@@ -234,17 +281,26 @@ class ArchiveScreen(SyzygyScreen):
                 "That date will remain used; deleting this entry does not permit "
                 "another draw."
             )
+        elif isinstance(item, ConsultationListItem):
+            question = self._confirmation_question(
+                item.consultation.question.normalized_text
+            )
+            detail = f'Oracle question “{question}”'
+            consequence = (
+                "Its fixed card, its fixed cast, and its interpretation will be "
+                "permanently removed."
+            )
         elif isinstance(item, OracleListItem):
             question = self._confirmation_question(
                 item.consultation.question.normalized_text
             )
-            detail = f'Thoth Oracle question “{question}”'
+            detail = f'earlier Thoth-only Oracle question “{question}”'
             consequence = "Its fixed card and interpretation will be permanently removed."
         else:
             question = self._confirmation_question(
                 item.consultation.question.normalized_text
             )
-            detail = f'I Ching question “{question}”'
+            detail = f'earlier I Ching-only question “{question}”'
             consequence = "Its fixed cast and interpretation will be permanently removed."
         self.query_one("#archive-delete-body", Static).update(
             f"Delete this {detail}?\n\n{consequence}\nThis cannot be undone."
@@ -285,6 +341,10 @@ class ArchiveScreen(SyzygyScreen):
                     item.reading.id,
                     profile_id=profile.id,
                     deleted_at=self.syzygy.services.clock.now_utc(),
+                )
+            elif isinstance(item, ConsultationListItem):
+                deleted = delete_consultation(
+                    conn, item.consultation.id, profile_id=profile.id
                 )
             elif isinstance(item, OracleListItem):
                 deleted = delete_oracle_consultation(

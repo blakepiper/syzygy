@@ -1,15 +1,19 @@
-"""Ask and commit an Oracle question before turning the wheel."""
+"""Ask and commit an Oracle question before turning the wheel.
+
+There is one Oracle rite and no mode to choose (ADR 0008): this screen is
+the question, its budget, and the framing of what is about to happen.
+`[O]` from home lands here, and submitting goes straight to the wheel.
+"""
 
 from __future__ import annotations
 
 from textual.app import ComposeResult
-from textual.containers import Center, Horizontal, Vertical
+from textual.containers import Center, Vertical
 from textual.widgets import Button, Footer, Input, Static
 
-from syzygy.domain.iching_consultation import IChingConsultation
-from syzygy.domain.oracle import MAX_QUESTION_LENGTH, OracleConsultation
+from syzygy.domain.oracle import MAX_QUESTION_LENGTH
 from syzygy.sortes.entropy import EntropyCollector
-from syzygy.storage.oracle_service import ask_question
+from syzygy.storage.consultation_service import ask_question
 from syzygy.tui.screens.base import SyzygyScreen, TitleBar
 
 
@@ -19,18 +23,19 @@ class OracleAskScreen(SyzygyScreen):
     def __init__(self) -> None:
         super().__init__()
         # One collector follows this consultation through the question and
-        # wheel. Production always uses the default OS-random source.
+        # wheel, and feeds both derivations. Production always uses the
+        # default OS-random source.
         self._collector = EntropyCollector()
         self._submitting = False
 
     def compose(self) -> ComposeResult:
         yield TitleBar("THE ORACLE")
         with Vertical(id="oracle-ask-body"):
-            yield Static("Ask one question. Choose one oracle.", classes="lede")
+            yield Static("Ask one question.", classes="lede")
             yield Static(
                 "Your question is stored locally and sent only to your selected interpreter. "
-                "You will turn the wheel once; the card or six-line cast remains fixed even "
-                "if interpretation fails.",
+                "You will turn the wheel once. It casts both oracles together — a card and "
+                "six lines — and both remain fixed even if interpretation fails.",
                 classes="muted",
             )
             yield Input(
@@ -40,9 +45,8 @@ class OracleAskScreen(SyzygyScreen):
             )
             yield Static(f"0 / {MAX_QUESTION_LENGTH}", id="oracle-budget", classes="muted")
             yield Static("", id="oracle-error", classes="error")
-            with Center(), Horizontal(id="oracle-mode-buttons"):
-                yield Button("THOTH CARD", id="oracle-submit", variant="primary")
-                yield Button("I CHING", id="iching-submit")
+            with Center():
+                yield Button("ASK", id="oracle-submit", variant="primary")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -62,32 +66,19 @@ class OracleAskScreen(SyzygyScreen):
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "oracle-submit":
-            self._submit("tarot")
-        elif event.button.id == "iching-submit":
-            self._submit("iching")
+            self._submit()
 
-    def _submit(self, mode: str = "tarot") -> None:
+    def _submit(self) -> None:
         if self._submitting or self.syzygy.profile is None:
             return
         question = self.query_one("#oracle-question", Input).value
-        consultation: IChingConsultation | OracleConsultation
         try:
-            if mode == "iching":
-                from syzygy.storage.iching_service import ask_question as ask_iching
-
-                consultation = ask_iching(
-                    self.syzygy.services.conn,
-                    self.syzygy.profile,
-                    self.syzygy.services.clock,
-                    question,
-                )
-            else:
-                consultation = ask_question(
-                    self.syzygy.services.conn,
-                    self.syzygy.profile,
-                    self.syzygy.services.clock,
-                    question,
-                )
+            consultation = ask_question(
+                self.syzygy.services.conn,
+                self.syzygy.profile,
+                self.syzygy.services.clock,
+                question,
+            )
         except ValueError as exc:
             self.query_one("#oracle-error", Static).update(str(exc))
             self.app.bell()

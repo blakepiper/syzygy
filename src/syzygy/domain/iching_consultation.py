@@ -1,4 +1,9 @@
-"""A question-led I Ching consultation and its committed lifecycle."""
+"""Read-only history: the `iching-v1` cast-only consultation (M20).
+
+The alternative-Oracle mode is gone; M22 casts a card and a hexagram in
+one rite (`syzygy.domain.consultation`, ADR 0008). Stored rows are still
+read and displayed, and nothing advances them - hence no transition table.
+"""
 
 from __future__ import annotations
 
@@ -22,19 +27,9 @@ class IChingStatus(StrEnum):
     INTERPRETATION_FAILED = "interpretation_failed"
 
 
-ALLOWED_TRANSITIONS: dict[IChingStatus, frozenset[IChingStatus]] = {
-    IChingStatus.ASKED: frozenset({IChingStatus.CAST}),
-    IChingStatus.CAST: frozenset({IChingStatus.CONTEXT_READY}),
-    IChingStatus.CONTEXT_READY: frozenset({IChingStatus.INTERPRETING}),
-    IChingStatus.INTERPRETING: frozenset(
-        {IChingStatus.COMPLETE, IChingStatus.INTERPRETATION_FAILED}
-    ),
-    IChingStatus.INTERPRETATION_FAILED: frozenset({IChingStatus.INTERPRETING}),
-    IChingStatus.COMPLETE: frozenset(),
-}
-
-
 class IChingConsultation(BaseModel):
+    """A stored `iching-v1` consultation. Historical; never advanced."""
+
     model_config = ConfigDict(frozen=True)
 
     id: str

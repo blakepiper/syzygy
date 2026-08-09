@@ -1,7 +1,15 @@
 # ADR 0007: I Ching as an alternative Oracle
 
-- Status: accepted
+- Status: accepted; the *alternative mode* decision is superseded by
+  [ADR 0008](0008-oracle-as-figure-and-ground.md)
 - Date: 2026-08-09
+
+> **What changed.** M22 replaced the mutually exclusive card-or-cast mode with
+> a single rite that casts both, as figure and ground. Everything else in this
+> record stands unchanged: the three-coin method and its probabilities,
+> changing lines, the resulting hexagram as direction, and the Legge (1882)
+> resource with page citations. Existing `iching-v1` consultations are
+> read-only history.
 
 ## Context
 

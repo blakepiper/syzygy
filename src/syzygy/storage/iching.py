@@ -1,27 +1,22 @@
-"""State-machine-respecting persistence for I Ching consultations."""
+"""Read-only history: the `iching-v1` cast-only consultations (M20).
+
+The alternative-Oracle mode these rows came from no longer exists: M22
+casts both objects in one rite (`syzygy.storage.consultations`, ADR 0008).
+They stay readable in the archive forever and can never be advanced, so
+this module has readers and a delete and no writers at all.
+`iching_consultations` is neither altered nor dropped.
+"""
 
 from __future__ import annotations
 
 import sqlite3
-import uuid
 from datetime import datetime
 
 from syzygy.domain.astrology import TransitSnapshot
 from syzygy.domain.iching import IChingCast
-from syzygy.domain.iching_consultation import (
-    ALLOWED_TRANSITIONS,
-    IChingConsultation,
-    IChingStatus,
-)
+from syzygy.domain.iching_consultation import IChingConsultation, IChingStatus
 from syzygy.domain.interpretation import InterpretationContext, OracleResult
 from syzygy.domain.oracle import OracleQuestion
-
-
-class IllegalIChingTransition(Exception):
-    def __init__(self, current: IChingStatus, requested: IChingStatus) -> None:
-        super().__init__(f"cannot transition I Ching from {current!r} to {requested!r}")
-        self.current = current
-        self.requested = requested
 
 
 def _row_to_consultation(row: sqlite3.Row) -> IChingConsultation:
@@ -95,141 +90,3 @@ def delete_consultation(
         (consultation_id, profile_id),
     ).rowcount
     return deleted == 1
-
-
-def create_asked(
-    conn: sqlite3.Connection,
-    *,
-    profile_id: str,
-    question: OracleQuestion,
-    consultation_local_timestamp: str,
-    consultation_timezone: str,
-) -> IChingConsultation:
-    consultation_id = str(uuid.uuid4())
-    now = question.asked_at_utc.isoformat()
-    conn.execute(
-        """
-        INSERT INTO iching_consultations (
-            id, profile_id, question_text, question_normalized, asked_at_utc,
-            consultation_local_date, consultation_local_timestamp,
-            consultation_timezone, status, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        (
-            consultation_id,
-            profile_id,
-            question.text,
-            question.normalized_text,
-            now,
-            question.consultation_local_date,
-            consultation_local_timestamp,
-            consultation_timezone,
-            IChingStatus.ASKED.value,
-            now,
-            now,
-        ),
-    )
-    created = get_by_id(conn, consultation_id)
-    assert created is not None
-    return created
-
-
-def _advance(
-    conn: sqlite3.Connection,
-    consultation_id: str,
-    to_status: IChingStatus,
-    now: datetime,
-    **columns: str,
-) -> IChingConsultation:
-    current = get_by_id(conn, consultation_id)
-    if current is None:
-        raise ValueError(f"no I Ching consultation with id {consultation_id!r}")
-    if to_status not in ALLOWED_TRANSITIONS[current.status]:
-        raise IllegalIChingTransition(current.status, to_status)
-    clauses = ["status = ?", "updated_at = ?"]
-    values: list[str] = [to_status.value, now.isoformat()]
-    for column, value in columns.items():
-        clauses.append(f"{column} = ?")
-        values.append(value)
-    values.append(consultation_id)
-    conn.execute(
-        f"UPDATE iching_consultations SET {', '.join(clauses)} WHERE id = ?", values
-    )
-    updated = get_by_id(conn, consultation_id)
-    assert updated is not None
-    return updated
-
-
-def commit_cast(
-    conn: sqlite3.Connection, consultation_id: str, cast: IChingCast
-) -> IChingConsultation:
-    return _advance(
-        conn,
-        consultation_id,
-        IChingStatus.CAST,
-        cast.cast_at_utc,
-        cast_json=cast.model_dump_json(),
-    )
-
-
-def commit_context(
-    conn: sqlite3.Connection,
-    consultation_id: str,
-    *,
-    snapshot: TransitSnapshot,
-    context: InterpretationContext,
-    now: datetime,
-) -> IChingConsultation:
-    return _advance(
-        conn,
-        consultation_id,
-        IChingStatus.CONTEXT_READY,
-        now,
-        transit_snapshot_json=snapshot.model_dump_json(),
-        interpretation_context_json=context.model_dump_json(),
-    )
-
-
-def begin_interpreting(
-    conn: sqlite3.Connection, consultation_id: str, *, now: datetime
-) -> IChingConsultation:
-    return _advance(conn, consultation_id, IChingStatus.INTERPRETING, now)
-
-
-def complete_interpretation(
-    conn: sqlite3.Connection,
-    consultation_id: str,
-    result: OracleResult,
-    *,
-    now: datetime,
-) -> IChingConsultation:
-    return _advance(
-        conn,
-        consultation_id,
-        IChingStatus.COMPLETE,
-        now,
-        result_json=result.model_dump_json(),
-        provider_id=result.provider_id,
-        model_id=result.model_id,
-        prompt_version=result.prompt_version,
-    )
-
-
-def fail_interpretation(
-    conn: sqlite3.Connection,
-    consultation_id: str,
-    *,
-    provider_id: str,
-    model_id: str,
-    prompt_version: str,
-    now: datetime,
-) -> IChingConsultation:
-    return _advance(
-        conn,
-        consultation_id,
-        IChingStatus.INTERPRETATION_FAILED,
-        now,
-        provider_id=provider_id,
-        model_id=model_id,
-        prompt_version=prompt_version,
-    )

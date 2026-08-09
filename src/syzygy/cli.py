@@ -409,24 +409,34 @@ def _oracle_profile(conn: sqlite3.Connection, profile_id: str | None):
     return profiles[0]
 
 
-def _print_oracle(consultation) -> None:
+def _print_oracle(consultation, *, legacy: str | None = None) -> None:
+    """Render a consultation of any of the three rites.
+
+    `legacy` marks a stored record from a superseded single-object rite as
+    the rite it was, so a reader is never left to infer that a missing
+    card or a missing cast was a failure (ADR 0008 section 7).
+    """
     from syzygy.iching.book import get_hexagram
     from syzygy.sortes.deck import get_card
 
     print(f"Oracle {consultation.id}")
+    if legacy is not None:
+        print(f"Historical rite: {legacy}")
     print(f"Question: {consultation.question.text}")
     card_draw = getattr(consultation, "card_draw", None)
     if card_draw is not None:
-        print(f"Card: {get_card(card_draw.card_id).full_name} (upright)")
+        print(f"The figure: {get_card(card_draw.card_id).full_name} (upright)")
     cast = getattr(consultation, "cast", None)
     if cast is not None:
         primary = get_hexagram(cast.primary_hexagram_number)
-        print(f"Cast: {primary.unicode} {primary.number}. {primary.name}")
+        print(f"The ground: {primary.unicode} {primary.number}. {primary.name}")
         print(f"Lines (bottom first): {' '.join(str(int(line)) for line in cast.lines)}")
-        print(f"Changing lines: {', '.join(map(str, cast.changing_lines)) or 'none'}")
         if cast.changing_lines:
             resulting = get_hexagram(cast.resulting_hexagram_number)
+            print(f"Movement: lines {', '.join(map(str, cast.changing_lines))} moving")
             print(f"Resulting: {resulting.unicode} {resulting.number}. {resulting.name}")
+        else:
+            print("Movement: none — the ground is settled")
     print(f"Status: {consultation.status.value}")
     if consultation.result is None:
         print("The alignment is fixed; interpretation is unavailable.")
@@ -442,13 +452,18 @@ def _print_oracle(consultation) -> None:
 def _cmd_oracle_ask(args: argparse.Namespace) -> int:
     import asyncio
 
-    from syzygy.domain.iching_consultation import IChingConsultation
-    from syzygy.domain.oracle import OracleConsultation
     from syzygy.sortes.entropy import EntropyCollector
-    from syzygy.storage.iching_service import consult_iching
-    from syzygy.storage.oracle_service import consult_oracle
+    from syzygy.storage.consultation_service import consult
     from syzygy.tui.app import default_services, stop_managed_model
 
+    if args.mode is not None:
+        # Accepted for one release rather than failing on it (M22.5a).
+        print(
+            f"--mode {args.mode} is no longer a choice: the Oracle now casts both "
+            "a Thoth card and an I Ching hexagram from one turn of the wheel. "
+            "The flag is ignored.",
+            file=sys.stderr,
+        )
     services = default_services()
     try:
         try:
@@ -468,31 +483,16 @@ def _cmd_oracle_ask(args: argparse.Namespace) -> int:
                 collector.record("impulse")
             input("Press Enter to release the wheel: ")
             collector.record("release")
-        consultation: IChingConsultation | OracleConsultation
-        if args.mode == "iching":
-            consultation = asyncio.run(
-                consult_iching(
-                    services.conn,
-                    profile,
-                    services.clock,
-                    services.astrology,
-                    collector,
-                    services.provider,
-                    args.question,
-                )
+        consultation = asyncio.run(
+            consult(
+                services.conn,
+                profile,
+                services.clock,
+                collector,
+                services.provider,
+                args.question,
             )
-        else:
-            consultation = asyncio.run(
-                consult_oracle(
-                    services.conn,
-                    profile,
-                    services.clock,
-                    services.astrology,
-                    collector,
-                    services.provider,
-                    args.question,
-                )
-            )
+        )
         _print_oracle(consultation)
         return 0 if consultation.result is not None else 1
     finally:
@@ -500,13 +500,21 @@ def _cmd_oracle_ask(args: argparse.Namespace) -> int:
         services.conn.close()
 
 
+#: What a stored record from a superseded rite is called, wherever the CLI
+#: has to distinguish it from a current consultation.
+_LEGACY_THOTH = "a Thoth card alone, with no cast"
+_LEGACY_ICHING = "an I Ching cast alone, with no card"
+
+
 def _cmd_oracle_list(args: argparse.Namespace) -> int:
+    from syzygy.domain.consultation import Consultation
     from syzygy.domain.iching_consultation import IChingConsultation
     from syzygy.domain.oracle import OracleConsultation
     from syzygy.iching.book import get_hexagram
     from syzygy.sortes.deck import get_card
+    from syzygy.storage.consultations import list_consultations
     from syzygy.storage.iching import list_consultations as list_iching_consultations
-    from syzygy.storage.oracle import list_consultations
+    from syzygy.storage.oracle import list_consultations as list_legacy_oracle
 
     conn = _open_profile_db()
     try:
@@ -516,57 +524,70 @@ def _cmd_oracle_list(args: argparse.Namespace) -> int:
             print(str(exc), file=sys.stderr)
             return 1
         consultations = list_consultations(conn, profile.id)
-        iching_consultations = list_iching_consultations(conn, profile.id)
+        legacy_thoth = list_legacy_oracle(conn, profile.id)
+        legacy_iching = list_iching_consultations(conn, profile.id)
     finally:
         conn.close()
-    if not consultations and not iching_consultations:
+    if not consultations and not legacy_thoth and not legacy_iching:
         print("No Oracle consultations yet.")
         return 0
-    entries: list[
-        tuple[datetime, str, IChingConsultation | OracleConsultation]
-    ] = [
-        (consultation.question.asked_at_utc, "THOTH", consultation)
-        for consultation in consultations
-    ]
-    entries.extend(
-        (consultation.question.asked_at_utc, "I CHING", consultation)
-        for consultation in iching_consultations
-    )
-    for _asked_at, mode, consultation in sorted(entries, reverse=True, key=lambda item: item[0]):
-        chance = "—"
+
+    def chance_label(consultation) -> str:
+        parts: list[str] = []
         card_draw = getattr(consultation, "card_draw", None)
         cast = getattr(consultation, "cast", None)
         if card_draw is not None:
-            chance = get_card(card_draw.card_id).full_name
-        elif cast is not None:
+            parts.append(get_card(card_draw.card_id).full_name)
+        if cast is not None:
             hexagram = get_hexagram(cast.primary_hexagram_number)
-            chance = f"{hexagram.unicode} {hexagram.name}"
+            parts.append(f"{hexagram.unicode} {hexagram.name}")
+        return " in ".join(parts) if parts else "—"
+
+    entries: list[tuple[datetime, str, Consultation | OracleConsultation | IChingConsultation]]
+    entries = [
+        (consultation.question.asked_at_utc, "ORACLE", consultation)
+        for consultation in consultations
+    ]
+    entries.extend(
+        (consultation.question.asked_at_utc, "was: THOTH", consultation)
+        for consultation in legacy_thoth
+    )
+    entries.extend(
+        (consultation.question.asked_at_utc, "was: I CHING", consultation)
+        for consultation in legacy_iching
+    )
+    for _asked_at, kind, consultation in sorted(
+        entries, reverse=True, key=lambda item: item[0]
+    ):
         print(
             f"{consultation.id}  {consultation.question.consultation_local_date}  "
-            f"{mode:7s}  {consultation.status.value:22s}  {chance}  "
+            f"{kind:11s}  {consultation.status.value:22s}  {chance_label(consultation)}  "
             f"{consultation.question.normalized_text}"
         )
     return 0
 
 
 def _cmd_oracle_show(args: argparse.Namespace) -> int:
-    from syzygy.domain.iching_consultation import IChingConsultation
-    from syzygy.domain.oracle import OracleConsultation
+    from syzygy.storage.consultations import get_by_id
     from syzygy.storage.iching import get_by_id as get_iching_by_id
-    from syzygy.storage.oracle import get_by_id
+    from syzygy.storage.oracle import get_by_id as get_legacy_oracle_by_id
 
     conn = _open_profile_db()
     try:
-        consultation: OracleConsultation | IChingConsultation | None
-        consultation = get_by_id(conn, args.consultation_id)
+        legacy: str | None = None
+        consultation: object | None = get_by_id(conn, args.consultation_id)
+        if consultation is None:
+            consultation = get_legacy_oracle_by_id(conn, args.consultation_id)
+            legacy = _LEGACY_THOTH if consultation is not None else None
         if consultation is None:
             consultation = get_iching_by_id(conn, args.consultation_id)
+            legacy = _LEGACY_ICHING if consultation is not None else None
     finally:
         conn.close()
     if consultation is None:
         print(f"no Oracle consultation with id {args.consultation_id!r}", file=sys.stderr)
         return 1
-    _print_oracle(consultation)
+    _print_oracle(consultation, legacy=legacy)
     return 0
 
 
@@ -1510,15 +1531,16 @@ def build_parser() -> argparse.ArgumentParser:
     oracle_parser = subparsers.add_parser("oracle", help="ask and revisit the Oracle")
     oracle_subparsers = oracle_parser.add_subparsers(dest="oracle_command")
     oracle_ask_parser = oracle_subparsers.add_parser(
-        "ask", help="ask a question, turn the wheel, and interpret one fixed card"
+        "ask",
+        help="ask a question, turn the wheel, and interpret one fixed card and cast",
     )
     oracle_ask_parser.add_argument("question")
     oracle_ask_parser.add_argument("--profile-id", default=None)
     oracle_ask_parser.add_argument(
         "--mode",
         choices=("thoth", "iching"),
-        default="thoth",
-        help="chance oracle to consult",
+        default=None,
+        help="deprecated and ignored: both oracles are now cast together",
     )
     oracle_ask_parser.set_defaults(func=_cmd_oracle_ask)
     oracle_list_parser = oracle_subparsers.add_parser("list", help="list Oracle consultations")

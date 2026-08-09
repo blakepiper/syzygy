@@ -128,7 +128,15 @@ def count_readings(conn: sqlite3.Connection, profile_id: str) -> int:
     iching_row = conn.execute(
         "SELECT COUNT(*) AS total FROM iching_consultations WHERE profile_id = ?", (profile_id,)
     ).fetchone()
-    return int(reading_row["total"]) + int(oracle_row["total"]) + int(iching_row["total"])
+    consultation_row = conn.execute(
+        "SELECT COUNT(*) AS total FROM consultations WHERE profile_id = ?", (profile_id,)
+    ).fetchone()
+    return (
+        int(reading_row["total"])
+        + int(oracle_row["total"])
+        + int(iching_row["total"])
+        + int(consultation_row["total"])
+    )
 
 
 def delete_profile(conn: sqlite3.Connection, profile_id: str) -> int:
@@ -163,6 +171,9 @@ def delete_profile(conn: sqlite3.Connection, profile_id: str) -> int:
         deleted_iching = conn.execute(
             "DELETE FROM iching_consultations WHERE profile_id = ?", (profile_id,)
         ).rowcount
+        deleted_consultations = conn.execute(
+            "DELETE FROM consultations WHERE profile_id = ?", (profile_id,)
+        ).rowcount
         conn.execute("DELETE FROM interpretive_summaries WHERE profile_id = ?", (profile_id,))
         conn.execute("DELETE FROM profiles WHERE id = ?", (profile_id,))
     except Exception:
@@ -170,4 +181,4 @@ def delete_profile(conn: sqlite3.Connection, profile_id: str) -> int:
         raise
     else:
         conn.execute("COMMIT")
-    return deleted_readings + deleted_oracles + deleted_iching
+    return deleted_readings + deleted_oracles + deleted_iching + deleted_consultations

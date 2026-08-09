@@ -365,8 +365,8 @@ def test_oracle_list_and_show_reopen_local_question_data(isolated_app_paths, cap
     from datetime import UTC, datetime
 
     from syzygy.clock import FixedClock
+    from syzygy.storage.consultation_service import ask_question
     from syzygy.storage.database import open_database
-    from syzygy.storage.oracle_service import ask_question
     from syzygy.storage.profiles import get_profile
 
     _seed_profile(isolated_app_paths)
@@ -454,26 +454,20 @@ def test_oracle_ask_draws_and_interprets_without_a_configured_model(
     assert "Conventional" in output
 
 
-def test_oracle_ask_can_select_iching_as_the_alternative_mode(
+def test_oracle_ask_casts_both_objects_and_ignores_the_retired_mode_flag(
     isolated_app_paths, capsys, monkeypatch
 ):
+    """M22.5a: `--mode` is accepted for one release with a notice, not a failure."""
     from datetime import UTC, datetime
 
-    from syzygy.astrology.policy import POLICY_VERSION
     from syzygy.clock import FixedClock
-    from syzygy.domain.astrology import TransitSnapshot
     from syzygy.interpretation.providers.fixture import FixtureProvider
     from syzygy.storage.database import open_database
     from syzygy.tui.app import SyzygyServices
 
-    class QuietSky:
+    class NoSky:
         def calculate_transits(self, natal, instant):
-            return TransitSnapshot(
-                instant_utc=instant,
-                transiting_positions=[],
-                raw_aspects=[],
-                astrology_policy_version=POLICY_VERSION,
-            )
+            raise AssertionError("the Oracle must not read the day's transits")
 
     class FixedEntropyCollector:
         def record(self, _kind: str) -> None:
@@ -488,7 +482,7 @@ def test_oracle_ask_can_select_iching_as_the_alternative_mode(
         return SyzygyServices(
             conn=open_database(isolated_app_paths.database_path),
             clock=FixedClock(datetime(2026, 8, 9, 12, tzinfo=UTC)),
-            astrology=QuietSky(),
+            astrology=NoSky(),
             provider=FixtureProvider(),
             settings_path=isolated_app_paths.settings_path,
         )
@@ -497,23 +491,53 @@ def test_oracle_ask_can_select_iching_as_the_alternative_mode(
     monkeypatch.setattr("syzygy.sortes.entropy.EntropyCollector", FixedEntropyCollector)
 
     assert main(["oracle", "ask", "What now?", "--mode", "iching"]) == 0
-    output = capsys.readouterr().out
-    assert "Cast: " in output
+    captured = capsys.readouterr()
+    assert "no longer a choice" in captured.err
+    output = captured.out
+    assert "The figure: " in output
+    assert "The ground: " in output
     assert "Lines (bottom first):" in output
+    assert "Movement: " in output
     assert "Status: complete" in output
     assert "Response" in output
 
     conn = open_database(isolated_app_paths.database_path)
     try:
-        from syzygy.storage.iching import list_consultations
+        from syzygy.storage.consultations import list_consultations
 
         consultation = list_consultations(conn, "p1")[0]
     finally:
         conn.close()
+    assert consultation.card_draw is not None
+    assert consultation.cast is not None
+
     assert main(["oracle", "list"]) == 0
-    assert "I CHING" in capsys.readouterr().out
+    listing = capsys.readouterr().out
+    assert "ORACLE" in listing
+    assert " in " in listing
     assert main(["oracle", "show", consultation.id]) == 0
     assert "Lines (bottom first):" in capsys.readouterr().out
+
+
+def test_oracle_show_marks_a_legacy_record_as_the_rite_it_was(isolated_app_paths, capsys):
+    from syzygy.storage.database import open_database
+
+    _seed_profile(isolated_app_paths)
+    conn = open_database(isolated_app_paths.database_path)
+    try:
+        from tests.storage.test_legacy_consultations import insert_legacy_iching_row
+
+        insert_legacy_iching_row(conn, "p1")
+    finally:
+        conn.close()
+
+    assert main(["oracle", "show", "legacy-iching"]) == 0
+    shown = capsys.readouterr().out
+    assert "Historical rite: an I Ching cast alone, with no card" in shown
+    assert "The ground: " in shown
+
+    assert main(["oracle", "list"]) == 0
+    assert "was: I CHING" in capsys.readouterr().out
 
 
 # -- `syzygy dev animate` (M17.2e) ---------------------------------------

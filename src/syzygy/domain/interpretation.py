@@ -22,11 +22,17 @@ from syzygy.domain.iching import Hexagram, IChingCast
 from syzygy.domain.knowledge import KnowledgeChunk
 from syzygy.domain.tarot import TarotCard
 
-CONTEXT_SCHEMA_VERSION = "context-v4"
+CONTEXT_SCHEMA_VERSION = "context-v5"
 
 
 class InterpretationKind(StrEnum):
     DAILY_READING = "daily_reading"
+    #: The Oracle rite: a card and a cast together (ADR 0008).
+    CONSULTATION = "consultation"
+    #: `ORACLE` and `I_CHING` are the two single-object rites M22
+    #: superseded. No new context is built with either; both survive
+    #: because stored `oracle-v1`/`iching-v1` rows carry them and the
+    #: archive must keep reading those rows forever.
     ORACLE = "oracle"
     I_CHING = "i_ching"
     NATAL_SUMMARY = "natal_summary"
@@ -64,7 +70,20 @@ class InterpretationContext(BaseModel):
 
     @model_validator(mode="after")
     def validate_kind(self) -> InterpretationContext:
-        if self.kind in (InterpretationKind.DAILY_READING, InterpretationKind.ORACLE):
+        if self.kind is InterpretationKind.CONSULTATION:
+            # The Oracle rite carries both chance objects or is not a
+            # consultation at all (ADR 0008 section 1).
+            if self.card is None:
+                raise ValueError("a consultation requires its fixed card")
+            if (
+                self.iching_cast is None
+                or self.primary_hexagram is None
+                or self.resulting_hexagram is None
+            ):
+                raise ValueError("a consultation requires its fixed cast and hexagrams")
+            if self.significant_transits:
+                raise ValueError("the Oracle does not read the day's transits")
+        elif self.kind in (InterpretationKind.DAILY_READING, InterpretationKind.ORACLE):
             if self.card is None:
                 raise ValueError("a reading context requires a fixed card")
             if self.iching_cast is not None:
@@ -86,7 +105,11 @@ class InterpretationContext(BaseModel):
             )
         ):
             raise ValueError("summary contexts must not contain a chance object")
-        question_kinds = (InterpretationKind.ORACLE, InterpretationKind.I_CHING)
+        question_kinds = (
+            InterpretationKind.CONSULTATION,
+            InterpretationKind.ORACLE,
+            InterpretationKind.I_CHING,
+        )
         if self.kind in question_kinds and self.question is None:
             raise ValueError("a question-led context requires a question")
         if self.kind not in question_kinds and self.question is not None:

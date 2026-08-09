@@ -10,11 +10,17 @@ code.
 ## The one-paragraph mental model
 
 ```
-SELF (saved natal chart) + COSMOS (current transits) + CHANCE (one random
-Thoth card, or one I Ching cast in that Oracle mode) → SYZYGY → an LLM
-interprets the fixed result in two
-registers (Esoteric, Conventional). The LLM never calculates astrology,
-never selects or changes the card, and can never cause a reroll.
+The daily reading:
+  SELF (saved natal chart) + COSMOS (today's transits) + CHANCE (one
+  random upright Thoth card)
+
+The Oracle (a question-led rite of its own, ADR 0008):
+  a question + SELF + CHANCE (one Thoth card as the figure, one I Ching
+  cast as the ground, from one turn of the wheel) — and no transits
+
+→ SYZYGY → an LLM interprets the fixed result in two registers (Esoteric,
+Conventional). The LLM never calculates astrology, never selects or
+changes a card or a cast, and can never cause a reroll.
 ```
 
 If a task you're given seems to require the model to decide a fact instead
@@ -70,9 +76,21 @@ certainly a design violation, not a shortcut.
 - **Canonical I Ching data comes from
   `src/syzygy/resources/iching_legge.yaml`, never model memory.** Its 64
   judgments, Images, and line texts are transcribed and page-cited from James
-  Legge's 1882 translation. The three-coin method, changing-line treatment,
-  and alternative-mode decision are fixed by ADR 0007; a provider receives
-  the committed cast and source text and may not select or alter either.
+  Legge's 1882 translation. The three-coin method and changing-line treatment
+  are fixed by ADR 0007; ADR 0008 replaced its alternative-mode decision.
+  A provider receives the committed cast and source text alongside the
+  committed card, and may not select or alter any of it.
+- **Every Oracle consultation carries both chance objects, with fixed
+  roles.** One card (the figure) and one six-line cast (the ground), from one
+  `EntropyCollector` and one turn of the wheel, committed in one transaction
+  before context building or any provider call — see
+  `syzygy.domain.consultation` and ADR 0008. There is no mode to choose, no
+  correspondence table between the 64 and the 78 (and none may be invented),
+  and no transit anywhere in the Oracle: `oracle-v2` has no transit block and
+  the context builder refuses one. The daily reading keeps its transits. The
+  `oracle-v1` and `iching-v1` records are read-only history — their storage
+  modules have readers and no writers, and the service layer refuses to
+  advance one.
 - **The knowledge base is multi-source, but only one source is canonical.**
   `docs/book_of_thoth.pdf` is Tier 0 — the only source `thoth_deck.yaml`
   is grounded against, and the only source `Milestone 6`'s deterministic
@@ -173,7 +191,7 @@ may use it freely — it does not mean you may invent it.
 | `src/syzygy/sortes/` | Deck loading, entropy collection, the unbiased draw |
 | `src/syzygy/interpretation/` | `InterpretationProvider` protocol, the prompt contract, context builder, and the four providers |
 | `src/syzygy/local_models/` | Guided local-model setup (M16): inventory, fit, pinned catalog, discovery, download, supervisor, smoke test, orchestrator. No Textual, no provider SDK |
-| `src/syzygy/storage/` | SQLite connection + migrations (append-only, never edit a merged migration) |
+| `src/syzygy/storage/` | SQLite connection + migrations (append-only, never edit a merged migration). `consultations.py`/`consultation_service.py` are the Oracle; `oracle.py`/`iching.py` are the two superseded rites, readers only |
 | `src/syzygy/knowledge/` | Ingestion (`normalize`/`segment`/`store`/`ingest`), retrieval (`retrieve`), per-source state (`status`), and the shipped citations+vectors index (`artifact`, `embedding`) |
 | `src/syzygy/settings.py` | The namespaced settings document. Add a preference as a *section*; never write the whole file |
 | `src/syzygy/audio.py` | The bundled looping theme. Degrades to `SilentTheme` on every failure |
@@ -326,10 +344,18 @@ in the invariants above and did not move: citation-only chunks reach the
 user, never a provider.
 
 Added in M19–M20: the question-led Oracle as a rite separate from the daily
-reading, with mutually exclusive Thoth-card and I Ching modes. I Ching uses a
-committed three-coin cast with changing lines and a resulting hexagram,
-source-grounded Legge (1882) text, its own `iching-v1` prompt and storage state
-machine, and the same retry-without-reroll provider boundary.
+reading, originally with mutually exclusive Thoth-card and I Ching modes.
+I Ching uses a committed three-coin cast with changing lines and a resulting
+hexagram, source-grounded Legge (1882) text, and the same
+retry-without-reroll provider boundary.
+
+Added in M22: the mode choice is gone. One Oracle rite casts both objects
+from one turn of the wheel and reads the card as the figure in the hexagram's
+ground (`syzygy.domain.consultation`, `syzygy.storage.consultations` and its
+service, migration 11, the `oracle-v2` contract, and
+`tui/screens/consultation_result.py`). Transits left the Oracle; the natal
+chart stayed. The `oracle-v1` and `iching-v1` rites are read-only history
+whose tables, rows, and archive entries are untouched.
 
 M21 wrote `docs/liber_syzygy.md`, the composed founding text. It is
 gitignored on purpose and stays that way until the author says otherwise: do
@@ -337,7 +363,7 @@ not commit it, quote it into the README, render it in the TUI, or feed it to a
 model as tone guidance. Placing it anywhere in the application is a separate,
 unopened task.
 
-All tasks through M21 are implemented, except M16.10f - the manual
+All tasks through M22 are implemented, except M16.10f - the manual
 clean-machine matrix, of which only Linux x86-64 CPU has actually been
 performed (recorded in `docs/LOCAL_MODEL_MAINTENANCE.md`). M12.3 (a
 Cinzel display treatment) was dropped rather than deferred - `TASKS.md`

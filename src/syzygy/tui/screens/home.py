@@ -90,7 +90,7 @@ class HomeScreen(SyzygyScreen):
                 yield Static("", id="home-status", classes="muted")
                 yield Static("", id="home-model-status", classes="muted", markup=False)
                 yield Static(
-                    "[O] Oracle — ask a question without using today's card",
+                    "[O] Oracle — ask a question; a card and a cast of its own",
                     id="home-oracle-hint",
                     classes="muted",
                     markup=False,

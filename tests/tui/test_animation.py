@@ -121,3 +121,28 @@ async def test_routine_screens_remain_navigable_with_motion_off(
             await pilot.press("escape")
             await pilot.pause()
             assert app.screen.__class__.__name__ == "HomeScreen"
+
+
+async def test_the_cast_reveal_lands_settled_with_motion_off(
+    services, profile, monkeypatch
+):
+    """M22.4c: the six lines build upward, and `off` still shows all six.
+
+    The beat is honest either way - both chance objects are committed
+    before it plays, so the motion reports a finished fact rather than
+    deciding one.
+    """
+    monkeypatch.setenv("SYZYGY_ANIMATIONS", "off")
+    app = SyzygyApp(services)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        from tests.tui.test_oracle import complete_oracle
+
+        await complete_oracle(pilot, "What is settled?")
+        screen = pilot.app.screen
+        lines = screen.query(".cast-line")
+
+        assert screen.consultation.card_draw is not None
+        assert screen.consultation.cast is not None
+        assert len(lines) == 6
+        assert all(line.styles.opacity == 1.0 for line in lines)

@@ -258,6 +258,33 @@ class Animations:
             channel="ritual-reveal",
         )
 
+    def reveal_consultation(
+        self,
+        card: Widget,
+        lines_bottom_up: Sequence[Widget],
+        complete: Callable[[], None],
+    ) -> Handle:
+        """The Oracle's reveal: the card, then six lines building upward.
+
+        Reveal order is not narration order (M22.4b). The card is the
+        wheel's payoff and the app's visual identity, so it lands first;
+        the ground assembles under it the way a cast is actually made,
+        bottom line to top. Both objects were committed before this ran -
+        the motion reports a finished fact, it does not decide one.
+        """
+        for line in lines_bottom_up:
+            line.styles.opacity = 0.0
+        return self.animator.run(
+            TimelineSequence(
+                [
+                    pulse(card, 0.16),
+                    stagger([reveal(line, 0.22) for line in lines_bottom_up], 0.09),
+                    Call(complete),
+                ]
+            ),
+            channel="consultation-reveal",
+        )
+
     def enter_staggered(self, targets: Sequence[Widget]) -> Handle:
         return self.animator.run(
             stagger([reveal(target, 0.3) for target in targets], 0.06),

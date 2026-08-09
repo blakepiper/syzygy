@@ -249,119 +249,88 @@ Input:focus {
     height: auto;
 }
 
-#oracle-mode-buttons {
-    width: auto;
-    height: auto;
-}
-
-#oracle-result-columns {
+#consultation-columns {
     height: 1fr;
     padding: 0 2;
 }
 
-#oracle-result-aside {
+#consultation-aside {
     width: 34;
     height: 1fr;
 }
 
-#oracle-result-card {
+#consultation-card {
     height: 16;
 }
 
-#oracle-result-transits {
+#consultation-cast {
     height: auto;
+    padding: 1 0 0 0;
+    text-align: center;
 }
 
-#oracle-result-main {
-    width: 1fr;
-    height: 1fr;
-}
-
-#oracle-result-question {
+#consultation-hexagram {
     height: auto;
-    max-height: 4;
-}
-
-#oracle-result-panel {
-    height: 1fr;
-    padding: 1 2;
-}
-
-#oracle-result-body {
-    width: 1fr;
-    max-width: 88;
-    height: auto;
-}
-
-#oracle-result-keys {
-    height: auto;
-}
-
-.-compact #oracle-result-columns {
-    padding: 0 1;
-}
-
-.-compact #oracle-result-aside {
-    width: 24;
-}
-
-.-compact #oracle-result-card {
-    height: 10;
-}
-
-#iching-result-columns {
-    height: 1fr;
-    padding: 0 2;
-}
-
-#iching-result-aside {
-    width: 34;
-    height: 1fr;
-}
-
-#iching-result-cast {
-    height: auto;
-    min-height: 10;
     text-align: center;
     color: $syz-accent;
-    padding: 1;
 }
 
-#iching-result-transits {
+#consultation-lines {
     height: auto;
+    text-align: center;
 }
 
-#iching-result-main {
+.cast-line {
+    height: 1;
+    text-align: center;
+    color: $syz-accent;
+}
+
+#consultation-movement {
+    height: auto;
+    text-align: center;
+}
+
+#consultation-main {
     width: 1fr;
     height: 1fr;
 }
 
-#iching-result-question,
-#iching-result-keys {
+#consultation-legacy {
     height: auto;
+    color: $syz-ember;
 }
 
-#iching-result-question {
+#consultation-question {
+    height: auto;
     max-height: 4;
 }
 
-#iching-result-panel {
+#consultation-panel {
     height: 1fr;
     padding: 1 2;
 }
 
-#iching-result-body {
+#consultation-body {
     width: 1fr;
     max-width: 88;
     height: auto;
 }
 
-.-compact #iching-result-columns {
+#consultation-keys {
+    height: auto;
+}
+
+.-compact #consultation-columns {
     padding: 0 1;
 }
 
-.-compact #iching-result-aside {
+.-compact #consultation-aside {
     width: 24;
+}
+
+.-compact #consultation-card {
+    height: 8;
 }
 
 ListView {

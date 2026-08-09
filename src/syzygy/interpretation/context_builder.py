@@ -99,67 +99,44 @@ def build_context(
     )
 
 
-def build_oracle_context(
+def build_consultation_context(
     profile: Profile,
     card: TarotCard,
-    ranked_transits: list[RankedTransit],
+    cast: IChingCast,
     knowledge_chunks: list[KnowledgeChunk],
     consultation_local_timestamp: str,
     consultation_local_date: str,
     prompt_version: str,
     question: str,
 ) -> InterpretationContext:
-    """Build the Oracle through the same narrow card-context surface."""
-    daily = build_context(
+    """Build the Oracle's input surface: SELF, the figure, and the ground.
+
+    Deliberately transit-free (ADR 0008 section 4). It reuses the daily
+    card-context surface for its natal-placement selection - the card's
+    correspondence is still what decides which further placements are
+    relevant - and then hangs the committed cast and its two hexagrams off
+    the same object.
+    """
+    from syzygy.iching.book import get_hexagram
+
+    card_context = build_context(
         profile,
         card,
-        ranked_transits,
+        [],
         knowledge_chunks,
         consultation_local_timestamp,
         consultation_local_date,
         prompt_version,
     )
-    payload = daily.model_dump()
-    payload.update(kind=InterpretationKind.ORACLE, question=question)
-    return InterpretationContext.model_validate(payload)
-
-
-def build_iching_context(
-    profile: Profile,
-    cast: IChingCast,
-    ranked_transits: list[RankedTransit],
-    consultation_local_timestamp: str,
-    consultation_local_date: str,
-    prompt_version: str,
-    question: str,
-) -> InterpretationContext:
-    """Build an I Ching context from a committed cast and ranked sky."""
-    from syzygy.iching.book import get_hexagram
-
-    placements = profile.natal_chart.placements
-    relevant_bodies = {"Sun", "Moon"}
-    relevant_bodies.update(
-        transit.aspect.natal_target
-        for transit in ranked_transits
-        if transit.aspect.natal_target not in _NATAL_ANGLES
-    )
-    return InterpretationContext(
-        kind=InterpretationKind.I_CHING,
-        profile_display_name=profile.display_name,
-        consultation_local_date=consultation_local_date,
-        consultation_local_timestamp=consultation_local_timestamp,
+    payload = card_context.model_dump()
+    payload.update(
+        kind=InterpretationKind.CONSULTATION,
         iching_cast=cast,
         primary_hexagram=get_hexagram(cast.primary_hexagram_number),
         resulting_hexagram=get_hexagram(cast.resulting_hexagram_number),
-        significant_transits=ranked_transits,
-        relevant_natal_placements=[p for p in placements if p.body in relevant_bodies],
-        sun_placement=_find_placement(placements, "Sun"),
-        moon_placement=_find_placement(placements, "Moon"),
-        ascendant_sign=sign_for_longitude(profile.natal_chart.ascendant_longitude),
-        knowledge_chunks=[],
-        prompt_version=prompt_version,
         question=question,
     )
+    return InterpretationContext.model_validate(payload)
 
 
 def build_natal_summary_context(

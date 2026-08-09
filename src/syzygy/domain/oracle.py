@@ -1,4 +1,14 @@
-"""A question-led Oracle consultation and its committed lifecycle."""
+"""The Oracle's question, and the superseded single-card consultation.
+
+`OracleQuestion` and `normalize_question` are current: every Oracle rite
+commits its question through them, M22's included
+(`syzygy.domain.consultation`).
+
+`OracleConsultation` and `OracleStatus` are read-only history - the
+`oracle-v1` rite of M19, which drew a card and no cast. Stored rows are
+still read and displayed; nothing advances them, which is why there is no
+transition table here any more (ADR 0008 section 7).
+"""
 
 from __future__ import annotations
 
@@ -57,19 +67,9 @@ class OracleStatus(StrEnum):
     INTERPRETATION_FAILED = "interpretation_failed"
 
 
-ALLOWED_TRANSITIONS: dict[OracleStatus, frozenset[OracleStatus]] = {
-    OracleStatus.ASKED: frozenset({OracleStatus.DRAWN}),
-    OracleStatus.DRAWN: frozenset({OracleStatus.CONTEXT_READY}),
-    OracleStatus.CONTEXT_READY: frozenset({OracleStatus.INTERPRETING}),
-    OracleStatus.INTERPRETING: frozenset(
-        {OracleStatus.COMPLETE, OracleStatus.INTERPRETATION_FAILED}
-    ),
-    OracleStatus.INTERPRETATION_FAILED: frozenset({OracleStatus.INTERPRETING}),
-    OracleStatus.COMPLETE: frozenset(),
-}
-
-
 class OracleConsultation(BaseModel):
+    """A stored `oracle-v1` consultation. Historical; never advanced."""
+
     model_config = ConfigDict(frozen=True)
 
     id: str

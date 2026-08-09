@@ -4,6 +4,9 @@
 - **Date:** 2026-08-09
 - **Milestone:** M19
 - **Supersedes:** nothing. Extends the daily rite without changing it.
+- **Superseded in part by:** [ADR 0008](0008-oracle-as-figure-and-ground.md),
+  which removed COSMOS from the Oracle (section 2 below). Everything else here
+  stands.
 
 ## Context
 
@@ -28,6 +31,10 @@ Migration 6 already belongs to M18, so the Oracle schema is append-only
 migration 7 despite the stale M19 checklist wording.
 
 ### 2. SELF and COSMOS remain context, not an answer engine
+
+> **Superseded by ADR 0008 section 4.** SELF remains; COSMOS does not. The
+> Oracle no longer reads the day's transits at all, and `oracle-v2` has no
+> transit block. The daily rite keeps its transits unchanged.
 
 The Oracle receives the saved natal chart and the same Syzygy-filtered and
 ranked transits as the daily rite. They are supporting context below the fixed

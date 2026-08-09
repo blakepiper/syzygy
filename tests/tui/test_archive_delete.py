@@ -2,9 +2,8 @@
 
 from textual.widgets import Button, ListView, Static
 
-from syzygy.storage import iching, oracle, readings
-from syzygy.storage.iching_service import ask_question as ask_iching_question
-from syzygy.storage.oracle_service import ask_question as ask_thoth_question
+from syzygy.storage import consultations, iching, oracle, readings
+from syzygy.storage.consultation_service import ask_question
 from syzygy.tui.app import SyzygyApp
 from syzygy.tui.screens.archive import ArchiveScreen
 from syzygy.tui.screens.home import HomeScreen
@@ -69,31 +68,39 @@ async def test_daily_delete_requires_confirmation_and_cannot_enable_a_redraw(
         assert "READING WAS DELETED" in str(primary.label)
 
 
-async def test_archive_deletes_a_thoth_oracle_entry(services, profile, conn):
-    consultation = ask_thoth_question(
-        conn, profile, services.clock, "What should be released?"
-    )
+async def test_archive_deletes_an_oracle_consultation(services, profile, conn):
+    consultation = ask_question(conn, profile, services.clock, "What should be released?")
     async with SyzygyApp(services).run_test() as pilot:
         await _open_archive(pilot)
         await pilot.press("d")
         await pilot.pause()
+        assert "Oracle question" in text_of(q(pilot, "#archive-delete-body", Static))
         q(pilot, "#archive-delete-confirm-button", Button).press()
         await settle(pilot)
 
-        assert oracle.get_by_id(conn, consultation.id) is None
+        assert consultations.get_by_id(conn, consultation.id) is None
         assert len(q(pilot, "#archive-list", ListView).children) == 0
 
 
-async def test_archive_deletes_an_iching_entry(services, profile, conn):
-    consultation = ask_iching_question(
-        conn, profile, services.clock, "What should be released?"
+async def test_archive_still_deletes_the_two_legacy_kinds(services, profile, conn):
+    """`[D]` behaviour is unchanged for the superseded rites (M22.4e)."""
+    from tests.storage.test_legacy_consultations import (
+        insert_legacy_iching_row,
+        insert_legacy_oracle_row,
     )
+
+    insert_legacy_oracle_row(conn, profile.id)
+    insert_legacy_iching_row(conn, profile.id)
+
     async with SyzygyApp(services).run_test() as pilot:
         await _open_archive(pilot)
-        await pilot.press("d")
-        await pilot.pause()
-        q(pilot, "#archive-delete-confirm-button", Button).press()
-        await settle(pilot)
+        for _ in range(2):
+            await pilot.press("d")
+            await pilot.pause()
+            assert "earlier" in text_of(q(pilot, "#archive-delete-body", Static))
+            q(pilot, "#archive-delete-confirm-button", Button).press()
+            await settle(pilot)
 
-        assert iching.get_by_id(conn, consultation.id) is None
+        assert oracle.get_by_id(conn, "legacy-thoth") is None
+        assert iching.get_by_id(conn, "legacy-iching") is None
         assert len(q(pilot, "#archive-list", ListView).children) == 0

@@ -287,6 +287,44 @@ _MIGRATIONS: list[tuple[int, str, str]] = [
         END;
         """,
     ),
+    (
+        11,
+        "consultations: one Oracle rite carrying both chance objects (M22)",
+        # The columns `oracle_consultations` has, minus `transit_snapshot_json`
+        # - the Oracle no longer reads the day's sky (ADR 0008 section 4) -
+        # plus the cast. `oracle_consultations` and `iching_consultations` are
+        # deliberately left untouched: they are read-only history now.
+        """
+        CREATE TABLE consultations (
+            id                           TEXT PRIMARY KEY,
+            profile_id                   TEXT NOT NULL REFERENCES profiles(id),
+            question_text                TEXT NOT NULL,
+            question_normalized          TEXT NOT NULL,
+            asked_at_utc                 TEXT NOT NULL,
+            consultation_local_date      TEXT NOT NULL,
+            consultation_local_timestamp TEXT NOT NULL,
+            consultation_timezone        TEXT NOT NULL,
+            status                       TEXT NOT NULL,
+            card_draw_json               TEXT,
+            cast_json                    TEXT,
+            interpretation_context_json  TEXT,
+            retrieved_citations_json     TEXT,
+            result_json                  TEXT,
+            provider_id                  TEXT,
+            model_id                     TEXT,
+            prompt_version               TEXT,
+            created_at                   TEXT NOT NULL,
+            updated_at                   TEXT NOT NULL,
+
+            -- The two objects are committed in one statement; the database
+            -- refuses any row that holds one without the other.
+            CHECK ((card_draw_json IS NULL) = (cast_json IS NULL))
+        );
+
+        CREATE INDEX idx_consultations_profile_asked_at
+            ON consultations (profile_id, asked_at_utc DESC);
+        """,
+    ),
 ]
 
 

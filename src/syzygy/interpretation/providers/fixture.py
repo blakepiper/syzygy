@@ -38,8 +38,8 @@ class FixtureProvider:
     async def interpret(
         self, context: InterpretationContext
     ) -> InterpretationResult | OracleResult:
-        if context.kind is InterpretationKind.I_CHING:
-            return self._interpret_iching(context)
+        if context.kind is InterpretationKind.CONSULTATION:
+            return self._interpret_consultation(context)
         card = context.card
         if card is None:
             raise ValueError("daily interpretation requires a card")
@@ -93,51 +93,61 @@ class FixtureProvider:
             model_id=self.model_id,
             prompt_version=context.prompt_version,
         )
-        if context.kind is InterpretationKind.ORACLE:
-            return OracleResult.model_validate(
-                {
-                    **result.model_dump(),
-                    "question_response": (
-                    f"For “{context.question}”, {card.display_name} asks what changes when "
-                    "you treat its pattern as a reflection rather than a prediction."
-                    ),
-                }
-            )
         return result
 
-    def _interpret_iching(self, context: InterpretationContext) -> OracleResult:
+    def _interpret_consultation(self, context: InterpretationContext) -> OracleResult:
+        """The Oracle rite: the figure named in its ground (ADR 0008).
+
+        Deliberately shaped like the contract it stands in for - the title
+        comes from the card, and both objects are named in the esoteric
+        body - so the rite completes with no model configured and the
+        no-model path exercises the same expectations as a real one.
+        """
+        card = context.card
         cast = context.iching_cast
         primary = context.primary_hexagram
         resulting = context.resulting_hexagram
-        if cast is None or primary is None or resulting is None:
-            raise ValueError("I Ching interpretation requires a complete cast")
-        change = (
+        if card is None or cast is None or primary is None or resulting is None:
+            raise ValueError("a consultation requires both committed chance objects")
+        ground = (
             f"changing through line{'s' if len(cast.changing_lines) != 1 else ''} "
             f"{', '.join(map(str, cast.changing_lines))} toward {resulting.name}"
             if cast.changing_lines
-            else "with no changing lines"
+            else "settled, with no changing lines"
         )
         return OracleResult(
-            alignment_title=f"{primary.unicode} {primary.name}",
+            alignment_title=f"{card.display_name} in {primary.name}",
             esoteric=EsotericReading(
-                summary=f"Hexagram {primary.number}, {primary.name}, {change}.",
-                body=f"The fixed three-coin cast presents {primary.name}, {change}. "
-                "[fixture provider: replace with a synthesis grounded in the supplied Legge text]",
+                summary=(
+                    f"{card.display_name} stands in hexagram {primary.number}, "
+                    f"{primary.name}, {ground}."
+                ),
+                body=(
+                    f"The ground is {primary.name} ({primary.lower_trigram.value} below, "
+                    f"{primary.upper_trigram.value} above), {ground}. The figure standing in "
+                    f"it is {card.full_name}. [fixture provider: replace with a synthesis "
+                    "grounded in the supplied Legge and Book of Thoth text]"
+                ),
             ),
             conventional=ConventionalReading(
-                summary=f"The cast centers on {primary.name}.",
+                summary=(
+                    f"A time shaped like {primary.name}, with {card.display_name} in the "
+                    "middle of it."
+                ),
                 body=(
-                    f"The situation is framed by {primary.name}, {change}. "
-                    "This fixture preserves the rite without pretending to be a full "
+                    f"The situation is framed by {primary.name}, {ground}, and what the "
+                    f"oracle puts in front of you inside it is {card.display_name}. This "
+                    "fixture preserves the rite without pretending to be a full "
                     "interpretation."
                 ),
                 watch_for=["Where the situation is already changing without being forced."],
-                reflection="What becomes clearer if you let the situation show its own direction?",
+                reflection="What becomes clearer if you read this card as standing in this time?",
             ),
-            source_chunk_ids=[],
+            source_chunk_ids=[chunk.id for chunk in context.knowledge_chunks],
             question_response=(
-                f"For “{context.question}”, {primary.name} asks you to examine the situation "
-                "as a pattern in motion rather than a certain prediction."
+                f"For “{context.question}”, {card.display_name} in a time of "
+                f"{primary.name} asks you to read the pattern you are in rather than a "
+                "certain prediction."
             ),
             provider_id=self.provider_id,
             model_id=self.model_id,

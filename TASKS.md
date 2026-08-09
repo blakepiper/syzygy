@@ -178,7 +178,8 @@ and the record kept locally as the reading actually given.
 
 Note: V:11 and VII:2 are written against the one-chance-object rule that M22
 replaces. The text is not committed and the author has said it will be edited;
-M22.5e carries the correction so it is not forgotten.
+M22.5e carries the correction so it is not forgotten. As of M22 the file is
+no longer in the working tree at all — see M22.5e.
 
 ---
 
@@ -262,23 +263,23 @@ Today's transits leave the Oracle entirely. The natal chart stays.
 
 ### M22.1 — Domain and storage
 
-- [ ] M22.1a Add the combined consultation to `syzygy/domain/` — question,
+- [x] M22.1a Add the combined consultation to `syzygy/domain/` — question,
       card draw, and cast in one aggregate, reusing `TarotDraw` and the
       existing cast type unchanged. Both objects are **non-nullable** once the
       status is past `ASKED`, so a one-object consultation is not
       representable. Reuse the `ASKED → DRAWN → CONTEXT_READY → INTERPRETING →
       COMPLETE / INTERPRETATION_FAILED` shape and its `ALLOWED_TRANSITIONS`.
-- [ ] M22.1b Migration **11** (append-only; 10 is archive deletion) creating
+- [x] M22.1b Migration **11** (append-only; 10 is archive deletion) creating
       the combined table: the columns `oracle_consultations` has, minus
       `transit_snapshot_json`, plus the cast columns. Index by
       `(profile_id, asked_at_utc DESC)`. No per-date uniqueness. Do not alter
       or drop `oracle_consultations` or `iching_consultations`.
-- [ ] M22.1c Repository and service modelled on the existing pair, committing
+- [x] M22.1c Repository and service modelled on the existing pair, committing
       both objects before any provider call and resumable from status alone.
-- [ ] M22.1d Demote `storage/oracle.py` and `storage/iching.py` to read-only
+- [x] M22.1d Demote `storage/oracle.py` and `storage/iching.py` to read-only
       archive sources: keep their readers, remove or disable their write and
       retry paths, and make the service layer refuse to advance a legacy row.
-- [ ] M22.1e Tests: every illegal transition rejected; a consultation with one
+- [x] M22.1e Tests: every illegal transition rejected; a consultation with one
       object absent cannot be constructed or stored; retry after a failed
       interpretation reuses *both* committed objects; a crash between draw and
       interpretation resumes without redrawing or recasting; legacy rows read
@@ -286,21 +287,21 @@ Today's transits leave the Oracle entirely. The natal chart stays.
 
 ### M22.2 — One turn, two objects
 
-- [ ] M22.2a Draw the card and cast the six lines from one `EntropyCollector`
+- [x] M22.2a Draw the card and cast the six lines from one `EntropyCollector`
       seeded by the question's keystrokes and the wheel, with distinct domain
       separation per object and per line. Reuse `sortes.draw.draw_card` and the
       existing cast function unchanged — all 78 cards equiprobable, rejection
       sampled, no `random.random()` and no modulo over a raw byte.
-- [ ] M22.2b Commit both in a single transaction. There is no state in which
+- [x] M22.2b Commit both in a single transaction. There is no state in which
       one exists and the other does not.
-- [ ] M22.2c Tests: one collector serves both; the card distribution and the
+- [x] M22.2c Tests: one collector serves both; the card distribution and the
       per-line probabilities are unchanged from M3 and M20 over a large seeded
       sample; the two derivations are independent; both objects are on disk
       before any provider is constructed.
 
 ### M22.3 — Prompt contract (`oracle-v2`)
 
-- [ ] M22.3a Add `ORACLE_PROMPT_VERSION = "oracle-v2"` with the roles stated as
+- [x] M22.3a Add `ORACLE_PROMPT_VERSION = "oracle-v2"` with the roles stated as
       structure, not advice. Block order, which is also the narration order:
       **the ground** (hexagram name, trigrams, Judgment) → **the figure** (card,
       correspondences, retrieved passages) → **movement** (changing-line texts
@@ -308,14 +309,14 @@ Today's transits leave the Oracle entirely. The natal chart stays.
       moving) → **conduct** (the Image) → SELF (natal anchors) → the question,
       quoted as data that cannot alter any of the above or the output schema.
       No transit block exists in this prompt at all.
-- [ ] M22.3b Require the reading to land the figure: `alignment_title` comes
+- [x] M22.3b Require the reading to land the figure: `alignment_title` comes
       from the card, and the esoteric body must name both the card and the
       hexagram. This is the counterweight to the volume problem — a Judgment,
       an Image, up to six line texts, and a resulting hexagram is several times
       the text of a card's correspondence block, and a 4B or 8B local model
       will follow the longest, most concrete block regardless of what the role
       instructions say.
-- [ ] M22.3c **Keep the card's retrieved Book of Thoth passages**, under M18's
+- [x] M22.3c **Keep the card's retrieved Book of Thoth passages**, under M18's
       rules unchanged (`has_text` filter; citation-only chunks reach the user,
       never a provider). Recommendation, and the default to implement: the
       dropped transit block frees roughly the budget the hexagram consumes, and
@@ -324,21 +325,21 @@ Today's transits leave the Oracle entirely. The natal chart stays.
       committed line text. Dropping a line text would be Syzygy making an
       unsourced significance judgment about which of the oracle's own words
       matter, which is exactly what it must not do.
-- [ ] M22.3d **No new result fields.** Recommendation, and the default to
+- [x] M22.3d **No new result fields.** Recommendation, and the default to
       implement: `OracleResult` keeps `alignment_title`, the two registers,
       `source_chunk_ids`, and `question_response`; the movement axis lives
       inside the bodies. A dedicated per-object field invites two mini-readings
       glued together, which is the mush this design is meant to prevent. Derive
       the JSON schema the same way the existing contracts do so the
       constraining schema cannot drift from the validating one.
-- [ ] M22.3e Retire `ORACLE_SYSTEM_PROMPT` (`oracle-v1`) and
+- [x] M22.3e Retire `ORACLE_SYSTEM_PROMPT` (`oracle-v1`) and
       `ICHING_SYSTEM_PROMPT` (`iching-v1`) once nothing can generate with them.
       The version strings survive only as values on stored legacy rows, which
       display fine without the prompt text. This is safe precisely because
       M22.1d made legacy consultations unretryable.
-- [ ] M22.3f `FixtureProvider` returns a plausible combined consultation so the
+- [x] M22.3f `FixtureProvider` returns a plausible combined consultation so the
       rite completes with no model configured.
-- [ ] M22.3g Tests: schema derivation; block order and the absence of any
+- [x] M22.3g Tests: schema derivation; block order and the absence of any
       transit content; a question containing prompt-injection text changes
       neither object nor the schema; the no-changing-lines case renders as a
       settled ground rather than an empty section; the repair path on malformed
@@ -346,56 +347,64 @@ Today's transits leave the Oracle entirely. The natal chart stays.
 
 ### M22.4 — The TUI
 
-- [ ] M22.4a Remove the mode buttons from `oracle_ask.py` — the ask screen is
+- [x] M22.4a Remove the mode buttons from `oracle_ask.py` — the ask screen is
       question, budget, and framing only. `[O]` goes straight to the wheel.
-- [ ] M22.4b One result screen replacing `oracle_result.py` and
+- [x] M22.4b One result screen replacing `oracle_result.py` and
       `iching_result.py`. **Reveal order is not narration order**: the card is
       revealed first, as the wheel's payoff and the app's visual identity, with
       the six lines building upward beneath it; the prose reads ground-first.
       Both objects are legible at a glance, including whether anything is
       moving. `[I]` keeps M18's two-list inputs treatment plus the question.
-- [ ] M22.4c Motion: the six lines building bottom-upward under the revealed
+- [x] M22.4c Motion: the six lines building bottom-upward under the revealed
       card is the new beat, and it is honest — both objects are committed
       before it plays. It degrades with the motion level like everything else.
-- [ ] M22.4d Failure preserves the rite: an interpretation failure keeps the
+- [x] M22.4d Failure preserves the rite: an interpretation failure keeps the
       question, the card, *and* the cast, shows them, and offers retry /
       fixture / provider recovery. Never a redraw and never a recast.
-- [ ] M22.4e Archive: four record kinds now — daily reading, combined
+- [x] M22.4e Archive: four record kinds now — daily reading, combined
       consultation, and the two legacy kinds — each distinguishable at a
       glance, all reopenable read-only, legacy kinds visibly historical.
       `[D]` deletion behaviour is unchanged.
-- [ ] M22.4f Layout tiers `-compact` through `-tall`, keyboard-only focus
+- [x] M22.4f Layout tiers `-compact` through `-tall`, keyboard-only focus
       order, essential controls above the fold. Update
       `tests/tui/test_layout.py` for the new screen and the removed ones.
 
 ### M22.5 — CLI, docs, and the mental model
 
-- [ ] M22.5a `syzygy oracle ask` drops `--mode`. Accept the flag for one
+- [x] M22.5a `syzygy oracle ask` drops `--mode`. Accept the flag for one
       release with a printed notice that both oracles are now cast together,
       rather than failing on it.
-- [ ] M22.5b `oracle show` renders both objects and marks legacy records as
+- [x] M22.5b `oracle show` renders both objects and marks legacy records as
       the single-object rite they were.
-- [ ] M22.5c Update `AGENTS.md`: the one-paragraph mental model still reads
+- [x] M22.5c Update `AGENTS.md`: the one-paragraph mental model still reads
       "one random Thoth card, or one I Ching cast in that Oracle mode", and the
       I Ching invariant still says a provider receives "the committed cast".
       Both describe the superseded design.
-- [ ] M22.5d README: the Oracle casts both, chooses nothing, and does not use
+- [x] M22.5d README: the Oracle casts both, chooses nothing, and does not use
       the day's transits; the daily reading is unchanged.
 - [ ] M22.5e `docs/liber_syzygy.md` V:11 and VII:2 describe one chance object
       per question. Edit them to the new rite. The text stays gitignored.
+      **Not done: the file is not in the working tree.** It is gitignored, so
+      it was never committed, and the only copy on this machine is in the
+      desktop trash — and that copy is a different, earlier draft with no
+      chapter or verse numbering, so it is not the M21 text this task points
+      at. Restoring something the author deleted is their call, not a coding
+      agent's. The correction to carry when the text comes back: an Oracle
+      question now receives two chance objects from one turn of the wheel — a
+      card as the figure and a cast as the ground — not one.
 
 ### Definition of done (M22)
 
-- [ ] One question, one turn of the wheel, one card and one cast, one reading
+- [x] One question, one turn of the wheel, one card and one cast, one reading
       that reads the figure in its ground.
-- [ ] No mode choice exists anywhere: TUI, CLI, or storage.
-- [ ] No Oracle code path reads a transit, and no Oracle prompt contains one.
-- [ ] Neither object can be redrawn, recast, or separated from the other, and a
+- [x] No mode choice exists anywhere: TUI, CLI, or storage.
+- [x] No Oracle code path reads a transit, and no Oracle prompt contains one.
+- [x] Neither object can be redrawn, recast, or separated from the other, and a
       failed interpretation retries against both.
-- [ ] Legacy consultations remain readable and cannot be advanced.
-- [ ] The daily reading's behaviour is byte-for-byte unchanged.
-- [ ] The rite completes with no model configured.
-- [ ] `pytest`, `ruff check .`, `mypy src`, `syzygy dev deck`, and
+- [x] Legacy consultations remain readable and cannot be advanced.
+- [x] The daily reading's behaviour is byte-for-byte unchanged.
+- [x] The rite completes with no model configured.
+- [x] `pytest`, `ruff check .`, `mypy src`, `syzygy dev deck`, and
       `syzygy doctor` pass.
 
 ### Not in scope
