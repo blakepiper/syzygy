@@ -38,6 +38,11 @@ dependencies = [
     # with prebuilt wheels on mainstream platforms. Audio-device failures
     # still degrade to SilentTheme rather than blocking the application.
     "just_playback>=0.1.8",
+    # Guided local-model setup (M16) is a default-install feature: it
+    # downloads a pinned runtime and model over HTTPS and talks to the
+    # resulting localhost server. That makes httpx a runtime dependency of
+    # the main install, not of an extra. BSD-3, so AGPL-compatible.
+    "httpx>=0.27",
 ]
 
 [project.optional-dependencies]

@@ -59,6 +59,11 @@ class ProviderStatus:
     #: `syzygy model status`'s three-way distinction.
     openai_key_source: str | None
     anthropic_key_source: str | None
+    #: One line about the managed local model, or `None` if none is set
+    #: up. When `local_model_needs_repair` is set, the local row becomes a
+    #: repair route rather than a setup one (M16.8d).
+    local_model_summary: str | None = None
+    local_model_needs_repair: bool = False
 
 
 def _key_source(provider_id: str) -> str | None:
@@ -108,6 +113,34 @@ def default_llama_cpp_base_url() -> str:
     return DEFAULT_BASE_URL
 
 
+def local_model_state() -> tuple[str | None, bool]:
+    """`(summary, needs_repair)` for the managed local model.
+
+    Never raises: this runs on a status screen, and a local-model
+    subsystem that cannot answer must not take the screen down with it.
+    """
+    try:
+        from syzygy.config import default_app_paths
+        from syzygy.local_models.catalog import load_catalog
+        from syzygy.local_models.settings import load_local_model_settings
+        from syzygy.local_models.verification import validate_managed_configuration
+
+        settings_path = default_app_paths().settings_path
+        settings = load_local_model_settings(settings_path)
+        if settings.mode is None:
+            return None, False
+
+        health = validate_managed_configuration(
+            settings_path, catalog_version=load_catalog().catalog_version
+        )
+        if health.healthy:
+            model = settings.model.artifact_id if settings.model else None
+            return f"Local model ready ({model or 'external server'}).", False
+        return f"Local model needs repair: {health.reason}.", True
+    except Exception as exc:  # noqa: BLE001
+        return f"Local model status unavailable: {type(exc).__name__}: {exc}", True
+
+
 def load_status() -> ProviderStatus:
     """Synchronous, blocking (keyring + a local HTTP probe) - callers must
     run this off the event loop."""
@@ -127,6 +160,7 @@ def load_status() -> ProviderStatus:
         active_provider_id, active_model_id = selection.provider_id, selection.model_id
 
     base_url = default_llama_cpp_base_url()
+    local_summary, needs_repair = local_model_state()
     return ProviderStatus(
         active_provider_id=active_provider_id,
         active_model_id=active_model_id,
@@ -135,6 +169,8 @@ def load_status() -> ProviderStatus:
         llama_cpp_base_url=base_url,
         openai_key_source=_key_source("openai"),
         anthropic_key_source=_key_source("anthropic"),
+        local_model_summary=local_summary,
+        local_model_needs_repair=needs_repair,
     )
 
 
@@ -158,6 +194,7 @@ class ModelSetupScreen(SyzygyScreen):
         self._status: ProviderStatus | None = None
         self._key_form_provider_id: str | None = None
         self._llama_form_open = False
+        self._llama_choice_open = False
 
     def compose(self) -> ComposeResult:
         yield TitleBar("MODEL")
@@ -170,9 +207,39 @@ class ModelSetupScreen(SyzygyScreen):
                 classes="muted",
             )
             yield Static("", id="model-active", classes="muted")
+            # M16.8d: a managed local model that no longer validates gets a
+            # visible route back, not a stderr line nobody sees. Readings
+            # have already fallen back to fixture by the time this shows.
+            yield Static("", id="model-local-state", classes="hidden", markup=False)
             yield ListView(id="model-list")
+            # M16.9a: choosing "local model" used to drop the user straight
+            # into a base-URL field, which is a question only somebody who
+            # already runs a server can answer. The row now asks which of
+            # the two situations they are in first.
+            with Vertical(id="llama-choice", classes="hidden"):
+                yield Static("LOCAL MODEL", classes="section-heading")
+                yield Static(
+                    "A local model runs on this computer, so your chart, your card,\n"
+                    "and the words written about them never leave it.",
+                    classes="muted",
+                )
+                with Horizontal(classes="button-row"):
+                    yield Button(
+                        "SET UP A LOCAL MODEL FOR ME",
+                        id="llama-guided",
+                        variant="success",
+                    )
+                    yield Button("USE AN EXISTING SERVER (ADVANCED)", id="llama-advanced")
+                    yield Button("CANCEL", id="llama-choice-cancel")
+                yield Static(
+                    "Set up for me: Syzygy checks this computer, recommends a model,\n"
+                    "shows you exactly what it would download, and only then asks.\n"
+                    "Advanced: you already run an OpenAI-compatible server and want\n"
+                    "to point Syzygy at it.",
+                    classes="muted",
+                )
             with Vertical(id="llama-form", classes="hidden"):
-                yield Static("LOCAL MODEL (LLAMA.CPP)", classes="section-heading")
+                yield Static("EXISTING SERVER (ADVANCED)", classes="section-heading")
                 yield Static("BASE URL", classes="field-label")
                 yield Input(placeholder="http://127.0.0.1:8080/v1", id="llama-base-url")
                 yield Static("MODEL ID (OPTIONAL)", classes="field-label")
@@ -248,6 +315,13 @@ class ModelSetupScreen(SyzygyScreen):
         if status.fallback_reason:
             active_label += f" - FALLING BACK TO FIXTURE: {status.fallback_reason}"
         self.query_one("#model-active", Static).update(f"Active provider: {active_label}")
+        local_line = self.query_one("#model-local-state", Static)
+        if status.local_model_summary is None:
+            local_line.add_class("hidden")
+        else:
+            local_line.remove_class("hidden")
+            local_line.update(status.local_model_summary)
+            local_line.set_classes("error" if status.local_model_needs_repair else "ok")
         self._render_list(status)
         self.query_one("#model-list", ListView).focus()
 
@@ -297,9 +371,41 @@ class ModelSetupScreen(SyzygyScreen):
             self._open_key_form(item.provider_id)
             return
         if item.provider_id == "llama_cpp":
-            self._open_llama_form()
+            self._open_llama_choice()
             return
         self._select_fixture()
+
+    # -- local model (M16.9a) --------------------------------------------------
+
+    def _open_llama_choice(self) -> None:
+        self._llama_choice_open = True
+        status = self._status
+        # The wizard re-runs inventory, discovery, and verification from
+        # the top, which is exactly what repairing a broken managed setup
+        # requires - so it is the same button, differently labelled.
+        self.query_one("#llama-guided", Button).label = (
+            "REPAIR LOCAL MODEL"
+            if status is not None and status.local_model_needs_repair
+            else "SET UP A LOCAL MODEL FOR ME"
+        )
+        self.query_one("#model-list", ListView).add_class("hidden")
+        self.query_one("#llama-choice").remove_class("hidden")
+        self.query_one("#llama-guided", Button).focus()
+
+    def _close_llama_choice(self) -> None:
+        self._llama_choice_open = False
+        self.query_one("#llama-choice").add_class("hidden")
+        self.query_one("#model-list", ListView).remove_class("hidden")
+        self.query_one("#model-list", ListView).focus()
+
+    def _open_guided_setup(self) -> None:
+        """Hand over to the M16 wizard. Everything it does - inventory,
+        recommendation, consent, download, start, verify - lives in
+        `syzygy.local_models`; this screen only opens the door."""
+        from syzygy.tui.screens.local_setup import LocalSetupScreen
+
+        self._close_llama_choice()
+        self.app.push_screen(LocalSetupScreen())
 
     def _select_fixture(self) -> None:
         from syzygy.interpretation.providers.selection import clear_selection
@@ -314,7 +420,7 @@ class ModelSetupScreen(SyzygyScreen):
     # -- llama.cpp (M11.3) -----------------------------------------------------
 
     def _open_llama_form(self) -> None:
-        """The llama.cpp row is a *setup* affordance, not a one-shot select.
+        """The advanced route: point Syzygy at a server you already run.
 
         Selecting it used to save a selection and nothing else, which -
         with no server running - left the row still reading "not
@@ -368,7 +474,7 @@ class ModelSetupScreen(SyzygyScreen):
         """`[P]` from anywhere on this screen re-checks the local server -
         the whole point being that the answer changes once the user starts
         one, without having to leave and come back."""
-        if self._key_form_provider_id is not None:
+        if self._key_form_provider_id is not None or self._llama_choice_open:
             return
         if self._llama_form_open:
             self._probe_now()
@@ -474,7 +580,14 @@ class ModelSetupScreen(SyzygyScreen):
         self.query_one("#model-list", ListView).remove_class("hidden")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "cancel-key":
+        if event.button.id == "llama-guided":
+            self._open_guided_setup()
+        elif event.button.id == "llama-advanced":
+            self._close_llama_choice()
+            self._open_llama_form()
+        elif event.button.id == "llama-choice-cancel":
+            self._close_llama_choice()
+        elif event.button.id == "cancel-key":
             self._close_key_form()
         elif event.button.id == "save-key":
             self._save_key_and_use()
@@ -553,6 +666,9 @@ class ModelSetupScreen(SyzygyScreen):
     def action_back(self) -> None:
         if self._key_form_provider_id is not None:
             self._close_key_form()
+            return
+        if self._llama_choice_open:
+            self._close_llama_choice()
             return
         if self._llama_form_open:
             self._close_llama_form()

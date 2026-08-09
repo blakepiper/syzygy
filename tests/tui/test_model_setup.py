@@ -123,7 +123,10 @@ async def test_welcome_hides_nudge_once_a_provider_is_selected(
         assert text_of(q(pilot, "#welcome-model-nudge", Static)) == ""
 
 
-async def _open_llama_form(pilot) -> None:
+async def _open_llama_choice(pilot) -> None:
+    """Select the local-model row. Since M16.9a this shows a choice
+    between guided setup and the advanced existing-server form, rather
+    than dropping straight into a base-URL field."""
     await pilot.pause()
     await pilot.press("m")
     await settle(pilot)
@@ -133,6 +136,14 @@ async def _open_llama_form(pilot) -> None:
     listing.index = 1  # fixture(0), llama_cpp(1), openai(2), anthropic(3)
     await pilot.pause()
     await pilot.press("enter")
+    await settle(pilot)
+    assert not q(pilot, "#llama-choice").has_class("hidden")
+
+
+async def _open_llama_form(pilot) -> None:
+    """The advanced route, which is what these M11.3 tests are about."""
+    await _open_llama_choice(pilot)
+    q(pilot, "#llama-advanced", Button).press()
     await settle(pilot)
     assert not q(pilot, "#llama-form").has_class("hidden")
 
@@ -439,14 +450,7 @@ async def test_a_bad_url_reads_as_unreachable_rather_than_crashing(app: SyzygyAp
     monkeypatch.setattr("syzygy.interpretation.providers.llama_cpp.probe", exploding_probe)
 
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.press("m")
-        await settle(pilot)
-        listing = q(pilot, "#model-list", ListView)
-        listing.index = 1
-        await pilot.pause()
-        await pilot.press("enter")
-        await settle(pilot)
+        await _open_llama_form(pilot)
 
         q(pilot, "#llama-base-url", Input).value = "not a url"
         q(pilot, "#llama-probe", Button).press()

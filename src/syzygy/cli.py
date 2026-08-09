@@ -42,10 +42,23 @@ Commands implemented so far:
   and the active selection lives in a small local settings file
   (`syzygy.interpretation.providers.selection`) - `default_services`
   reads that selection to decide what `reading_service` actually calls.
+- `syzygy model setup-local` / `syzygy model local status|doctor|list|
+  start|stop|remove` - the guided local-model flow (M16) and the commands
+  that inspect and manage what it installed. `setup-local` drives the same
+  `syzygy.local_models.orchestrator.LocalSetupSession` the TUI wizard
+  does, printed: it asks before downloading anything, and without a
+  terminal it degrades to a read-only inventory and plan rather than
+  prompting where nobody can answer. `status`/`doctor`/`list` are
+  read-only and scriptable; `remove` refuses anything Syzygy cannot prove
+  it downloaded. See docs/LOCAL_MODELS.md.
+- `syzygy dev evaluate-local` - the maintainer evaluation harness
+  (M16.3b), gated on `SYZYGY_DEV`. Needs a running model and minutes of
+  compute, which is exactly why it is not a test.
 - `syzygy doctor` - environment/health check: deck validation, the data
-  directory, knowledge-base ingestion status per source, and provider
-  configuration (the same report `model status` gives). Knowledge base
-  and provider config are informational only - an empty knowledge base
+  directory, knowledge-base ingestion status per source, provider
+  configuration (the same report `model status` gives), and the local
+  model's health. Knowledge base, provider config, and local model are
+  informational only - an empty knowledge base
   or an unconfigured provider are both supported states (the ritual falls
   back to `FixtureProvider` and to no source passages), so neither can
   fail `doctor`'s exit code.
@@ -59,6 +72,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import time
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
@@ -607,6 +621,444 @@ def _cmd_model_use(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_dev_evaluate_local(args: argparse.Namespace) -> int:
+    """Run the maintainer evaluation harness (M16.3b).
+
+    Development-only and opt-in: it needs a running model and minutes of
+    compute, which is exactly why it is not a test. It never writes to the
+    catalog - a passing run produces a results file a maintainer reviews
+    and commits, and only then may an artifact claim `supported`.
+    """
+    import json
+
+    from syzygy.dev import DEV_MODE_ENV_VAR, dev_mode_enabled
+    from syzygy.local_models.evaluation.harness import evaluate, release_gate
+    from syzygy.local_models.fit import SYZYGY_CONTEXT_TOKENS
+
+    if not dev_mode_enabled():
+        print(
+            f"`dev evaluate-local` is a maintainer tool and is disabled. "
+            f"Set {DEV_MODE_ENV_VAR}=1 to enable it.",
+            file=sys.stderr,
+        )
+        return 1
+
+    print(f"Evaluating {args.artifact} at {args.base_url} on {args.hardware}…\n")
+    run = evaluate(
+        base_url=args.base_url,
+        served_model_id=args.model,
+        artifact_id=args.artifact,
+        runtime_version=args.runtime_version,
+        hardware=args.hardware,
+        context_tokens=SYZYGY_CONTEXT_TOKENS,
+        on_case=lambda result: print(
+            f"  {result.case_id:24s} "
+            f"{'ok ' if result.succeeded else 'FAIL'} "
+            f"{result.seconds:6.1f}s "
+            f"{'repaired ' if result.repaired else ''}"
+            f"{'TRUNCATED ' if result.truncated else ''}"
+            f"{('missing: ' + ','.join(result.missing_facts)) if result.missing_facts else ''}"
+            f"{('LEAKED: ' + ','.join(result.leaked)) if result.leaked else ''}"
+        ),
+    )
+    if args.peak_memory_bytes:
+        run.peak_memory_bytes = args.peak_memory_bytes
+
+    print(
+        f"\nschema-valid first pass {run.schema_valid_rate:.0%}  "
+        f"repair {run.repair_rate:.0%}  success {run.success_rate:.0%}"
+    )
+    if run.median_tokens_per_second:
+        print(f"median {run.median_tokens_per_second:.1f} tokens/second")
+
+    gate = release_gate(run, license_reviewed=args.license_reviewed)
+    print(f"\nrelease gate: {'PASS' if gate.passed else 'NOT PASSED'}")
+    for reason in gate.reasons:
+        print(f"  · {reason}")
+    if not gate.passed:
+        print("\nRubric scores and peak memory are recorded by hand; see")
+        print("docs/LOCAL_MODEL_MAINTENANCE.md before promoting a catalogue entry.")
+
+    if args.out:
+        from pathlib import Path as _Path
+
+        target = _Path(args.out)
+        target.write_text(json.dumps(run.to_json(), indent=2) + "\n", encoding="utf-8")
+        print(f"\nWrote {target}")
+    return 0 if gate.passed else 1
+
+
+# -- local models (M16.10a) ---------------------------------------------------
+
+
+def _local_paths():
+    from syzygy.config import default_app_paths
+    from syzygy.local_models.paths import LocalModelPaths
+
+    paths = default_app_paths()
+    paths.ensure_exists()
+    layout = LocalModelPaths.from_app_paths(paths)
+    layout.ensure_exists()
+    return layout
+
+
+def _confirm(question: str, *, assume_yes: bool) -> bool:
+    """A yes/no prompt that never hangs a non-interactive run.
+
+    Without a terminal there is nobody to answer, so the answer is no
+    unless `--yes` was passed - which is why `--yes` exists at all
+    (M16.10a: do not make CI prompts hang).
+    """
+    if assume_yes:
+        return True
+    if not sys.stdin.isatty():
+        print("Not a terminal, and --yes was not given: nothing was done.", file=sys.stderr)
+        return False
+    try:
+        answer = input(f"{question} [y/N] ").strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        print()
+        return False
+    return answer in ("y", "yes")
+
+
+def _cmd_model_setup_local(args: argparse.Namespace) -> int:
+    """The same orchestrator the TUI wizard drives, printed.
+
+    Interactive when attached to a terminal. Without one it degrades to a
+    read-only inventory and recommendation report and exits 0 - a
+    scripted environment gets information, never a download it did not
+    ask for and never a prompt nobody can answer.
+    """
+    from syzygy.local_models.orchestrator import LocalSetupSession, SetupStepError
+    from syzygy.local_models.report import machine_lines, setup_plan_lines
+    from syzygy.local_models.state import STATE_LABELS
+
+    paths = _local_paths()
+    session = LocalSetupSession(paths=paths, settings_path=_settings_path())
+
+    print(STATE_LABELS[session.state])
+    assessment = session.run_inventory()
+    print(f"\n{assessment.headline}\n{assessment.detail}\n")
+    if session.inventory is not None:
+        for line in machine_lines(session.inventory):
+            print(f"  {line}")
+
+    print("\nLooking for a model runner you already have…")
+    report = session.run_discovery()
+    for item in (*report.endpoints, *report.binaries):
+        print(f"  {item.candidate.locator}: {item.compatibility.value} - {item.next_action}")
+    if not report.anything_found:
+        print("  nothing found (that's normal)")
+
+    interactive = sys.stdin.isatty() and sys.stdout.isatty()
+
+    endpoint = report.usable_endpoint
+    if endpoint is not None:
+        print(f"\nA compatible server is already running at {endpoint.candidate.locator}.")
+        if not interactive and not args.yes:
+            print("Run this in a terminal, or pass --yes, to use it.")
+            return 0
+        if not _confirm("Use it for readings?", assume_yes=args.yes):
+            return 0
+        session.use_existing_endpoint(endpoint)
+        return _finish_local_setup(session)
+
+    recommendation = session.build_recommendation()
+    if recommendation.artifact is None:
+        print(f"\n{recommendation.rationale}")
+        return 0
+    if args.tier:
+        from syzygy.local_models.contracts import ModelTier
+
+        chosen = session.catalog.by_tier(ModelTier(args.tier))
+        if chosen is None:
+            print(f"No model is offered in the {args.tier} tier.", file=sys.stderr)
+            return 1
+        session.choose(chosen.id)
+
+    artifact = session.chosen or recommendation.artifact
+    print(f"\nRecommended: {artifact.display_name}")
+    print(recommendation.rationale)
+
+    try:
+        receipt = session.prepare_consent()
+    except SetupStepError as exc:
+        print(f"\n{exc.failure.message}", file=sys.stderr)
+        if exc.failure.detail:
+            print(exc.failure.detail, file=sys.stderr)
+        return 1
+
+    print()
+    for line in setup_plan_lines(receipt):
+        print(line)
+
+    if not interactive and not args.yes:
+        print("\nThis is a read-only report: no terminal to confirm at.")
+        print("Re-run in a terminal, or pass --yes to accept the plan above.")
+        return 0
+    if not _confirm("\nDo this?", assume_yes=args.yes):
+        print("Nothing was downloaded.")
+        return 0
+
+    session.accept_terms()
+    try:
+        print("\nGetting the model runner…")
+        session.install_runtime(on_progress=_print_progress)
+        print("\nDownloading the model…")
+        session.fetch_model(on_progress=_print_progress)
+        print("\nStarting the model…")
+        session.start_server(on_phase=lambda _phase, text: print(f"  {text}"))
+    except SetupStepError as exc:
+        print(f"\n{exc.failure.message}", file=sys.stderr)
+        if exc.failure.detail:
+            print(exc.failure.detail, file=sys.stderr)
+        return 1
+    return _finish_local_setup(session)
+
+
+_progress_state = {"last": -1}
+
+
+def _print_progress(done: int, total: int | None) -> None:
+    """Whole percentages only. A CLI that reprints a bar for every chunk
+    fills a scrollback and a CI log with nothing."""
+    if not total:
+        return
+    percent = int(100 * done / total)
+    if percent == _progress_state["last"]:
+        return
+    _progress_state["last"] = percent
+    print(f"\r  {percent:3d}%", end="" if percent < 100 else "\n", flush=True)
+
+
+def _finish_local_setup(session) -> int:
+    print("\nChecking it can write a Syzygy reading…")
+    try:
+        outcome = session.verify_and_activate()
+    finally:
+        # Setup started a server to check it; setup is not a reason to
+        # leave one running. Syzygy starts it again on demand when a
+        # reading needs it (M16.7b) - and a multi-gigabyte process left
+        # behind by a command that has finished is exactly what ADR 0005
+        # says must not happen.
+        if session.supervisor is not None:
+            session.supervisor.stop()
+
+    if not outcome.activated:
+        failure = outcome.failure
+        print(f"\n{failure.message if failure else 'Verification failed.'}", file=sys.stderr)
+        if failure and failure.detail:
+            print(failure.detail, file=sys.stderr)
+        print("Readings are unchanged.", file=sys.stderr)
+        return 1
+    for capability in outcome.result.capabilities:
+        print(f"  {capability.name}: OK ({capability.seconds:.1f}s)")
+    print("\nReady. Readings now use the local model.")
+    print("Syzygy starts and stops the model itself; nothing is running now.")
+    return 0
+
+
+def _cmd_model_local_status(_args: argparse.Namespace) -> int:
+    from syzygy.local_models.report import status_lines
+
+    for line in status_lines(_settings_path(), _local_paths()):
+        print(line)
+    return 0
+
+
+def _cmd_model_local_doctor(args: argparse.Namespace) -> int:
+    from syzygy.local_models.report import doctor_lines
+
+    lines, ok = doctor_lines(_settings_path(), _local_paths(), deep=args.deep)
+    for line in lines:
+        print(line)
+    return 0 if ok else 1
+
+
+def _cmd_model_local_start(_args: argparse.Namespace) -> int:
+    from syzygy.local_models.managed_provider import ManagedLocalProvider
+    from syzygy.local_models.settings import ManagementMode, load_local_model_settings
+    from syzygy.local_models.supervisor import ServerStartError
+
+    settings = load_local_model_settings(_settings_path())
+    if settings.mode is not ManagementMode.MANAGED:
+        print("No managed local model is configured.", file=sys.stderr)
+        return 1
+
+    provider = ManagedLocalProvider(_settings_path(), _local_paths())
+    try:
+        base_url = provider._ensure_running()  # noqa: SLF001 - the CLI is the other front end
+    except ServerStartError as exc:
+        print(exc.failure.message, file=sys.stderr)
+        if exc.failure.detail:
+            print(exc.failure.detail, file=sys.stderr)
+        return 1
+
+    print(f"Local model server listening at {base_url}")
+    print("Leave this running and press Ctrl-C to stop it.")
+    print("(The interface starts and stops its own; this is for testing by hand.)")
+    try:
+        # Stay in the foreground. Returning here would orphan a
+        # multi-gigabyte process with nothing left to stop it, and the
+        # only honest alternative - a detached daemon - is the
+        # cross-platform orphan handling ADR 0005 puts out of scope.
+        while True:
+            time.sleep(3600)
+    except KeyboardInterrupt:
+        print("\nStopping…")
+    finally:
+        provider.stop()
+    return 0
+
+
+def _cmd_model_local_stop(_args: argparse.Namespace) -> int:
+    from syzygy.local_models.probe import Probe
+    from syzygy.local_models.runtime_state import load_runtime_state
+    from syzygy.local_models.supervisor import verify_recorded_process
+
+    paths = _local_paths()
+    state = load_runtime_state(paths.state_path)
+    if state.process is None:
+        print("No local model server is recorded as running.")
+        return 0
+
+    verified, reason = verify_recorded_process(state.process, Probe.real())
+    if not verified:
+        # Never signal something we cannot identify: clear the stale
+        # record instead (M16.7d).
+        from syzygy.local_models.runtime_state import save_runtime_state
+
+        save_runtime_state(paths.state_path, state.model_copy(update={"process": None}))
+        print(f"Stale record cleared: {reason}. Nothing was signalled.")
+        return 0
+
+    import os
+    import signal
+
+    os.kill(state.process.pid, signal.SIGTERM)
+    from syzygy.local_models.runtime_state import save_runtime_state
+
+    save_runtime_state(paths.state_path, state.model_copy(update={"process": None}))
+    print(f"Asked pid {state.process.pid} to stop.")
+    return 0
+
+
+def _cmd_model_local_list(_args: argparse.Namespace) -> int:
+    from syzygy.local_models.diagnostics import format_bytes
+    from syzygy.local_models.model_install import list_local_models
+
+    rows = list_local_models(_local_paths(), _settings_path())
+    if not rows:
+        print("No local model files.")
+        return 0
+    for row in rows:
+        owner = "managed" if row.syzygy_owned else "external"
+        used = " (in use)" if row.in_use else ""
+        print(f"{row.path}")
+        print(f"    {owner}, {format_bytes(row.size_bytes)}, {row.verification}{used}")
+        if not row.removable:
+            print("    Syzygy will never delete this file.")
+    return 0
+
+
+def _cmd_model_local_use_file(args: argparse.Namespace) -> int:
+    """Point Syzygy at a `.gguf` the user already has (M16.6c).
+
+    An explicit path, always. Syzygy does not crawl the home directory
+    looking for models - a background scan of somebody's disk is not
+    something an astrology program should do, and the file is referenced
+    where it is, never moved, rewritten, or removed.
+    """
+    from pathlib import Path as _Path
+
+    from syzygy.local_models.inventory import collect_inventory
+    from syzygy.local_models.model_install import inspect_external_model, use_external_model
+    from syzygy.local_models.settings import (
+        ManagementMode,
+        RuntimeRecord,
+        load_local_model_settings,
+        save_local_model_settings,
+    )
+
+    paths = _local_paths()
+    target = _Path(args.path).expanduser()
+    inventory = collect_inventory(model_dir=target.parent)
+    report = inspect_external_model(target, inventory)
+
+    print(f"{target}")
+    if report.metadata is not None:
+        print(
+            f"  {report.metadata.architecture}, {report.metadata.block_count} layers, "
+            f"trained for {report.metadata.context_length} tokens"
+        )
+    print(f"  {report.reason}")
+
+    if not report.usable:
+        print("\nSyzygy will not use this file.", file=sys.stderr)
+        return 1
+    if report.fits is False and not args.yes:
+        print(
+            "\nThis is larger than Syzygy estimates this computer can run. "
+            "Pass --yes to use it anyway.",
+            file=sys.stderr,
+        )
+        return 1
+
+    settings = load_local_model_settings(_settings_path())
+    if settings.runtime is None or not (settings.runtime.path or settings.runtime.base_url):
+        print(
+            "\nNo model runner is configured yet. Run `syzygy model setup-local` "
+            "first, or start your own server and use `syzygy model use llama_cpp`.",
+            file=sys.stderr,
+        )
+        return 1
+
+    use_external_model(_settings_path(), report, served_model_id=target.stem)
+    settings = load_local_model_settings(_settings_path())
+    save_local_model_settings(
+        _settings_path(),
+        settings.model_copy(
+            update={
+                "mode": ManagementMode.MANAGED,
+                # The verification recorded against the previous model no
+                # longer covers this one.
+                "last_verification": None,
+                "runtime": settings.runtime or RuntimeRecord(),
+            }
+        ),
+    )
+    print(f"\nSyzygy will use {target} and will never move or delete it.")
+    print("It has not been verified yet - the next reading runs the check, or run")
+    print("`syzygy model local doctor`.")
+    _ = paths
+    return 0
+
+
+def _cmd_model_local_remove(args: argparse.Namespace) -> int:
+    from pathlib import Path as _Path
+
+    from syzygy.local_models.model_install import remove_managed_model
+    from syzygy.local_models.paths import is_syzygy_owned
+
+    paths = _local_paths()
+    target = _Path(args.path).expanduser()
+
+    if not is_syzygy_owned(paths, target):
+        print(
+            f"{target} is not a file Syzygy downloaded, so it will not be removed.",
+            file=sys.stderr,
+        )
+        return 1
+    if not _confirm(f"Delete {target}?", assume_yes=args.yes):
+        return 0
+    if not remove_managed_model(paths, target, _settings_path()):
+        print(f"Could not remove {target}.", file=sys.stderr)
+        return 1
+    print(f"Removed {target}. `syzygy model setup-local` can download it again.")
+    return 0
+
+
 def _cmd_doctor(_args: argparse.Namespace) -> int:
     ok = True
 
@@ -636,6 +1088,8 @@ def _cmd_doctor(_args: argparse.Namespace) -> int:
     _doctor_knowledge_base()
     print()
     _doctor_providers()
+    print()
+    _doctor_local_model()
 
     return 0 if ok else 1
 
@@ -682,6 +1136,25 @@ def _doctor_providers() -> None:
         _print_provider_status()
     except ImportError as exc:
         print(f"provider check skipped: {exc} (install the `providers` extra)")
+
+
+def _doctor_local_model() -> None:
+    """Informational, same reasoning as the two above (M16.10b): a missing
+    local model is a supported state, not a failing environment
+    requirement, so it cannot fail `doctor`'s exit code. A *broken* one is
+    reported loudly but still does not - `syzygy model local doctor` is
+    the command whose exit code means something."""
+    try:
+        from syzygy.local_models.report import doctor_lines
+
+        lines, ok = doctor_lines(_settings_path(), _local_paths())
+    except Exception as exc:  # noqa: BLE001 - never fail doctor on this
+        print(f"local model check skipped: {type(exc).__name__}: {exc}")
+        return
+    for line in lines:
+        print(line)
+    if not ok:
+        print("(run `syzygy model local doctor` for the exit code, or repair it with [M])")
 
 
 def _add_birth_data_args(parser: argparse.ArgumentParser) -> None:
@@ -732,6 +1205,26 @@ def build_parser() -> argparse.ArgumentParser:
         "--yes", action="store_true", help="skip the interactive confirmation"
     )
     dev_reroll_parser.set_defaults(func=_cmd_dev_reroll)
+
+    dev_evaluate_parser = dev_subparsers.add_parser(
+        "evaluate-local",
+        help="run the maintainer evaluation harness against a running model (M16.3b)",
+    )
+    dev_evaluate_parser.add_argument("--base-url", required=True, help="e.g. http://127.0.0.1:8080/v1")
+    dev_evaluate_parser.add_argument("--model", required=True, help="the id the server serves")
+    dev_evaluate_parser.add_argument("--artifact", required=True, help="catalog artifact id")
+    dev_evaluate_parser.add_argument("--runtime-version", default="unknown")
+    dev_evaluate_parser.add_argument(
+        "--hardware", required=True, help='e.g. "MacBook Pro M2, 16 GB, Metal"'
+    )
+    dev_evaluate_parser.add_argument(
+        "--peak-memory-bytes", type=int, default=None, help="measured externally"
+    )
+    dev_evaluate_parser.add_argument(
+        "--license-reviewed", action="store_true", help="record that the licence review passed"
+    )
+    dev_evaluate_parser.add_argument("--out", default=None, help="write the results JSON here")
+    dev_evaluate_parser.set_defaults(func=_cmd_dev_evaluate_local)
 
     profile_parser = subparsers.add_parser("profile", help="manage saved profiles")
     profile_subparsers = profile_parser.add_subparsers(dest="profile_command")
@@ -836,6 +1329,78 @@ def build_parser() -> argparse.ArgumentParser:
         "--base-url", default=None, help="override the provider's default endpoint"
     )
     model_use_parser.set_defaults(func=_cmd_model_use)
+
+    setup_local_parser = model_subparsers.add_parser(
+        "setup-local",
+        help="set up a local model, with the same steps as the interface (M16.10a)",
+    )
+    setup_local_parser.add_argument(
+        "--tier",
+        choices=("faster", "recommended", "higher_quality"),
+        default=None,
+        help="pick a tier instead of the recommendation",
+    )
+    setup_local_parser.add_argument(
+        "--yes",
+        action="store_true",
+        help="accept the plan and the model licence without prompting",
+    )
+    setup_local_parser.set_defaults(func=_cmd_model_setup_local)
+
+    local_parser = model_subparsers.add_parser(
+        "local", help="inspect and manage the local model Syzygy runs"
+    )
+    local_subparsers = local_parser.add_subparsers(dest="local_command")
+
+    local_status_parser = local_subparsers.add_parser(
+        "status", help="print the local model configuration (read-only)"
+    )
+    local_status_parser.set_defaults(func=_cmd_model_local_status)
+
+    local_doctor_parser = local_subparsers.add_parser(
+        "doctor", help="check the local model configuration (read-only)"
+    )
+    local_doctor_parser.add_argument(
+        "--deep",
+        action="store_true",
+        help="re-hash the model file (minutes of I/O on a large model)",
+    )
+    local_doctor_parser.set_defaults(func=_cmd_model_local_doctor)
+
+    local_start_parser = local_subparsers.add_parser(
+        "start", help="start the configured local model server now"
+    )
+    local_start_parser.set_defaults(func=_cmd_model_local_start)
+
+    local_stop_parser = local_subparsers.add_parser(
+        "stop", help="stop the local model server Syzygy started"
+    )
+    local_stop_parser.set_defaults(func=_cmd_model_local_stop)
+
+    local_list_parser = local_subparsers.add_parser(
+        "list", help="list model files, managed and external"
+    )
+    local_list_parser.set_defaults(func=_cmd_model_local_list)
+
+    local_use_file_parser = local_subparsers.add_parser(
+        "use-file", help="use a .gguf model file you already have"
+    )
+    local_use_file_parser.add_argument("path", help="the exact .gguf file to use")
+    local_use_file_parser.add_argument(
+        "--yes", action="store_true", help="use it even if Syzygy thinks it won't fit"
+    )
+    local_use_file_parser.set_defaults(func=_cmd_model_local_use_file)
+
+    local_remove_parser = local_subparsers.add_parser(
+        "remove", help="delete a model file Syzygy downloaded"
+    )
+    local_remove_parser.add_argument("path", help="the exact file to remove")
+    local_remove_parser.add_argument(
+        "--yes",
+        action="store_true",
+        help="skip the confirmation (only ever removes a Syzygy-owned file)",
+    )
+    local_remove_parser.set_defaults(func=_cmd_model_local_remove)
 
     doctor_parser = subparsers.add_parser("doctor", help="check the local environment")
     doctor_parser.set_defaults(func=_cmd_doctor)

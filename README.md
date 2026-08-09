@@ -17,8 +17,11 @@ The LLM interprets; it never calculates astrology, selects the card, or rerolls 
 
 Pre-release, under active development, but the full daily ritual works
 end to end: create a profile, turn the Wheel, draw a card, and read an
-interpretation. Interpretation can come from a locally hosted
-[`llama.cpp`](https://github.com/ggml-org/llama.cpp) server, OpenAI, or
+interpretation. Interpretation can come from a model Syzygy sets up and
+runs on your own computer (guided, no terminal required — see
+[`docs/LOCAL_MODELS.md`](docs/LOCAL_MODELS.md)), a
+[`llama.cpp`](https://github.com/ggml-org/llama.cpp) server you run
+yourself, OpenAI, or
 Anthropic; with none of those configured, it falls back to a built-in
 fixture provider so the ritual is never blocked on having a model set up.
 
@@ -72,16 +75,41 @@ you on the daily home screen. From there, `[Enter]` turns the Wheel for
 today's reading; `[C]` opens the natal chart, `[A]` the archive.
 
 By default, readings use the built-in fixture provider — deterministic
-placeholder prose, useful for trying the ritual with no setup. To use a
-real model instead:
+placeholder prose, useful for trying the ritual with no setup. That text
+is canned: it is the same whatever your chart, transits, and card are, and
+the interface always says which of the two you are looking at.
+
+### A model on your own computer
+
+Press `[M]` in the interface and choose **Set up a local model for me**.
+Syzygy inventories the machine, recommends a model that will actually run
+on it, shows an itemised list of everything it proposes to download and
+where it will go, and only then asks. Nothing is downloaded, installed,
+started, or switched over without an explicit confirmation.
+
+Once it is set up, prompts never leave the machine: the model runs as a
+process bound to `127.0.0.1`, which Syzygy starts when a reading needs it
+and stops when you quit.
+
+The same flow from a terminal:
 
 ```bash
-# A local model via llama.cpp's server (http://127.0.0.1:8080 by default,
-# localhost-only) - no API key, no extra dependency:
-syzygy model use llama_cpp --model <model-name>
+syzygy model setup-local          # interactive; prints a plan and asks first
+syzygy model local status         # what is configured, and where
+syzygy model local doctor         # is it healthy?
+```
 
-# A hosted provider - requires the `providers` extra and an API key
-# (stored in the OS keyring, never in the readings database):
+Full walkthrough, storage layout, privacy boundary, supported hardware,
+licences, and troubleshooting: [`docs/LOCAL_MODELS.md`](docs/LOCAL_MODELS.md).
+
+### An existing server, or a hosted provider
+
+```bash
+# A llama.cpp/LM Studio/Ollama server you run yourself:
+syzygy model use llama_cpp --base-url http://127.0.0.1:8080/v1 --model <name>
+
+# A hosted provider - requires an API key, stored in the OS keyring and
+# never in the readings database:
 syzygy model configure openai      # prompts for the key (hidden input)
 syzygy model use openai --model gpt-4o-mini
 syzygy model status                # see what's configured and what's active
@@ -107,6 +135,8 @@ syzygy knowledge status
 - [`AGENTS.md`](AGENTS.md) — operating manual for coding agents working in this repository
 - [`docs/old/IMPLEMENTATION_PLAN.md`](docs/old/IMPLEMENTATION_PLAN.md) — implementation-specific architecture, milestone by milestone
 - [`TASKS.md`](TASKS.md) — the ordered task checklist
+- [`docs/LOCAL_MODELS.md`](docs/LOCAL_MODELS.md) — running a model on your own computer: what is downloaded, the privacy boundary, hardware, troubleshooting
+- [`docs/LOCAL_MODEL_MAINTENANCE.md`](docs/LOCAL_MODEL_MAINTENANCE.md) — maintainers: refreshing the pinned runtime and model catalogue, running evaluations
 - [`docs/THOTH_INGESTION_MAP.md`](docs/THOTH_INGESTION_MAP.md) — structure of the bundled Book of Thoth PDF
 - [`docs/KNOWLEDGE_SOURCES.md`](docs/KNOWLEDGE_SOURCES.md) — the knowledge-base source tiers and where to get the source PDFs
 

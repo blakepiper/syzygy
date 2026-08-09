@@ -1,0 +1,144 @@
+# The curated local-model catalog (M16.3a).
+#
+# Every entry is pinned to something immutable: `revision` is a git commit
+# on the publisher's Hugging Face repository, `sha256` is the file's own
+# digest, and `size_bytes` is exact. Nothing here follows a branch, a tag
+# that can move, or "latest" - a new upstream build is a reviewed change to
+# this file (docs/adr/0005-guided-local-model-setup.md), never a silent one.
+#
+# Only publisher-owned artifacts are listed. All three entries below are
+# published by Qwen themselves under Apache-2.0, which is AGPL-compatible;
+# no community requantization appears here, and adding one would be an
+# explicit trust decision recorded in the ADR, not an edit to this file.
+#
+# HOW THE NUMBERS WERE OBTAINED - and how to refresh them, in
+# docs/LOCAL_MODEL_MAINTENANCE.md:
+#
+#   revision/sha256/size_bytes  Hugging Face's tree API. `sha256` is the
+#                               LFS object id, which *is* the file digest,
+#                               so it is verifiable without downloading.
+#   kv_cache_bytes              exact arithmetic over the artifact's own
+#                               GGUF header (read with a range request):
+#                               ctx x layers x kv_heads x (k_len + v_len)
+#                               x 2 bytes. Marked `computed`.
+#   runtime_overhead_bytes      1 GiB + 8% of the weight file. A documented
+#                               conservative rule, marked `estimated` -
+#                               llama.cpp's compute buffers are not
+#                               derivable from the header, and pretending
+#                               otherwise would put a guess and a
+#                               measurement in the same column.
+#
+# `support_status: provisional` on every entry is deliberate and honest.
+# The pinning, the licence review, and the memory arithmetic are done; the
+# Syzygy-specific evaluation (M16.3b: schema-valid rate, repair rate,
+# fidelity rubric, tokens/second on representative hardware) has not been
+# run. Until it is, the wizard says "not yet measured by Syzygy" instead of
+# implying evidence that does not exist, and the recommendation's
+# confidence stays low.
+
+schema: local-model-catalog-v1
+
+# Bumped on any change to an entry. Persisted alongside a license
+# acceptance, so changed terms are asked about again rather than inherited.
+catalog_version: "2026-08-08"
+
+# The context every profile below is computed at. Must equal
+# `syzygy.local_models.fit.SYZYGY_CONTEXT_TOKENS`; the loader checks.
+profile_context_tokens: 8192
+
+artifacts:
+  - id: qwen3-4b-instruct-q4-k-m
+    display_name: "Qwen3 4B (compact)"
+    publisher: "Qwen"
+    repository: "Qwen/Qwen3-4B-GGUF"
+    revision: "bc640142c66e1fdd12af0bd68f40445458f3869b"
+    filename: "Qwen3-4B-Q4_K_M.gguf"
+    download_url: "https://huggingface.co/Qwen/Qwen3-4B-GGUF/resolve/bc640142c66e1fdd12af0bd68f40445458f3869b/Qwen3-4B-Q4_K_M.gguf"
+    sha256: "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5"
+    size_bytes: 2497280256
+    quantization: "Q4_K_M"
+    parameter_class: "4B"
+    license_id: "Apache-2.0"
+    license_url: "https://huggingface.co/Qwen/Qwen3-4B-GGUF/blob/main/LICENSE"
+    source_url: "https://huggingface.co/Qwen/Qwen3-4B-GGUF"
+    min_runtime_build: 5092
+    context_tokens: 8192
+    max_output_tokens: 1536
+    memory_profile:
+      context_tokens: 8192
+      kv_cache_bytes: 1207959552
+      runtime_overhead_bytes: 1273524244
+      kv_cache_provenance: computed
+      runtime_overhead_provenance: estimated
+      source: "computed from the GGUF header (36 layers, 8 KV heads, 128+128 head dim)"
+    tier: faster
+    support_status: provisional
+    why: >-
+      The smallest model Syzygy is willing to recommend. It downloads in a
+      couple of gigabytes and runs on a laptop without graphics
+      acceleration, at the cost of shorter, plainer interpretations.
+    evidence_id: null
+
+  - id: qwen3-8b-instruct-q4-k-m
+    display_name: "Qwen3 8B"
+    publisher: "Qwen"
+    repository: "Qwen/Qwen3-8B-GGUF"
+    revision: "7c41481f57cb95916b40956ab2f0b139b296d974"
+    filename: "Qwen3-8B-Q4_K_M.gguf"
+    download_url: "https://huggingface.co/Qwen/Qwen3-8B-GGUF/resolve/7c41481f57cb95916b40956ab2f0b139b296d974/Qwen3-8B-Q4_K_M.gguf"
+    sha256: "d98cdcbd03e17ce47681435b5150e34c1417f50b5c0019dd560e4882c5745785"
+    size_bytes: 5027783488
+    quantization: "Q4_K_M"
+    parameter_class: "8B"
+    license_id: "Apache-2.0"
+    license_url: "https://huggingface.co/Qwen/Qwen3-8B-GGUF/blob/main/LICENSE"
+    source_url: "https://huggingface.co/Qwen/Qwen3-8B-GGUF"
+    min_runtime_build: 5092
+    context_tokens: 8192
+    max_output_tokens: 1536
+    memory_profile:
+      context_tokens: 8192
+      kv_cache_bytes: 1207959552
+      runtime_overhead_bytes: 1475964503
+      kv_cache_provenance: computed
+      runtime_overhead_provenance: estimated
+      source: "computed from the GGUF header (36 layers, 8 KV heads, 128+128 head dim)"
+    tier: recommended
+    support_status: provisional
+    why: >-
+      The default. Large enough to keep the esoteric and conventional
+      registers genuinely distinct and to stay faithful to the card and
+      transits it is given, small enough to run on a mainstream machine
+      with graphics acceleration.
+    evidence_id: null
+
+  - id: qwen3-14b-instruct-q4-k-m
+    display_name: "Qwen3 14B"
+    publisher: "Qwen"
+    repository: "Qwen/Qwen3-14B-GGUF"
+    revision: "530227a7d994db8eca5ab5ced2fb692b614357fd"
+    filename: "Qwen3-14B-Q4_K_M.gguf"
+    download_url: "https://huggingface.co/Qwen/Qwen3-14B-GGUF/resolve/530227a7d994db8eca5ab5ced2fb692b614357fd/Qwen3-14B-Q4_K_M.gguf"
+    sha256: "500a8806e85ee9c83f3ae08420295592451379b4f8cf2d0f41c15dffeb6b81f0"
+    size_bytes: 9001752960
+    quantization: "Q4_K_M"
+    parameter_class: "14B"
+    license_id: "Apache-2.0"
+    license_url: "https://huggingface.co/Qwen/Qwen3-14B-GGUF/blob/main/LICENSE"
+    source_url: "https://huggingface.co/Qwen/Qwen3-14B-GGUF"
+    min_runtime_build: 5092
+    context_tokens: 8192
+    max_output_tokens: 1536
+    memory_profile:
+      context_tokens: 8192
+      kv_cache_bytes: 1342177280
+      runtime_overhead_bytes: 1793882060
+      kv_cache_provenance: computed
+      runtime_overhead_provenance: estimated
+      source: "computed from the GGUF header (40 layers, 8 KV heads, 128+128 head dim)"
+    tier: higher_quality
+    support_status: provisional
+    why: >-
+      For a machine with memory to spare. Longer, more specific readings;
+      noticeably slower, and a nine-gigabyte download.
+    evidence_id: null

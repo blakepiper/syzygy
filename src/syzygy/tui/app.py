@@ -41,6 +41,7 @@ from syzygy.tui.screens.archive import ArchiveScreen
 from syzygy.tui.screens.chart import ChartScreen
 from syzygy.tui.screens.cosmos import CosmosScreen
 from syzygy.tui.screens.home import HomeScreen
+from syzygy.tui.screens.local_setup import LocalSetupScreen
 from syzygy.tui.screens.model_setup import ModelSetupScreen
 from syzygy.tui.screens.profile_create import ProfileCreateScreen
 from syzygy.tui.screens.profile_select import ProfileSelectScreen
@@ -93,6 +94,19 @@ def default_services(database_path: Path | str | None = None) -> SyzygyServices:
         settings_path = Path(database_path).with_name("settings.json")
 
     provider, fallback_reason = resolve_selected_provider(load_selection(settings_path))
+
+    # M16.8d: a managed local model is validated cheaply on every startup -
+    # files present, sizes unchanged, versions still the ones it was
+    # verified against. A broken one is a *banner*, never a crash and never
+    # a silent use of an unverified artifact: the ritual falls back to
+    # `FixtureProvider` exactly as it does for someone who never set a
+    # model up, and `[M] → Repair local model` is the route back.
+    managed_provider, managed_reason = _managed_local_provider(settings_path)
+    if managed_provider is not None:
+        provider, fallback_reason = managed_provider, None
+    elif managed_reason is not None:
+        fallback_reason = managed_reason
+
     if fallback_reason:
         print(
             f"syzygy: {fallback_reason} - using the fixture provider instead", file=sys.stderr
@@ -107,6 +121,58 @@ def default_services(database_path: Path | str | None = None) -> SyzygyServices:
         provider=provider,
         settings_path=settings_path,
     )
+
+
+def _managed_local_provider(settings_path: Path):
+    """`(provider, reason)` for a configured local model.
+
+    `(provider, None)` when it is set up and healthy, `(None, reason)`
+    when it is set up but needs repair, and `(None, None)` when nothing
+    local was ever configured - which is not a problem to report.
+
+    Never raises. This runs on every start, and a subsystem that can stop
+    the application from opening is worse than one that is unavailable.
+    """
+    try:
+        from syzygy.config import default_app_paths
+        from syzygy.local_models.catalog import load_catalog
+        from syzygy.local_models.managed_provider import ManagedLocalProvider
+        from syzygy.local_models.paths import LocalModelPaths
+        from syzygy.local_models.settings import ManagementMode, load_local_model_settings
+        from syzygy.local_models.verification import validate_managed_configuration
+
+        settings = load_local_model_settings(settings_path)
+        if settings.mode is not ManagementMode.MANAGED:
+            return None, None
+
+        health = validate_managed_configuration(
+            settings_path, catalog_version=load_catalog().catalog_version
+        )
+        if not health.healthy:
+            return None, f"the local model needs repair ({health.reason})"
+
+        paths = LocalModelPaths.from_app_paths(default_app_paths())
+        return ManagedLocalProvider(settings_path, paths), None
+    except Exception as exc:  # noqa: BLE001 - startup must never fail here
+        return None, f"the local model could not be prepared ({type(exc).__name__}: {exc})"
+
+
+def stop_managed_model(provider: object) -> None:
+    """Stop a managed local server, if that is what `provider` is.
+
+    Duck-typed on purpose: `syzygy.tui` must not import the local-model
+    subsystem to decide whether to call a method on it, and every other
+    provider simply has no `stop`. Failures are swallowed - the
+    application is already on its way out, and a supervisor that cannot
+    tidy up must not turn quitting into a traceback.
+    """
+    stop = getattr(provider, "stop", None)
+    if stop is None:
+        return
+    try:
+        stop()
+    except Exception:  # noqa: BLE001 - shutdown is best effort
+        pass
 
 
 class SyzygyApp(App[None]):
@@ -134,6 +200,7 @@ class SyzygyApp(App[None]):
         "cosmos": CosmosScreen,
         "archive": ArchiveScreen,
         "model_setup": ModelSetupScreen,
+        "local_setup": LocalSetupScreen,
         "too_small": TooSmallScreen,
     }
 
@@ -231,10 +298,12 @@ class SyzygyApp(App[None]):
         self.notify(f"Animations: {level.value}.", timeout=2)
 
     def on_unmount(self) -> None:
-        """Release the audio device however the app is ending - `[Q]`, an
-        exception, or a signal. `run()` stops it again in a `finally`;
-        `stop()` is idempotent."""
+        """Release the audio device and the local model server however the
+        app is ending - `[Q]`, an exception, or a signal. `run()` stops
+        both again in a `finally`; both `stop()`s are idempotent and
+        bounded, so quitting cannot hang on either."""
         self.theme_player.stop()
+        stop_managed_model(self.services.provider)
 
     def set_profile(self, profile: Profile) -> None:
         self.profile = profile
@@ -281,4 +350,5 @@ def run(database_path: Path | str | None = None, *, audio: bool = True) -> None:
         SyzygyApp(services, theme_player=theme).run()
     finally:
         theme.stop()
+        stop_managed_model(services.provider)
         services.conn.close()

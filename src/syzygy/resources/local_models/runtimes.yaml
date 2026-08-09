@@ -1,0 +1,131 @@
+# The allowlisted llama.cpp runtime builds Syzygy will install (M16.5a).
+#
+# One pinned upstream release, and only the platform/backend combinations
+# that have an end-to-end validation result. Anything not listed here gets
+# the manual/external-server path with an explanation - never a hopeful
+# automatic install (M16's "supported path and terminology").
+#
+# Every asset carries the digest GitHub publishes for it. The download is
+# verified against that digest *before* it is extracted, and nothing is
+# executed until extraction and qualification both succeed.
+#
+# WHY NO CUDA OR ROCm ENTRY. Both exist upstream, and both are the right
+# choice for the hardware they target. Neither is a beginner path:
+# llama.cpp's Windows CUDA build needs a second 390 MB CUDA-runtime archive
+# and a driver new enough for the CUDA minor version, and the ROCm build
+# needs a matching ROCm installation Syzygy cannot provide. Vulkan works on
+# NVIDIA, AMD, and Intel with the driver the user already has, so it is
+# what the automatic path installs. An advanced user who wants CUDA or
+# ROCm installs llama.cpp themselves and uses "existing server", which is
+# a fully supported outcome.
+#
+# Refreshing this file: docs/LOCAL_MODEL_MAINTENANCE.md. Automated
+# freshness checks may report a newer build; they may not rewrite the pin.
+
+schema: local-model-runtimes-v1
+
+project: "llama.cpp"
+project_url: "https://github.com/ggml-org/llama.cpp"
+license_id: "MIT"
+license_url: "https://github.com/ggml-org/llama.cpp/blob/master/LICENSE"
+
+# The pinned release tag and its build number. `build` is what
+# `RuntimeCapabilities.version` is compared against.
+release_tag: "b10331"
+build: 10331
+release_url: "https://github.com/ggml-org/llama.cpp/releases/tag/b10331"
+
+# Executable names to look for inside an extracted archive, in preference
+# order. The archives are not uniformly laid out - the macOS and Linux
+# tarballs put everything under a `llama-<tag>/` directory, the Windows
+# zips are flat - so the installer searches rather than trusting a path.
+server_executables: ["llama-server", "llama-server.exe"]
+unified_executables: ["llama", "llama.exe"]
+
+builds:
+  - os: Darwin
+    architectures: ["arm64"]
+    backend: metal
+    asset: "llama-b10331-bin-macos-arm64.tar.gz"
+    url: "https://github.com/ggml-org/llama.cpp/releases/download/b10331/llama-b10331-bin-macos-arm64.tar.gz"
+    sha256: "b1e0fd9895e4601e697563c5e0ac391a81910fcc7042597bb11b13a622a746af"
+    size_bytes: 11015762
+    archive_format: tar.gz
+    notes: "Metal acceleration, Apple Silicon only."
+
+  - os: Darwin
+    architectures: ["x86_64"]
+    backend: cpu
+    asset: "llama-b10331-bin-macos-x64.tar.gz"
+    url: "https://github.com/ggml-org/llama.cpp/releases/download/b10331/llama-b10331-bin-macos-x64.tar.gz"
+    sha256: "4974283f41924d66b98b9f3a877b1b283aef007d185cccf524a4a1f22cacba3e"
+    size_bytes: 11287735
+    archive_format: tar.gz
+    notes: "Intel Macs run on the processor; llama.cpp's Metal backend targets Apple Silicon."
+
+  - os: Windows
+    architectures: ["amd64", "x86_64"]
+    backend: vulkan
+    asset: "llama-b10331-bin-win-vulkan-x64.zip"
+    url: "https://github.com/ggml-org/llama.cpp/releases/download/b10331/llama-b10331-bin-win-vulkan-x64.zip"
+    sha256: "66d90e6182e5e23240c6d20030673f0ff013f1e8c0632c4c60af56d6bbd225db"
+    size_bytes: 34147876
+    archive_format: zip
+    notes: "Works with NVIDIA, AMD, and Intel graphics on the installed driver."
+
+  - os: Windows
+    architectures: ["amd64", "x86_64"]
+    backend: cpu
+    asset: "llama-b10331-bin-win-cpu-x64.zip"
+    url: "https://github.com/ggml-org/llama.cpp/releases/download/b10331/llama-b10331-bin-win-cpu-x64.zip"
+    sha256: "defec84d389193c87aa3038d2bd6b8cb7ee0c2afcabfe04fcd069343f828e848"
+    size_bytes: 18399802
+    archive_format: zip
+    notes: "No graphics acceleration required."
+
+  - os: Linux
+    architectures: ["x86_64"]
+    backend: vulkan
+    asset: "llama-b10331-bin-ubuntu-vulkan-x64.tar.gz"
+    url: "https://github.com/ggml-org/llama.cpp/releases/download/b10331/llama-b10331-bin-ubuntu-vulkan-x64.tar.gz"
+    sha256: "eb63e47bdd562ccb4a1cfd6e4dbfd334ba494948ffe9d2e801bd6ed2301913be"
+    size_bytes: 32516105
+    archive_format: tar.gz
+    notes: "Needs a Vulkan loader (libvulkan.so.1) and a working GPU driver."
+
+  - os: Linux
+    architectures: ["x86_64"]
+    backend: cpu
+    asset: "llama-b10331-bin-ubuntu-x64.tar.gz"
+    url: "https://github.com/ggml-org/llama.cpp/releases/download/b10331/llama-b10331-bin-ubuntu-x64.tar.gz"
+    sha256: "9984060517edf7c2436991d8f635804586530b4642490fd4afc61ffad1d9f638"
+    size_bytes: 16505043
+    archive_format: tar.gz
+    notes: "Built against Ubuntu's glibc; very old distributions may need a manual build."
+
+# Package managers Syzygy will *use* if the person elects that route.
+# Syzygy never installs the manager itself, never invokes a shell, and
+# never elevates: if the command needs administrator rights, the flow stops
+# and says so (M16.5b).
+package_managers:
+  - id: homebrew
+    os: Darwin
+    executable: brew
+    formula: llama.cpp
+    install_argv: ["brew", "install", "llama.cpp"]
+    version_argv: ["brew", "--version"]
+    notes: "Homebrew installs into a user-writable prefix and does not ask for a password."
+  - id: winget
+    os: Windows
+    executable: winget
+    formula: ggml.llamacpp
+    install_argv: ["winget", "install", "--exact", "--id", "ggml.llamacpp", "--source", "winget"]
+    version_argv: ["winget", "--version"]
+    notes: "Windows may show its own confirmation dialog."
+  - id: nix
+    os: Linux
+    executable: nix-env
+    formula: llama-cpp
+    install_argv: ["nix-env", "--install", "--attr", "nixpkgs.llama-cpp"]
+    version_argv: ["nix-env", "--version"]
+    notes: "Only offered when nix is already installed."

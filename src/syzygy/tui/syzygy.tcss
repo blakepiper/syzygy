@@ -364,6 +364,63 @@ TarotCardWidget {
     padding: 1 2;
 }
 
+#llama-choice {
+    height: auto;
+    padding: 1 0;
+}
+
+/* The guided local-model wizard (M16.9).
+ *
+ * The body scrolls; the message line and the action row do not. That
+ * split is the whole of M16.9e's "essential controls never fall below an
+ * unreachable fold" - at the 80x24 compact floor the consent receipt is
+ * far taller than the screen, and CONTINUE/BACK/CANCEL must still be
+ * where they were.
+ */
+#setup-body {
+    height: 1fr;
+    padding: 0 1;
+}
+
+#setup-message {
+    height: auto;
+    max-height: 4;
+}
+
+#setup-actions {
+    height: auto;
+    dock: bottom;
+}
+
+#setup-progress {
+    height: auto;
+    padding: 1 0;
+}
+
+#setup-choices {
+    height: auto;
+    max-height: 18;
+    margin: 1 0;
+}
+
+#setup-technical {
+    padding: 1 2;
+}
+
+/* Compact: trim the wizard's padding rather than hide anything. Every
+ * line in it either explains what will happen or is a control. */
+.-compact #setup-body {
+    padding: 0;
+}
+
+.-compact #setup-choices {
+    max-height: 10;
+}
+
+.-compact #setup-technical {
+    padding: 0 1;
+}
+
 /* Profile selection and deletion (M11.2) */
 
 #profile-select-body {

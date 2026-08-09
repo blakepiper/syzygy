@@ -85,6 +85,21 @@ certainly a design violation, not a shortcut.
   Citation-only chunks must also never reach a provider: a citation under
   the prompt's "SOURCE PASSAGES" heading invites the model to invent what
   the page says, so `reading_service` filters on `KnowledgeChunk.has_text`.
+- **A local model is acquired, never bundled, and never trusted on
+  faith.** Everything `syzygy.local_models` downloads is pinned in
+  `src/syzygy/resources/local_models/` by immutable revision *and*
+  sha256, over HTTPS, from an allowlisted host; the digest is verified
+  before anything is extracted, executed, or promoted. Nothing tracks
+  "latest". A managed server binds `127.0.0.1` only, carries no reading
+  content on its command line, and is started on demand and stopped on
+  exit. Nothing in the package invokes a shell, requests elevation, or
+  compiles from source. Cleanup may delete only what an `OWNERSHIP.json`
+  marker proves Syzygy created - never an external binary, a
+  user-supplied model file, or another application's cache. The provider
+  is not activated until the smoke test in `local_models.verification`
+  passes, and that smoke test may not create a reading, draw a card, or
+  touch the readings database. See
+  `docs/adr/0005-guided-local-model-setup.md`.
 - **No LangChain, LlamaIndex, hosted vector DB, agent framework, dependency
   injection container, or web framework.** If you think you need one,
   you're probably over-engineering a small local app — re-read
@@ -104,17 +119,20 @@ certainly a design violation, not a shortcut.
 | `docs/BRAND_ASSETS.md` | How the bundled logo/mascot PNGs and the theme MP3 are produced and where they live |
 | `docs/THOTH_INGESTION_MAP.md` | Verified facts about `docs/book_of_thoth.pdf`'s structure (Tier 0), for the M6 ingestion parser |
 | `docs/KNOWLEDGE_SOURCES.md` | Multi-source tier policy + what may and may not be committed from the books |
+| `docs/LOCAL_MODELS.md` | The user-facing guide to running a model locally: what is downloaded, the privacy boundary, hardware, troubleshooting |
+| `docs/LOCAL_MODEL_MAINTENANCE.md` | Maintainers: refreshing the pinned llama.cpp release and model catalog, running the evaluation harness, adding a platform |
 | `docs/adr/` | Architecture decision records for deviations from `docs/old/DESIGN.md`'s provisional recommendations |
 | `src/syzygy/domain/` | Pure Pydantic contracts. No Textual, no Kerykeion, no provider SDK imports — ever |
 | `src/syzygy/astrology/` | `AstrologyEngine` protocol, Syzygy's orb policy, the Kerykeion adapter and ranker |
 | `src/syzygy/sortes/` | Deck loading, entropy collection, the unbiased draw |
 | `src/syzygy/interpretation/` | `InterpretationProvider` protocol, the prompt contract, context builder, and the four providers |
+| `src/syzygy/local_models/` | Guided local-model setup (M16): inventory, fit, pinned catalog, discovery, download, supervisor, smoke test, orchestrator. No Textual, no provider SDK |
 | `src/syzygy/storage/` | SQLite connection + migrations (append-only, never edit a merged migration) |
 | `src/syzygy/knowledge/` | Ingestion (`normalize`/`segment`/`store`/`ingest`), retrieval (`retrieve`), and the shipped citations+vectors index (`artifact`, `embedding`) |
 | `src/syzygy/settings.py` | The namespaced settings document. Add a preference as a *section*; never write the whole file |
 | `src/syzygy/audio.py` | The bundled looping theme. Degrades to `SilentTheme` on every failure |
 | `src/syzygy/dev.py` | Development-only affordances, all gated on `SYZYGY_DEV` |
-| `src/syzygy/resources/` | `thoth_deck.yaml` (canonical card metadata), `art/` (78 card PNGs), `brand/`, `audio/`, `knowledge/` (citations + vectors) |
+| `src/syzygy/resources/` | `thoth_deck.yaml` (canonical card metadata), `art/` (78 card PNGs), `brand/`, `audio/`, `knowledge/` (citations + vectors), `local_models/` (pinned model catalog + llama.cpp manifest) |
 | `src/syzygy/tui/` | The Textual app: `app.py` (shell + injected `SyzygyServices`), `screens/`, `widgets/`, `palette.py`, `syzygy.tcss` |
 | `tests/` | Mirrors `src/syzygy/` layout |
 
@@ -218,6 +236,18 @@ daily cosmos (M13.2), and the elapsed-time animation layer under
 `tui/animation/` with semantic events and persisted full/reduced/off
 motion levels (M14).
 
+**Local models (M16).** `syzygy.local_models` is the non-UI subsystem;
+`tui/screens/local_setup.py` and `syzygy model setup-local` are two front
+ends over one `orchestrator.LocalSetupSession`. Every OS touchpoint goes
+through an injectable `local_models.probe.Probe`, so no test learns
+anything about the machine running it, and no normal test downloads,
+installs, spawns a process, probes real hardware, or opens a socket. The
+shipped catalog entries are `provisional`: pinned, licence-reviewed, and
+exact about memory, but the evaluation harness
+(`local_models.evaluation`, `syzygy dev evaluate-local`) has not been run
+against them, and the UI says so rather than implying evidence that does
+not exist.
+
 **Layout tiers.** `syzygy.tui.screens.base` owns the three thresholds and
 sets `-compact`/`-wide`/`-tall` on every screen; `syzygy.tcss` styles
 those classes. Do not measure `self.size` in a screen to decide a layout,
@@ -227,8 +257,20 @@ numbers. `tests/tui/test_layout.py` checks each screen at the tier sizes,
 in both directions: nothing that matters is off-screen, and what should
 grow did.
 
-All tasks through M15 are implemented. M12.3 (a Cinzel display treatment)
-was dropped rather than deferred — `TASKS.md` records why.
+Added in M16: guided local-model setup end to end - machine inventory and
+a conservative fit estimate, a pinned publisher-owned model catalog and
+llama.cpp runtime manifest, discovery and qualification of an existing
+server or binary, resumable digest-verified downloads with safe archive
+extraction, a localhost-only subprocess supervisor with typed startup
+diagnosis and crash-safe process identity, a no-side-effect Syzygy smoke
+test that gates activation, a resumable TUI wizard, and
+`syzygy model setup-local` / `model local status|doctor|list|start|stop|remove`.
+
+All tasks through M15 are implemented, and all of M16 except M16.10f -
+the manual clean-machine matrix, of which only Linux x86-64 CPU has
+actually been performed (recorded in `docs/LOCAL_MODEL_MAINTENANCE.md`).
+M12.3 (a Cinzel display treatment) was dropped rather than deferred -
+`TASKS.md` records why.
 
 **Where the current work is written down.** `docs/old/IMPLEMENTATION_PLAN.md`
 covers M0–M9 and is history now; anything from M10 onward is specified in
