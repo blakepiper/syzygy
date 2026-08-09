@@ -90,6 +90,18 @@ async def test_the_startup_screen_shows_the_logo_and_the_mascot(app: SyzygyApp, 
         assert screen.query_one("#startup-mascot", Mascot)
 
 
+async def test_the_startup_brand_is_centered_on_the_terminal(app: SyzygyApp, profile):
+    async with app.run_test(size=(110, 36)) as pilot:
+        await pilot.pause()
+        screen = pilot.app.screen
+        assert isinstance(screen, StartupScreen)
+        logo = screen.query_one("#startup-logo", Logo)
+        mascot = screen.query_one("#startup-mascot", Mascot)
+        terminal_center = screen.size.width // 2
+        assert logo.region.center[0] == terminal_center
+        assert mascot.region.center[0] == terminal_center
+
+
 # -- and is never detained by it --------------------------------------------
 
 

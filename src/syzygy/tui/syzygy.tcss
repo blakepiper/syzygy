@@ -408,6 +408,10 @@ TarotCardWidget {
     align: center middle;
 }
 
+#startup-middle {
+    width: 1fr;
+}
+
 #startup-logo {
     width: 56;
     height: 6;

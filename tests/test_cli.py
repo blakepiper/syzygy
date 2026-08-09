@@ -373,6 +373,15 @@ def test_oracle_ask_draws_and_interprets_without_a_configured_model(
 
     _seed_profile(isolated_app_paths)
 
+    class FixedEntropyCollector:
+        """Select The Fool so this CLI contract never depends on OS entropy."""
+
+        def record(self, _kind: str) -> None:
+            pass
+
+        def digest(self) -> bytes:
+            return bytes(32)
+
     def services():
         return SyzygyServices(
             conn=open_database(isolated_app_paths.database_path),
@@ -383,6 +392,7 @@ def test_oracle_ask_draws_and_interprets_without_a_configured_model(
         )
 
     monkeypatch.setattr("syzygy.tui.app.default_services", services)
+    monkeypatch.setattr("syzygy.sortes.entropy.EntropyCollector", FixedEntropyCollector)
 
     assert main(["oracle", "ask", "What now?"]) == 0
     output = capsys.readouterr().out
