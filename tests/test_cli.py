@@ -305,6 +305,36 @@ def test_profile_delete_reports_an_unknown_id(isolated_app_paths, capsys):
     assert "no profile with id" in capsys.readouterr().err
 
 
+# -- `syzygy dev animate` (M17.2e) ---------------------------------------
+
+
+def test_dev_animate_refuses_without_the_dev_switch(capsys, monkeypatch):
+    """A bench, not a feature: it must not be one command away for
+    somebody who only installed the application."""
+    from syzygy.dev import DEV_MODE_ENV_VAR
+
+    monkeypatch.delenv(DEV_MODE_ENV_VAR, raising=False)
+
+    exit_code = main(["dev", "animate"])
+
+    assert exit_code == 1
+    assert "SYZYGY_DEV" in capsys.readouterr().err
+
+
+def test_dev_animate_opens_the_bench_when_enabled(monkeypatch):
+    from syzygy.dev import DEV_MODE_ENV_VAR
+    from syzygy.tui.screens import animation_demo
+
+    monkeypatch.setenv(DEV_MODE_ENV_VAR, "1")
+    launched: list[str] = []
+    monkeypatch.setattr(
+        animation_demo.AnimationDemoApp, "run", lambda self: launched.append("run")
+    )
+
+    assert main(["dev", "animate"]) == 0
+    assert launched == ["run"]
+
+
 # -- `syzygy dev reroll` (M11.6) -----------------------------------------
 
 

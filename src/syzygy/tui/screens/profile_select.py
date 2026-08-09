@@ -10,21 +10,20 @@ from __future__ import annotations
 
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
-from textual.widgets import Button, Footer, Label, ListItem, ListView, Static
+from textual.widgets import Button, Footer, ListView, Static
 
 from syzygy.domain.profile import Profile
 from syzygy.storage.profiles import count_readings, delete_profile, list_profiles
 from syzygy.tui.screens.base import SyzygyScreen, TitleBar
+from syzygy.tui.widgets.marked_list import MarkedListItem
 
 
-class ProfileListItem(ListItem):
+class ProfileListItem(MarkedListItem):
     def __init__(self, profile: Profile) -> None:
         birth = profile.birth_data
         super().__init__(
-            Label(
-                f"{profile.display_name:<20} {birth.local_date} {birth.local_time}  "
-                f"{birth.place_label}"
-            )
+            f"{profile.display_name:<20} {birth.local_date} {birth.local_time}  "
+            f"{birth.place_label}"
         )
         self.profile = profile
 

@@ -173,6 +173,27 @@ class Sequence(Step):
             step.seek(elapsed - offset)
             offset += step.duration
 
+    def finish(self) -> None:
+        """Finish each child in turn, rather than seeking to `duration`.
+
+        `duration` is `sum(...)` while `seek` accumulates the same numbers
+        one at a time, and the two do not always agree in the last bit:
+        0.45 + 0.4 + 0.35 + 0.2 sums to 1.4 and accumulates to
+        1.4000000000000001. Seeking to `duration` then handed the final
+        child an elapsed of -1e-16, which `Call` reads as "not my turn
+        yet" - so a skipped or interrupted sequence silently dropped
+        whatever was arranged to happen at its end.
+
+        That is not a rounding nicety. `Call` at the end of a timeline is
+        how a screen arranges the *result* of an animation (the opening
+        sequence routes from one), and `Handle.finish` is what a keypress
+        and motion `off` both go through. Finishing children directly is
+        exact by construction, and is what "land on the final state"
+        meant all along.
+        """
+        for step in self._steps:
+            step.finish()
+
     def reset(self) -> None:
         for step in self._steps:
             step.reset()
@@ -188,6 +209,14 @@ class Parallel(Step):
     def seek(self, elapsed: float) -> None:
         for step in self._steps:
             step.seek(elapsed)
+
+    def finish(self) -> None:
+        # Same reason as `Sequence.finish`: the group's duration is the
+        # longest child's, and seeking a shorter child past its end is
+        # fine - but a `stagger` nests sequences in here, and those have
+        # to be finished exactly.
+        for step in self._steps:
+            step.finish()
 
     def reset(self) -> None:
         for step in self._steps:

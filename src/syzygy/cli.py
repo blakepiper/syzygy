@@ -20,6 +20,10 @@ Commands implemented so far:
   walked again (M11.6). Destructive, and refuses to run unless
   `SYZYGY_DEV` is set; see `syzygy.dev` for why this is a delete rather
   than anything that touches a committed card.
+- `syzygy dev animate` - the animation bench (M17.2e): every semantic
+  event and every named choreography, on demand, at the current motion
+  level. `SYZYGY_DEV` only. It is the manual check that motion is
+  actually visible on a real terminal, which no headless test can make.
 - `syzygy profile create` / `syzygy profile list` / `syzygy profile
   delete` - save/list/delete profiles (Milestone 4; delete is M11.2 and
   takes the profile's readings with it). Storage lives at
@@ -230,6 +234,29 @@ def _cmd_dev_reroll(args: argparse.Namespace) -> int:
         print(f"No reading for {local_date} to discard.")
         return 0
     print(f"Discarded {profile.display_name}'s reading for {local_date}. Draw again with `syzygy`.")
+    return 0
+
+
+def _cmd_dev_animate(_args: argparse.Namespace) -> int:
+    """Open the animation bench (M17.2e).
+
+    Development-only. No headless test can say whether a transition is
+    actually visible on a real terminal; this is the screen that lets
+    somebody look.
+    """
+    from syzygy.dev import DEV_MODE_ENV_VAR, dev_mode_enabled
+
+    if not dev_mode_enabled():
+        print(
+            f"`dev animate` is a development affordance and is disabled. "
+            f"Set {DEV_MODE_ENV_VAR}=1 to enable it.",
+            file=sys.stderr,
+        )
+        return 1
+
+    from syzygy.tui.screens.animation_demo import AnimationDemoApp
+
+    AnimationDemoApp().run()
     return 0
 
 
@@ -1205,6 +1232,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--yes", action="store_true", help="skip the interactive confirmation"
     )
     dev_reroll_parser.set_defaults(func=_cmd_dev_reroll)
+
+    dev_animate_parser = dev_subparsers.add_parser(
+        "animate",
+        help="play every animation on demand, at the current motion level (SYZYGY_DEV only)",
+    )
+    dev_animate_parser.set_defaults(func=_cmd_dev_animate)
 
     dev_evaluate_parser = dev_subparsers.add_parser(
         "evaluate-local",

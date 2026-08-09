@@ -25,6 +25,8 @@ from syzygy.tui.widgets.brand import (
     Mascot,
 )
 
+from .test_ritual_flow import settle
+
 
 @pytest.mark.parametrize("relative_path", [LOGO_PATH, MASCOT_PATH])
 def test_the_asset_is_bundled_and_readable_as_a_resource(relative_path):
@@ -114,9 +116,7 @@ async def test_the_welcome_screen_shows_both_assets_at_a_roomy_size(services):
 
     app = SyzygyApp(services)
     async with app.run_test(size=(110, 36)) as pilot:
-        await pilot.pause()
-        await app.workers.wait_for_complete()
-        await pilot.pause()
+        await settle(pilot)
 
         assert isinstance(app.screen, WelcomeScreen)
         logo = app.screen.query_one("#welcome-logo", Logo)
@@ -137,9 +137,7 @@ async def test_the_welcome_screen_drops_the_mascot_at_the_compact_floor(services
 
     app = SyzygyApp(services)
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
-        await app.workers.wait_for_complete()
-        await pilot.pause()
+        await settle(pilot)
 
         mascot = app.screen.query_one("#welcome-mascot", Mascot)
         assert mascot.size.width == 0

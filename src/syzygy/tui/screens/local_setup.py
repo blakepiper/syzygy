@@ -27,10 +27,11 @@ from typing import TYPE_CHECKING
 
 from textual import work
 from textual.app import ComposeResult
-from textual.containers import Horizontal, Vertical, VerticalScroll
-from textual.widgets import Button, Footer, Label, ListItem, ListView, ProgressBar, Static
+from textual.containers import Horizontal, Vertical
+from textual.widgets import Button, Footer, ListView, ProgressBar, Static
 
-from syzygy.tui.screens.base import SyzygyScreen, TitleBar
+from syzygy.tui.screens.base import FormScroll, SyzygyScreen, TitleBar
+from syzygy.tui.widgets.marked_list import MarkedListItem
 
 if TYPE_CHECKING:
     from syzygy.local_models.contracts import ModelArtifact, SetupFailure
@@ -65,9 +66,9 @@ class _Progress:
     determinate: bool = False
 
 
-class ArtifactItem(ListItem):
+class ArtifactItem(MarkedListItem):
     def __init__(self, artifact: ModelArtifact, label: str, *, selectable: bool) -> None:
-        super().__init__(Label(label, markup=False))
+        super().__init__(label)
         self.artifact_id = artifact.id
         self.selectable = selectable
         if not selectable:
@@ -96,7 +97,7 @@ class LocalSetupScreen(SyzygyScreen):
 
     def compose(self) -> ComposeResult:
         yield TitleBar("LOCAL MODEL")
-        with VerticalScroll(id="setup-body"):
+        with FormScroll(id="setup-body"):
             yield Static("", id="setup-step", classes="section-heading")
             yield Static("", id="setup-lede", classes="lede")
             yield Static("", id="setup-detail", markup=False)
@@ -159,6 +160,25 @@ class LocalSetupScreen(SyzygyScreen):
             SetupState.CANCELLED: self._render_cancelled,
         }[state]
         renderer()
+        self._focus_step()
+
+    def _focus_step(self) -> None:
+        """Put focus where this step's work is (M17.5c).
+
+        Focus follows the phase change, the same rule `profile_create`
+        already follows: whatever the step is asking for is what `enter`
+        should act on, and the arrow keys reach the rest of the row from
+        there.
+        """
+        listing = self.query_one("#setup-choices", ListView)
+        if not listing.has_class("hidden") and listing.children:
+            listing.focus()
+            return
+        for button_id in ("#setup-primary", "#setup-back", "#setup-cancel"):
+            button = self.query_one(button_id, Button)
+            if button.display and not button.disabled:
+                button.focus()
+                return
 
     def _set(self, lede: str, detail: str = "") -> None:
         self.query_one("#setup-lede", Static).update(lede)

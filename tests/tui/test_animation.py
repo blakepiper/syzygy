@@ -63,38 +63,38 @@ def test_reduced_motion_environment_is_honored():
 
 
 async def test_welcome_reaches_same_settled_state_with_motion_off(services, monkeypatch):
+    """The opening sequence moved to `StartupScreen` in M17.1 (see
+    `test_startup.py`); what this still pins is that motion `off` lands on
+    the settled welcome copy rather than on a half-drawn one."""
     monkeypatch.setenv("SYZYGY_ANIMATIONS", "off")
     app = SyzygyApp(services)
     async with app.run_test() as pilot:
         await pilot.pause()
         screen = pilot.app.screen
         assert isinstance(screen, WelcomeScreen)
-        assert screen._startup_settled
-        assert "PRESS ANY KEY" in str(screen.query_one("#welcome-keys").render())
+        assert "PRESS ANY KEY" in screen.query_one("#welcome-keys").visual.plain
 
 
 async def test_any_key_skips_startup_to_interactive_welcome(services):
     app = SyzygyApp(services)
     async with app.run_test() as pilot:
         await pilot.pause()
-        screen = pilot.app.screen
-        assert isinstance(screen, WelcomeScreen)
         await pilot.press("x")
         await pilot.pause()
-        assert isinstance(pilot.app.screen, WelcomeScreen)
-        assert screen._startup_settled
+        screen = pilot.app.screen
+        assert isinstance(screen, WelcomeScreen)
+        assert "PRESS ANY KEY" in screen.query_one("#welcome-keys").visual.plain
 
 
 async def test_startup_reaches_interactive_welcome_when_timeline_completes(services):
     app = SyzygyApp(services)
     async with app.run_test() as pilot:
         await pilot.pause()
+        app.animations.animator.tick(2.0)
+        await pilot.pause()
         screen = pilot.app.screen
         assert isinstance(screen, WelcomeScreen)
-        app.animations.animator.tick(1.0)
-        await pilot.pause()
-        assert screen._startup_settled
-        assert "PRESS ANY KEY" in str(screen.query_one("#welcome-keys").render())
+        assert "PRESS ANY KEY" in screen.query_one("#welcome-keys").visual.plain
 
 
 async def test_routine_screens_remain_navigable_with_motion_off(

@@ -28,6 +28,11 @@ class TooSmallScreen(SyzygyScreen):
     provides.
     """
 
+    #: No transition. This screen appears mid-resize, when the terminal is
+    #: already in a state nothing can be drawn usefully in; the message
+    #: has to be there the instant it is needed.
+    SCREEN_TRANSITIONS = False
+
     def compose(self) -> ComposeResult:
         with Middle():
             with Center():

@@ -7,6 +7,7 @@ invents no correspondence of its own.
 
 from __future__ import annotations
 
+from rich.align import Align
 from rich.cells import cell_len
 from rich.console import Group, RenderableType
 from rich.text import Text
@@ -125,14 +126,17 @@ class TarotCardWidget(Static):
 
     def _content(self) -> RenderableType:
         if self._card is None:
-            back = Text()
+            back = Text(justify="center")
             for index in range(5):
                 back.append("╱" * INNER_WIDTH + ("\n" if index < 4 else ""), style=palette.DIM)
             return back
 
         card = self._card
         lines = self._text_lines(card)
-        text = Text("\n".join(line for line, _ in lines))
+        # `justify` on the `Text` itself, not on the widget: the caption is
+        # one member of a composite `Group` and Textual's `text-align` does
+        # not reach inside one (M17.6a).
+        text = Text("\n".join(line for line, _ in lines), justify="center")
         offset = 0
         for line, style in lines:
             if style:
@@ -154,4 +158,11 @@ class TarotCardWidget(Static):
         pixels = render_card_pixels(card.id, size)
         if pixels is None:  # defensive - every card in the deck has art
             return text
-        return Group(pixels, Text(""), text)
+        # `Align.center`, not the widget's `content-align` (M17.6a): the
+        # half-block art renders at its own width, and a `Group` member is
+        # laid out from the left edge of the content box whatever the
+        # widget's alignment styles say. The art is usually narrower than
+        # the frame - `art_size_for` quantises widths to even numbers and
+        # caps them - so without this it sat left of a caption that looked
+        # correctly centred.
+        return Group(Align.center(pixels), Text(""), text)

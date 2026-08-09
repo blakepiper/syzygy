@@ -26,6 +26,10 @@ from syzygy.tui.widgets.transit_badge import TransitBadge
 
 
 class RevealScreen(SyzygyScreen):
+    #: The reveal owns its own staged choreography (`ritual_reveal`);
+    #: the default screen entry would animate the same widgets twice.
+    SCREEN_TRANSITIONS = False
+
     BINDINGS = [
         ("enter", "read", "read"),
         ("space", "read", "read"),

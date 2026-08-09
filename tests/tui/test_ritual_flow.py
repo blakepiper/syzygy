@@ -15,6 +15,7 @@ from syzygy.domain.interpretation import InterpretationContext, InterpretationRe
 from syzygy.domain.reading import ReadingStatus
 from syzygy.interpretation.providers.fixture import FixtureProvider
 from syzygy.storage.readings import get_today
+from syzygy.tui.animation.events import SCREEN_ENTER_CHANNEL
 from syzygy.tui.app import SyzygyApp
 from syzygy.tui.screens.home import OPEN_TODAYS_READING, TURN_THE_WHEEL, HomeScreen
 from syzygy.tui.screens.reading import ReadingScreen
@@ -48,9 +49,23 @@ def q(pilot, selector: str, expect_type=None):
     return pilot.app.screen.query_one(selector, expect_type)
 
 
+#: Timelines that are chrome rather than ritual: the opening sequence and
+#: the screen-entry transition. `settle` lands them on their final state
+#: the way a keypress would, because a headless pilot has no wall clock to
+#: run them on and nothing in a test should ever wait on one (M17.2f: no
+#: test asserts wall-clock timing). The ritual's own choreographies -
+#: `draw-complete`, `ritual-reveal` - are deliberately *not* in here: they
+#: are the thing under test on the screens that own them.
+CHROME_CHANNELS = ("startup", SCREEN_ENTER_CHANNEL)
+
+
 async def settle(pilot, cycles: int = 3) -> None:
-    """Let workers finish and the resulting UI updates flush."""
+    """Let the opening sequence, the workers, and the UI updates finish."""
     for _ in range(cycles):
+        for channel in CHROME_CHANNELS:
+            handle = pilot.app.animations.animator.handle_for(channel)
+            if handle is not None:
+                handle.finish()
         await pilot.app.workers.wait_for_complete()
         await pilot.pause()
 
@@ -73,14 +88,14 @@ async def turn_the_wheel(pilot) -> None:
 
 async def test_no_profile_shows_welcome(app: SyzygyApp):
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(pilot.app.screen, WelcomeScreen)
         assert "No self is configured." in text_of(q(pilot, ".lede", Static))
 
 
 async def test_create_profile_then_home(app: SyzygyApp):
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await settle(pilot)
         await pilot.press("n")
         await pilot.pause()
 
@@ -112,7 +127,7 @@ async def test_create_profile_then_home(app: SyzygyApp):
 
 async def test_profile_creation_rejects_bad_input(app: SyzygyApp):
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await settle(pilot)
         await pilot.press("n")
         await pilot.pause()
         q(pilot, "#display-name", Input).value = "Blake"

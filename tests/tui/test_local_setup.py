@@ -33,6 +33,8 @@ from syzygy.tui.app import SyzygyApp
 from syzygy.tui.screens.local_setup import LocalSetupScreen
 from tests.local_models.machines import linux_cpu_probe, macos_arm_probe, make_probe
 
+from .test_ritual_flow import CHROME_CHANNELS
+
 
 def q(pilot, selector, kind=Static):
     return pilot.app.screen.query_one(selector, kind)
@@ -43,9 +45,13 @@ def text_of(widget) -> str:
 
 
 async def settle(pilot) -> None:
-    """Let workers finish. The wizard's steps are threaded, so a single
-    `pause()` is not enough."""
+    """Let the opening sequence and the workers finish. The wizard's steps
+    are threaded, so a single `pause()` is not enough."""
     for _ in range(12):
+        for channel in CHROME_CHANNELS:
+            handle = pilot.app.animations.animator.handle_for(channel)
+            if handle is not None:
+                handle.finish()
         await pilot.pause()
         if not pilot.app.workers._workers:
             break
@@ -169,6 +175,9 @@ def fixture_provider(monkeypatch):
 
 
 async def open_wizard(pilot, session) -> None:
+    # Past the opening sequence first (M17.1): it routes with
+    # `switch_screen`, which replaces whatever is on top of the stack.
+    await settle(pilot)
     await pilot.app.push_screen(LocalSetupScreen(session))
     await settle(pilot)
 

@@ -14,6 +14,9 @@ before changing a size here.
 
 from __future__ import annotations
 
+from enum import StrEnum
+
+from rich.align import Align
 from rich.console import RenderableType
 from rich.text import Text
 from textual.widgets import Static
@@ -76,17 +79,28 @@ class BrandImage(Static):
 
     def _content(self) -> RenderableType:
         size = self.size
+        fallback = Text(self._fallback_text, style=palette.ACCENT, justify="center")
         if not size.width or not size.height:
-            return Text(self._fallback_text, style=palette.ACCENT)
-        fitted = pixel_art.fit_size(
-            self._relative_path, size.width, size.height, max_columns=self._max_columns
-        )
-        if fitted is None:
-            return Text(self._fallback_text, style=palette.ACCENT)
-        pixels = pixel_art.render_pixels(self._relative_path, fitted)
+            return fallback
+        try:
+            fitted = pixel_art.fit_size(
+                self._relative_path, size.width, size.height, max_columns=self._max_columns
+            )
+            pixels = (
+                None if fitted is None else pixel_art.render_pixels(self._relative_path, fitted)
+            )
+        except Exception:  # noqa: BLE001 - decoration must never break a screen
+            # `pixel_art` already turns a missing or unreadable file into
+            # `None`; this is the belt to that braces. A brand asset that
+            # cannot be decoded degrades to its text fallback, exactly as
+            # `SilentTheme` degrades a missing audio device (M17.3c).
+            return fallback
         if pixels is None:
-            return Text(self._fallback_text, style=palette.ACCENT)
-        return pixels
+            return fallback
+        # Centred inside the renderable rather than by `content-align`
+        # (M17.6b): the art renders at whatever width `fit_size` chose,
+        # which is rarely the full width of the box it was given.
+        return Align.center(pixels)
 
 
 class Logo(BrandImage):
@@ -102,8 +116,43 @@ class Logo(BrandImage):
         )
 
 
+class MascotState(StrEnum):
+    """What the mascot is reacting to (M17.3b).
+
+    Three states, tied to semantic events the application already emits -
+    not a new animation vocabulary, and not new artwork: there is one
+    mascot PNG (`docs/BRAND_ASSETS.md`) and each state is a treatment of
+    it, so adding a state costs a CSS rule rather than an asset.
+    """
+
+    #: Nothing has happened yet today. The default.
+    WAITING = "waiting"
+    #: Chance is entering the alignment.
+    DRAWING = "drawing"
+    #: Today's reading exists and is finished.
+    COMPLETE = "complete"
+
+
 class Mascot(BrandImage):
     """The hierophant at the wheel."""
 
     def __init__(self, *, id: str | None = None, classes: str | None = None) -> None:
         super().__init__(MASCOT_PATH, id=id, classes=classes)
+        #: `None` until a screen says otherwise: a mascot that is only
+        #: decoration (the opening sequence, the welcome copy) has no
+        #: state to be in, and giving it one would mean the startup logo
+        #: and the startup mascot disagreed about how the launch is going.
+        self.state: MascotState | None = None
+
+    def on_mount(self) -> None:
+        super().on_mount()
+        self._apply_state()
+
+    def set_state(self, state: MascotState) -> None:
+        """Move to `state`, as a class `syzygy.tcss` styles."""
+        self.state = state
+        self._apply_state()
+
+    def _apply_state(self) -> None:
+        for candidate in MascotState:
+            self.set_class(candidate is self.state, f"-mascot-{candidate.value}")

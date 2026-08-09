@@ -5,6 +5,22 @@ Syzygy's logo and mascot ship inside the package
 pixels by `syzygy.tui.widgets.brand`, the same way card art is
 (`syzygy.tui.widgets.pixel_art`).
 
+## Where they appear
+
+Two assets, no more. M17 added *placements*, not artwork:
+
+| Asset | Shown on | Notes |
+|---|---|---|
+| `logo.png` | the opening sequence (`tui/screens/startup.py`), the welcome screen | falls back to `brand.ASCII_WORDMARK` when the box is too small |
+| `mascot.png` | the opening sequence, the welcome screen, and the home screen at `-wide`/`-tall` | falls back to nothing at all; it has no text form |
+
+The home companion has three states (`brand.MascotState`: waiting,
+drawing, complete), and each is a CSS treatment of the same PNG rather
+than a separate image — see the `Mascot.-mascot-*` rules in
+`syzygy.tcss`. Adding a state costs a rule; it must not cost an asset. If
+you ever do add an asset, add a row above and a regeneration recipe below,
+in the same commit.
+
 ## Why PNGs and not the SVGs
 
 A terminal cannot display SVG, and rasterizing at runtime would mean a

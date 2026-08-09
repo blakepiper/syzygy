@@ -80,22 +80,22 @@ saved profile therefore never sees the wordmark, the logo, the mascot, or a
 single frame of the startup choreography — the app "unceremoniously sends me to
 the profile selection screen".
 
-- [ ] M17.1a Add `tui/screens/startup.py` owning the opening sequence: the
+- [x] M17.1a Add `tui/screens/startup.py` owning the opening sequence: the
       glyph-morph mark, the logo reveal, the mascot, and the routing decision.
       `SyzygyApp.on_mount` pushes `startup` unconditionally; the profile-count
       routing (`none → welcome`, `one → home`, `many → profile_select`) moves
       into the startup screen's completion callback and stays in exactly one
       place. `WelcomeScreen` keeps its first-launch copy and its `[N]`/`[M]`
       keys but stops owning startup.
-- [ ] M17.1b Budget the sequence: about 1.4 s at `full`, about 0.5 s at
+- [x] M17.1b Budget the sequence: about 1.4 s at `full`, about 0.5 s at
       `reduced`, and zero frames at `off` (route immediately). Any keypress
       finishes it and routes at once — reuse the existing `finish_all` escape
       hatch in `welcome.py` rather than inventing a second one. Never gate a
       returning user behind an animation they cannot skip.
-- [ ] M17.1c Keep `SyzygyApp.startup_seen` meaningful: it suppresses a *second*
+- [x] M17.1c Keep `SyzygyApp.startup_seen` meaningful: it suppresses a *second*
       startup within one process (e.g. after profile deletion routes back
       through `welcome`), not the first one of a launch.
-- [ ] M17.1d Tests: pilot launches with 0, 1, and 2+ profiles all pass through
+- [x] M17.1d Tests: pilot launches with 0, 1, and 2+ profiles all pass through
       the startup screen and land on the same destination as today; motion
       `off` lands there with no animation handle created; a keypress mid-sequence
       lands there immediately; the too-small gate still wins over startup.
@@ -108,33 +108,33 @@ Perceptibility: the primitives that do run are short and low-amplitude
 (`pulse` 0.10–0.24 s, `reveal` 0.15–0.28 s opacity), which in a terminal at
 `FRAME_INTERVAL` is a handful of frames — easy to miss entirely.
 
-- [ ] M17.2a Move screen entry into `SyzygyScreen` (`tui/screens/base.py`) so
+- [x] M17.2a Move screen entry into `SyzygyScreen` (`tui/screens/base.py`) so
       every screen animates in by default: a staggered reveal of the screen's
       top-level regions plus a decode/typewriter pass on the title bar. Give a
       screen a way to opt out or supply its own choreography (`reveal.py` and
       `wheel.py` already have theirs) rather than double-animating.
-- [ ] M17.2b Add screen *exit* and cross-screen transition to the same place,
+- [x] M17.2b Add screen *exit* and cross-screen transition to the same place,
       driven through `SemanticEvent.EXIT`, so `push_screen`/`switch_screen`
       reads as a move rather than a cut. Do not block navigation on the
       animation: the transition runs, the screen switches, and a dropped frame
       never strands the user.
-- [ ] M17.2c Perceptibility pass over `animation/primitives.py` and the
+- [x] M17.2c Perceptibility pass over `animation/primitives.py` and the
       durations in `animation/events.py`. Raise entry durations to a range a
       person notices (roughly 0.35–0.6 s at `full`), and prefer effects that
       survive terminals with poor opacity blending — staged text/glyph reveal
       and colour ramps over opacity alone. Verify the default motion level in
       `animation/motion.py` is `full` for a fresh install and that
       `resolve_motion` is not silently reading a stale/absent settings section.
-- [ ] M17.2d Verify the pump: `Animator.on_active`/`on_idle` starts and pauses
+- [x] M17.2d Verify the pump: `Animator.on_active`/`on_idle` starts and pauses
       a `set_interval` timer in `app.py`. Add a test that a queued step
       actually advances frames under a real (test-driven) clock, so "no
       animation at all" can never again be a silent scheduling failure.
-- [ ] M17.2e Add `syzygy dev animate` (gated on `SYZYGY_DEV`, alongside the
+- [x] M17.2e Add `syzygy dev animate` (gated on `SYZYGY_DEV`, alongside the
       existing `syzygy.dev` affordances): a demo screen that plays every
       semantic event and every named choreography on demand, at the current
       motion level. This is the manual check that motion is visible on a real
       terminal, which no headless pilot test can make.
-- [ ] M17.2f Tests: every screen registers an entry animation on mount; each
+- [x] M17.2f Tests: every screen registers an entry animation on mount; each
       choreography is reachable from the screen that owns it; `reduced` and
       `off` degrade as M14 specifies; no test asserts wall-clock timing.
 
@@ -143,15 +143,15 @@ Perceptibility: the primitives that do run are short and low-amplitude
 Root cause: `Mascot` is constructed in exactly one place, `welcome.py:41`, a
 screen a returning user never sees.
 
-- [ ] M17.3a Place the mascot on the startup screen (M17.1) and as a companion
+- [x] M17.3a Place the mascot on the startup screen (M17.1) and as a companion
       on `home` at `-wide`/`-tall`, where there are columns to spare. It must
       never displace the SELF/COSMOS/CHANCE triad or push a control below the
       fold at any tier — `tests/tui/test_layout.py` is the arbiter.
-- [ ] M17.3b Give it two or three reactive states tied to existing semantic
+- [x] M17.3b Give it two or three reactive states tied to existing semantic
       events (waiting, drawing, reading complete) rather than a new animation
       vocabulary. Reuse `widgets/brand.py` and `widgets/pixel_art.py`; add no
       new asset without recording it in `docs/BRAND_ASSETS.md`.
-- [ ] M17.3c Tests: mascot present at the tiers that allow it and absent at
+- [x] M17.3c Tests: mascot present at the tiers that allow it and absent at
       `-compact`; layout assertions unchanged; a missing/undecodable asset
       degrades to nothing, never to a traceback (the `SilentTheme` precedent).
 
@@ -162,15 +162,15 @@ Root cause: `ListItem.--highlight` in `syzygy.tcss` sets
 `$syz-field` — two neighbouring dark greys. On the profile-select list this is
 "too subtle to see".
 
-- [ ] M17.4a Restyle selection as a reversal, not a tint: accent background,
+- [x] M17.4a Restyle selection as a reversal, not a tint: accent background,
       panel-dark text, bold, plus a leading marker glyph (`▍` or `▸`) so the
       highlight survives monochrome terminals and colour-blind viewing. Change
       `tui/palette.py` and `syzygy.tcss` together — a test keeps them in step.
-- [ ] M17.4b Apply the same treatment to every list in the app
+- [x] M17.4b Apply the same treatment to every list in the app
       (`profile_select`, `archive`, the model list in `local_setup`, any list
       the Oracle adds in M19) and to the focused `Button`, so "where am I" has
       one answer everywhere.
-- [ ] M17.4c Tests: the highlight rule is asserted as a contrast/inversion
+- [x] M17.4c Tests: the highlight rule is asserted as a contrast/inversion
       relationship between named palette entries rather than as a hard-coded
       hex pair, so a future palette change cannot quietly reintroduce a
       two-greys highlight.
@@ -183,20 +183,20 @@ delete-confirmation pair in `profile_select.py`, the eight buttons in
 `model_setup.py`, the three in `local_setup.py`, `profile_create.py`, `home.py`
 — is mouse- or tab-only, exactly as reported.
 
-- [ ] M17.5a Implement directional focus once in `SyzygyScreen`: `up`/`left`
+- [x] M17.5a Implement directional focus once in `SyzygyScreen`: `up`/`left`
       move to the previous focusable control, `down`/`right` to the next,
       `enter` activates, `escape` cancels/backs out. Scope movement to the
       focused control's container so a horizontal button row and a vertical
       form both behave the way they look.
-- [ ] M17.5b Do not steal keys from widgets that legitimately consume them:
+- [x] M17.5b Do not steal keys from widgets that legitimately consume them:
       `Input` (cursor movement), `ListView` (its own up/down), the wheel's
       impulse keys, and any scrollable reading pane. The base handler must run
       only when the focused widget did not handle the key.
-- [ ] M17.5c Audit every screen for a reachable, ordered focus chain: a control
+- [x] M17.5c Audit every screen for a reachable, ordered focus chain: a control
       that can be clicked must be reachable by keyboard, in the order it is
       read, with a visible focus indicator (M17.4a). Fix the ordering at the
       composition site rather than with per-screen key handlers.
-- [ ] M17.5d Tests: a pilot test per screen that navigates with arrows and
+- [x] M17.5d Tests: a pilot test per screen that navigates with arrows and
       activates with `enter` only — no mouse events, no `tab` — and reaches
       each control; plus regression tests that `Input` and `ListView` keep
       their own arrow behaviour.
@@ -210,15 +210,15 @@ rows *inside* a composite Rich `Group` — the half-block art renders at its own
 width from the left edge of the content box, so a card narrower than the frame
 sits left while its caption looks centred.
 
-- [ ] M17.6a Centre inside the renderable: wrap the pixel-art renderable in an
+- [x] M17.6a Centre inside the renderable: wrap the pixel-art renderable in an
       explicit centring container (`rich.align.Align.center`) and build the
       caption `Text` with `justify="center"`, so alignment does not depend on
       Textual style inheritance through a `Group`.
-- [ ] M17.6b Check the same defect at the other art sites — `#reading-card`,
+- [x] M17.6b Check the same defect at the other art sites — `#reading-card`,
       the reveal screen, and any brand art rendered through
       `widgets/pixel_art.py` — and fix them the same way rather than
       per-screen.
-- [ ] M17.6c Tests: render the widget at several widths (including widths where
+- [x] M17.6c Tests: render the widget at several widths (including widths where
       the art is narrower than the frame, and the text-only fallback) and
       assert the leading and trailing padding of the art rows differ by at most
       one cell; assert the card's words remain centred; keep the existing
@@ -226,15 +226,41 @@ sits left while its caption looks centred.
 
 ### Definition of done (M17)
 
-- [ ] Launching with an existing profile plays the startup sequence, shows the
+- [x] Launching with an existing profile plays the startup sequence, shows the
       logo and mascot, and then routes — and any keypress skips it.
-- [ ] Moving between screens is a visible transition at `full`, a shortened one
+- [x] Moving between screens is a visible transition at `full`, a shortened one
       at `reduced`, and an instant cut at `off`.
-- [ ] The highlighted list row is legible at a glance on a monochrome terminal.
-- [ ] Every menu in the app is completable with arrows and `enter` alone.
-- [ ] The card art is centred in its frame at every layout tier.
-- [ ] `pytest`, `ruff check .`, `mypy src`, `syzygy dev deck`, and
+- [x] The highlighted list row is legible at a glance on a monochrome terminal.
+- [x] Every menu in the app is completable with arrows and `enter` alone.
+- [x] The card art is centred in its frame at every layout tier.
+- [x] `pytest`, `ruff check .`, `mypy src`, `syzygy dev deck`, and
       `syzygy doctor` pass.
+
+### Notes on how M17 was built
+
+- **Directional focus is bindings, not an `on_key` handler.** A Textual
+  screen receives a key event *before* the focused widget does, so the
+  obvious handler stole `left`/`right` from `Input` and `up`/`down` from
+  `ListView`. Bindings resolve outward from the focused node instead,
+  which is exactly M17.5b's rule. Scrollable containers that hold
+  *controls* needed one more thing (`screens.base.FormScroll`), because a
+  scroller's own arrow bindings sit between the field and the screen.
+- **A real bug fell out of M17.1b.** `timeline.Sequence.finish()` seeked
+  to `duration`, and `sum(...)` disagrees in the last bit with the
+  offsets `seek` accumulates - so a skipped or interrupted sequence
+  silently dropped the trailing `Call`, which is how a timeline arranges
+  its *result*. Fixed in `Sequence.finish`/`Parallel.finish`, with the
+  reasoning in the docstring. Nothing before M17 had a long enough
+  sequence to hit it.
+- **Entry durations depart from `docs/animation.md`'s figures on
+  purpose.** M17.2c asks for 350-600 ms where section 5 says routine
+  navigation stays under 300 ms; at a 33 ms frame interval the shorter
+  number is five frames. `animation/events.py`'s module docstring states
+  the reason where anybody changing a duration will read it.
+- **The global `escape` in M17.5a was not added.** Every screen with
+  somewhere to back out to already binds it, and a base-class `escape`
+  would have made the too-small gate dismissable. A test asserts the
+  binding is present on exactly the screens that should have it.
 
 ---
 

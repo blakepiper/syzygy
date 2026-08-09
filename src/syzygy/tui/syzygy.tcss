@@ -205,6 +205,22 @@ Button {
     margin: 0 2 0 0;
 }
 
+/* The same answer to "where am I" as a highlighted list row (M17.4b).
+ * Textual's own focus treatment is a text-style tweak on the label, which
+ * on a row of three buttons is not enough to find the focused one at a
+ * glance - and arrow-key navigation (M17.5) made that the question the
+ * user asks most often. */
+Button:focus {
+    background: $syz-accent;
+    color: $syz-panel;
+    text-style: bold;
+    border: tall $syz-accent;
+}
+
+Button:focus > .button--label {
+    text-style: bold;
+}
+
 Footer {
     background: $syz-panel;
     color: $syz-muted;
@@ -227,12 +243,29 @@ ListView {
 
 ListItem {
     background: $syz-field;
+    color: $syz-bone;
     padding: 0 1;
 }
 
+/* Selection is a reversal, not a tint (M17.4a).
+ *
+ * It used to be `$syz-panel` on `$syz-field` - two neighbouring
+ * near-blacks, which on the profile list was reported as too subtle to
+ * see. The highlight now swaps the row's two colours outright, so it is
+ * the single highest-contrast pair in the palette, and
+ * `syzygy.tui.widgets.marked_list` puts a glyph in the row as well, for
+ * the monochrome and colour-blind cases where contrast alone is not a
+ * signal. Keep all three properties together: a highlight that is bold
+ * *and* inverted *and* marked degrades one step at a time. */
 ListItem.--highlight {
-    background: $syz-panel;
-    color: $syz-accent;
+    background: $syz-accent;
+    color: $syz-panel;
+    text-style: bold;
+}
+
+ListView:focus ListItem.--highlight {
+    background: $syz-accent;
+    color: $syz-panel;
 }
 
 AlignmentWidget {
@@ -265,6 +298,100 @@ TarotCardWidget {
     text-align: center;
     border: double $syz-accent;
     background: $syz-panel;
+}
+
+/* The animation bench (`syzygy dev animate`, M17.2e). Development-only
+ * and unreachable from the application; it lives in this stylesheet so
+ * what it demonstrates is styled exactly as the real screens are. */
+
+#demo-columns {
+    height: 1fr;
+}
+
+#demo-list {
+    width: 40;
+    border-right: solid $syz-dim;
+}
+
+#demo-stage {
+    width: 1fr;
+    padding: 1 2;
+}
+
+#demo-logo {
+    width: 40;
+    height: 6;
+}
+
+#demo-mascot {
+    width: 20;
+    height: 12;
+}
+
+/* Startup (M17.1). The opening sequence, on every launch. Sized like the
+ * welcome screen's brand block because it is the same block - the logo
+ * and the mascot both fall back to text or to nothing when the box is
+ * too small for them, so these are budgets rather than frames. */
+
+#startup-logo {
+    width: 56;
+    height: 8;
+    content-align: center middle;
+    color: $syz-accent;
+}
+
+#startup-mascot {
+    width: 22;
+    height: 16;
+}
+
+.-compact #startup-logo {
+    width: 52;
+    height: 6;
+}
+
+/* At the floor there are not 16 rows to give a decoration. */
+.-compact #startup-mascot {
+    display: none;
+}
+
+/* The mascot's reactive states (M17.3b). One asset, three treatments:
+ * waiting is a resting half-presence, drawing recedes further because
+ * attention belongs on the Wheel, and a finished reading brings it to
+ * full strength. A mascot with no state set - the opening sequence, the
+ * welcome copy - is decoration and gets none of these.
+ *
+ * Colour carries nothing here on purpose: the mascot is never the only
+ * thing saying what state the day is in. The CHANCE column says it in
+ * words a row above. */
+Mascot.-mascot-waiting {
+    opacity: 0.7;
+}
+
+Mascot.-mascot-drawing {
+    opacity: 0.4;
+}
+
+Mascot.-mascot-complete {
+    opacity: 1.0;
+}
+
+/* The home companion (M17.3a). Hidden by default and shown only where
+ * there are columns or rows to spare: at the regular tier the CHANCE
+ * column's rows belong to the status lines and the primary action. */
+#home-mascot-slot {
+    display: none;
+    height: auto;
+}
+
+.-wide #home-mascot-slot,
+.-tall #home-mascot-slot {
+    display: block;
+}
+
+#home-mascot {
+    width: 20;
+    height: 14;
 }
 
 /* Welcome (brand assets: M12.2) */

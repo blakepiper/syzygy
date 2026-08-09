@@ -23,6 +23,8 @@ from syzygy.storage.profiles import list_profiles
 from syzygy.tui.app import SyzygyApp
 from syzygy.tui.screens import profile_create as profile_create_module
 
+from .test_ritual_flow import settle
+
 
 def text_of(widget: Static) -> str:
     return widget.visual.plain
@@ -34,14 +36,8 @@ def q(pilot, selector: str, expect_type=None):
     return pilot.app.screen.query_one(selector, expect_type)
 
 
-async def settle(pilot, cycles: int = 3) -> None:
-    for _ in range(cycles):
-        await pilot.app.workers.wait_for_complete()
-        await pilot.pause()
-
-
 async def _open_profile_create(pilot) -> None:
-    await pilot.pause()
+    await settle(pilot)
     await pilot.press("n")
     await pilot.pause()
 

@@ -42,7 +42,7 @@ async def test_the_theme_starts_with_the_app(services):
     theme = FakeTheme()
     app = SyzygyApp(services, theme_player=theme)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await settle(pilot)
         assert theme.calls[0] == "start"
 
 
@@ -51,7 +51,7 @@ async def test_the_theme_stops_when_the_app_exits(services):
     theme = FakeTheme()
     app = SyzygyApp(services, theme_player=theme)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await settle(pilot)
     assert "stop" in theme.calls
 
 
@@ -100,7 +100,7 @@ async def test_a_focused_input_takes_a_literal_s(services):
     theme = FakeTheme()
     app = SyzygyApp(services, theme_player=theme)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await settle(pilot)
         await pilot.press("n")  # create-profile form
         await pilot.pause()
 

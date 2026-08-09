@@ -19,7 +19,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from textual.app import App
-from textual.timer import Timer
 
 from syzygy.astrology.base import AstrologyEngine
 from syzygy.audio import SilentTheme, ThemePlayer
@@ -28,9 +27,7 @@ from syzygy.domain.profile import Profile
 from syzygy.domain.reading import Reading
 from syzygy.interpretation.base import InterpretationProvider
 from syzygy.storage import readings as readings_store
-from syzygy.storage.profiles import list_profiles
-from syzygy.tui.animation import Animations
-from syzygy.tui.animation.animator import FRAME_INTERVAL, Animator
+from syzygy.tui.animation.driver import AnimationDriver
 from syzygy.tui.animation.motion import (
     MotionSettings,
     next_level,
@@ -45,6 +42,7 @@ from syzygy.tui.screens.local_setup import LocalSetupScreen
 from syzygy.tui.screens.model_setup import ModelSetupScreen
 from syzygy.tui.screens.profile_create import ProfileCreateScreen
 from syzygy.tui.screens.profile_select import ProfileSelectScreen
+from syzygy.tui.screens.startup import StartupScreen
 from syzygy.tui.screens.too_small import MIN_HEIGHT, MIN_WIDTH, TooSmallScreen
 from syzygy.tui.screens.welcome import WelcomeScreen
 from syzygy.tui.widgets.glyph import GlyphSet, default_glyphs
@@ -192,6 +190,7 @@ class SyzygyApp(App[None]):
     ]
 
     SCREENS = {
+        "startup": StartupScreen,
         "welcome": WelcomeScreen,
         "profile_create": ProfileCreateScreen,
         "profile_select": ProfileSelectScreen,
@@ -221,36 +220,19 @@ class SyzygyApp(App[None]):
         # Not `self.theme`: Textual's `App.theme` is its own colour-theme
         # name, and shadowing it breaks the app's styling.
         self.theme_player = theme_player or SilentTheme("no theme player supplied")
-        self._animation_timer: Timer | None = None
-        animator = Animator(
-            resolve_motion(services.settings_path),
-            on_active=self._start_animation_pump,
-            on_idle=self._stop_animation_pump,
-        )
-        self.animations = Animations(animator)
-
-    def _start_animation_pump(self) -> None:
-        if self._animation_timer is None:
-            self._animation_timer = self.set_interval(
-                FRAME_INTERVAL, self.animations.animator.pump, pause=False
-            )
-        else:
-            self._animation_timer.resume()
-
-    def _stop_animation_pump(self) -> None:
-        if self._animation_timer is not None:
-            self._animation_timer.pause()
+        self.animation_driver = AnimationDriver(self, resolve_motion(services.settings_path))
+        self.animations = self.animation_driver.animations
 
     def on_mount(self) -> None:
+        """Open the way the application is meant to open (M17.1a).
+
+        Unconditionally the startup screen: which screen a launch *lands*
+        on is `syzygy.tui.screens.startup`'s decision, made once, from the
+        saved profiles - the shell no longer knows the rule, and there is
+        no second copy of it to drift.
+        """
         self.theme_player.start()
-        profiles = list_profiles(self.services.conn)
-        if not profiles:
-            self.push_screen("welcome")
-        elif len(profiles) == 1:
-            self.set_profile(profiles[0])
-            self.push_screen("home")
-        else:
-            self.push_screen("profile_select")
+        self.push_screen("startup")
         self._update_size_gate(self.size.width, self.size.height)
 
     def on_resize(self, event: events.Resize) -> None:

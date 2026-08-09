@@ -1,4 +1,11 @@
-"""First launch, with no self configured (docs/old/DESIGN.md section 6.1)."""
+"""First launch, with no self configured (docs/old/DESIGN.md section 6.1).
+
+Since M17.1 this screen is only the first-launch *copy*. The opening
+sequence and the decision about where a launch lands both moved to
+`syzygy.tui.screens.startup`, which every launch passes through - this
+screen used to own them, and a returning user therefore never saw a frame
+of either.
+"""
 
 from __future__ import annotations
 
@@ -10,6 +17,7 @@ from textual.widgets import Footer, Static
 from syzygy.storage.profiles import list_profiles
 from syzygy.tui.screens.base import SyzygyScreen
 from syzygy.tui.screens.model_setup import load_status
+from syzygy.tui.screens.startup import route_after_startup
 from syzygy.tui.widgets.brand import ASCII_WORDMARK, Logo, Mascot
 
 #: Kept for the screens and tests that want the wordmark as plain text.
@@ -34,7 +42,6 @@ class WelcomeScreen(SyzygyScreen):
     def compose(self) -> ComposeResult:
         with Middle():
             with Center():
-                yield Static("", id="welcome-startup-mark", classes="startup-mark")
                 yield Logo(id="welcome-logo")
             with Center():
                 with Horizontal(id="welcome-columns"):
@@ -50,54 +57,36 @@ class WelcomeScreen(SyzygyScreen):
         yield Footer()
 
     def on_mount(self) -> None:
-        self._startup_settled = False
         self._render_keys()
         self._check_model_configured()
-        if self.syzygy.startup_seen:
-            self._settle_startup()
-            return
-        self.syzygy.animations.startup(
-            self.query_one("#welcome-startup-mark", Static),
-            self.query_one("#welcome-logo", Logo),
-            self._settle_startup,
-        )
-
-    def _settle_startup(self) -> None:
-        self._startup_settled = True
-        self.syzygy.startup_seen = True
-        self.query_one("#welcome-keys", Static).update(
-            "PRESS ANY KEY TO CONTINUE     [M] MODEL     [Q] QUIT"
-        )
 
     def on_key(self, event: events.Key) -> None:
-        if event.key == "q":
+        if event.key in ("q", "m", "n"):
             return
-        if not self._startup_settled:
-            self.syzygy.animations.animator.finish_all()
-            if event.key in ("m", "n"):
-                return
-            event.stop()
-            return
-        if event.key in ("m", "n"):
+        if event.key in ("up", "down", "left", "right", "tab", "shift+tab"):
+            # Focus movement (M17.5) is not "continue"; let the base
+            # screen's bindings have it.
             return
         event.stop()
         self.action_continue()
 
     def action_continue(self) -> None:
-        profiles = list_profiles(self.syzygy.services.conn)
-        if not profiles:
+        """Past the welcome copy.
+
+        Nearly the startup routing, with one difference that is the whole
+        point of this screen: with nothing saved, "continue" means *make a
+        self*, not "show the welcome copy again".
+        """
+        if not list_profiles(self.syzygy.services.conn):
             self.app.push_screen("profile_create")
-        elif len(profiles) == 1:
-            self.syzygy.set_profile(profiles[0])
-            self.app.switch_screen("home")
-        else:
-            self.app.switch_screen("profile_select")
+            return
+        route_after_startup(self.syzygy)
 
     def _render_keys(self) -> None:
         """The key line, including the mute toggle when there is sound to
         mute (M15.1d). A build with no audio does not advertise a key that
         would do nothing."""
-        keys = ["[N] Create profile", "[M] Model"]
+        keys = ["PRESS ANY KEY TO CONTINUE", "[N] Create profile", "[M] Model"]
         if self.syzygy.theme_player.available:
             keys.append("[S] Sound")
         keys.append("[Q] Quit")

@@ -13,15 +13,16 @@ from __future__ import annotations
 
 from textual.app import ComposeResult
 from textual.containers import VerticalScroll
-from textual.widgets import Footer, Label, ListItem, ListView, Static
+from textual.widgets import Footer, ListView, Static
 
 from syzygy.domain.reading import Reading, ReadingStatus
 from syzygy.sortes.deck import get_card
 from syzygy.storage.readings import card_frequency, list_readings, suit_frequency
 from syzygy.tui.screens.base import SyzygyScreen, TitleBar
+from syzygy.tui.widgets.marked_list import MarkedListItem
 
 
-class ReadingListItem(ListItem):
+class ReadingListItem(MarkedListItem):
     def __init__(self, reading: Reading) -> None:
         if reading.card_draw is not None:
             card = get_card(reading.card_draw.card_id)
@@ -29,7 +30,7 @@ class ReadingListItem(ListItem):
         else:
             card_label = "—"
         status = "" if reading.status == ReadingStatus.COMPLETE else f"  [{reading.status.value}]"
-        super().__init__(Label(f"{reading.consultation_local_date}   {card_label}{status}"))
+        super().__init__(f"{reading.consultation_local_date}   {card_label}{status}")
         self.reading = reading
 
 

@@ -1,4 +1,12 @@
-"""Reusable animation primitives built from declarative timeline steps."""
+"""Reusable animation primitives built from declarative timeline steps.
+
+The default durations are the ones M17.2c raised: a terminal renders at
+`FRAME_INTERVAL` (33 ms), so the original 150-200 ms reveals were five or
+six frames and were routinely missed altogether. See
+`syzygy.tui.animation.events`' module docstring for why that is a
+departure from `docs/animation.md`'s figures rather than a violation of
+them.
+"""
 
 from __future__ import annotations
 
@@ -12,7 +20,7 @@ from syzygy.tui.animation.timeline import Call, Parallel, Step, Tween
 from syzygy.tui.animation.timeline import Sequence as TimelineSequence
 
 
-def reveal(target: Widget, duration: float = 0.2) -> Step:
+def reveal(target: Widget, duration: float = 0.34) -> Step:
     return Tween.between(
         lambda value: setattr(target.styles, "opacity", value),
         start=0.0,
@@ -32,7 +40,7 @@ def dim(target: Widget, *, to: float = 0.45, duration: float = 0.12) -> Step:
     )
 
 
-def brighten(target: Widget, duration: float = 0.18) -> Step:
+def brighten(target: Widget, duration: float = 0.24) -> Step:
     return Tween.between(
         lambda value: setattr(target.styles, "opacity", value),
         start=float(target.styles.opacity),
@@ -86,7 +94,7 @@ def glyph_morph(target: Static, frames: Sequence[str], duration: float = 0.25) -
     return Tween(apply, duration=duration, easing=ease_out_cubic)
 
 
-def typewriter(target: Static, text: str, duration: float = 0.18) -> Step:
+def typewriter(target: Static, text: str, duration: float = 0.4) -> Step:
     """Reveal short text only; callers must never pass body copy."""
     return Tween(
         lambda progress: target.update(text[: round(len(text) * progress)]),
@@ -95,7 +103,7 @@ def typewriter(target: Static, text: str, duration: float = 0.18) -> Step:
     )
 
 
-def decode(target: Static, text: str, duration: float = 0.2) -> Step:
+def decode(target: Static, text: str, duration: float = 0.42) -> Step:
     noise = "·✦+×"
 
     def apply(progress: float) -> None:
@@ -113,5 +121,5 @@ def with_final_state(step: Step, finalizer: Callable[[], None]) -> Step:
     return TimelineSequence([step, Call(finalizer)])
 
 
-def reveal_and_brighten(target: Widget, duration: float = 0.22) -> Step:
+def reveal_and_brighten(target: Widget, duration: float = 0.34) -> Step:
     return Parallel([reveal(target, duration), brighten(target, duration)])

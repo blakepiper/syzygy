@@ -22,10 +22,11 @@ from dataclasses import dataclass
 
 from textual import work
 from textual.app import ComposeResult
-from textual.containers import Horizontal, Vertical, VerticalScroll
-from textual.widgets import Button, Footer, Input, Label, ListItem, ListView, Static
+from textual.containers import Horizontal, Vertical
+from textual.widgets import Button, Footer, Input, ListView, Static
 
-from syzygy.tui.screens.base import SyzygyScreen, TitleBar
+from syzygy.tui.screens.base import FormScroll, SyzygyScreen, TitleBar
+from syzygy.tui.widgets.marked_list import MarkedListItem
 
 #: Hosted providers need a separately-billed API key (docs/old/DESIGN.md 13.2/13.3).
 #: `llama_cpp` needs none, and `fixture` needs nothing at all.
@@ -174,9 +175,9 @@ def load_status() -> ProviderStatus:
     )
 
 
-class ProviderListItem(ListItem):
+class ProviderListItem(MarkedListItem):
     def __init__(self, provider_id: str, label: str) -> None:
-        super().__init__(Label(label, markup=False))
+        super().__init__(label)
         self.provider_id = provider_id
 
 
@@ -198,7 +199,7 @@ class ModelSetupScreen(SyzygyScreen):
 
     def compose(self) -> ComposeResult:
         yield TitleBar("MODEL")
-        with VerticalScroll(id="model-body"):
+        with FormScroll(id="model-body"):
             yield Static(
                 "Readings use whichever provider is active. Fixture needs no\n"
                 "setup and never leaves this machine. OpenAI and Anthropic need a\n"

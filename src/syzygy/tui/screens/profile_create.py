@@ -21,7 +21,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from textual import work
 from textual.app import ComposeResult
-from textual.containers import Horizontal, Vertical, VerticalScroll
+from textual.containers import Horizontal, Vertical
 from textual.widgets import Button, Footer, Input, Static
 
 from syzygy.domain.astrology import BirthData
@@ -33,7 +33,7 @@ from syzygy.geocoding import (
     resolve_birthplace,
 )
 from syzygy.storage.profiles import insert_profile
-from syzygy.tui.screens.base import SyzygyScreen, TitleBar
+from syzygy.tui.screens.base import FormScroll, SyzygyScreen, TitleBar
 
 _FIELDS: tuple[tuple[str, str, str], ...] = (
     ("display-name", "NAME", "Blake"),
@@ -65,7 +65,7 @@ class ProfileCreateScreen(SyzygyScreen):
         # nowhere, and each subsequent field received the *previous* field's
         # text (M11.1). The form's fields are the only thing worth focusing
         # here; the container is a layout device.
-        with VerticalScroll(id="profile-form", can_focus=False):
+        with FormScroll(id="profile-form", can_focus=False):
             yield Static(
                 "Exact birth time matters. Leave coordinates and timezone blank to\n"
                 "resolve them from the birthplace, or enter them directly - either way,\n"

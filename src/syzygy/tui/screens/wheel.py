@@ -29,6 +29,10 @@ from syzygy.tui.widgets.wheel import (
 
 
 class WheelScreen(SyzygyScreen):
+    #: The Wheel animates itself continuously and already triggers its
+    #: own entry; a staggered region reveal on top of that is noise.
+    SCREEN_TRANSITIONS = False
+
     BINDINGS = [("escape", "abandon", "step away")]
 
     def __init__(self) -> None:

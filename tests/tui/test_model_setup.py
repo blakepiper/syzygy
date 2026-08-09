@@ -100,7 +100,7 @@ async def test_home_screen_m_opens_model_setup(app: SyzygyApp, profile):
 
 async def test_welcome_screen_m_opens_model_setup(app: SyzygyApp):
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await settle(pilot)
         assert isinstance(pilot.app.screen, WelcomeScreen)
 
         await pilot.press("m")
@@ -127,7 +127,7 @@ async def _open_llama_choice(pilot) -> None:
     """Select the local-model row. Since M16.9a this shows a choice
     between guided setup and the advanced existing-server form, rather
     than dropping straight into a base-URL field."""
-    await pilot.pause()
+    await settle(pilot)
     await pilot.press("m")
     await settle(pilot)
     assert isinstance(pilot.app.screen, ModelSetupScreen)
@@ -163,7 +163,7 @@ async def test_configuring_openai_stores_the_key_and_saves_the_selection(
     app: SyzygyApp, fake_settings_path, fake_keyring
 ):
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await settle(pilot)
         await pilot.press("m")
         await settle(pilot)
 
@@ -189,7 +189,7 @@ async def test_configuring_anthropic_stores_the_key_and_saves_the_selection(
     app: SyzygyApp, fake_settings_path, fake_keyring
 ):
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await settle(pilot)
         await pilot.press("m")
         await settle(pilot)
 
@@ -214,7 +214,7 @@ async def test_saving_a_key_without_a_model_id_shows_an_inline_error(
     app: SyzygyApp, fake_settings_path
 ):
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await settle(pilot)
         await pilot.press("m")
         await settle(pilot)
 
@@ -234,7 +234,7 @@ async def test_saving_a_key_without_a_model_id_shows_an_inline_error(
 
 async def test_cancel_returns_to_the_provider_list(app: SyzygyApp):
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await settle(pilot)
         await pilot.press("m")
         await settle(pilot)
 
@@ -272,7 +272,7 @@ def unreachable_llama_cpp(monkeypatch):
 async def test_unreachable_row_names_the_url_it_probed(app: SyzygyApp, unreachable_llama_cpp):
     """"Not reachable" on its own doesn't say where it looked."""
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await settle(pilot)
         await pilot.press("m")
         await settle(pilot)
 
@@ -358,7 +358,7 @@ async def test_a_saved_base_url_is_what_gets_probed(
         )
     )
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await settle(pilot)
         await pilot.press("m")
         await settle(pilot)
 
@@ -414,7 +414,7 @@ async def test_p_reprobes_from_the_provider_list(app: SyzygyApp, monkeypatch):
     monkeypatch.setattr("syzygy.interpretation.providers.llama_cpp.probe", fake_probe)
 
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await settle(pilot)
         await pilot.press("m")
         await settle(pilot)
 
@@ -472,7 +472,7 @@ async def test_escape_closes_the_llama_form(app: SyzygyApp):
 async def test_selecting_fixture_says_what_it_means(app: SyzygyApp, fake_settings_path):
     fake_settings_path.write_text(json.dumps({"provider_id": "llama_cpp", "model_id": None}))
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await settle(pilot)
         await pilot.press("m")
         await settle(pilot)
         listing = q(pilot, "#model-list", ListView)

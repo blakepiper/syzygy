@@ -24,6 +24,7 @@ from syzygy.storage.reading_service import rank_current_transits
 from syzygy.tui.screens.base import SyzygyScreen, TitleBar
 from syzygy.tui.screens.model_setup import ProviderStatus, load_status
 from syzygy.tui.widgets.alignment import AlignmentWidget
+from syzygy.tui.widgets.brand import Mascot, MascotState
 from syzygy.tui.widgets.glyph import Glyph, format_degrees
 from syzygy.tui.widgets.transit_badge import TransitBadge
 
@@ -87,6 +88,13 @@ class HomeScreen(SyzygyScreen):
                 yield Static("", id="home-dev", classes="error", markup=False)
                 with Center(id="home-action"):
                     yield Button(TURN_THE_WHEEL, id="primary-action", variant="primary")
+                # M17.3a: the mascot as a companion, where there are rows
+                # to spare - *after* the primary action, so it can never
+                # push a control below the fold, and hidden entirely at
+                # the tiers where those rows are needed for content.
+                # `tests/tui/test_layout.py` is the arbiter of both.
+                with Center(id="home-mascot-slot"):
+                    yield Mascot(id="home-mascot")
         with Vertical(id="home-reroll-confirm", classes="hidden"):
             yield Static("", id="reroll-body", classes="error", markup=False)
             with Horizontal(classes="button-row"):
@@ -295,12 +303,29 @@ class HomeScreen(SyzygyScreen):
             alignment.chance_resolved = True
             if self._reading.status == ReadingStatus.COMPLETE:
                 status.update("Today's reading is complete.")
+                self._set_mascot(MascotState.COMPLETE, "success")
             else:
                 status.update("Today's card is drawn. Interpretation is unfinished.")
+                self._set_mascot(MascotState.WAITING)
         else:
             button.label = TURN_THE_WHEEL
             alignment.chance_resolved = False
             status.update("Chance has not yet entered the alignment.")
+            self._set_mascot(MascotState.WAITING)
+
+    def _set_mascot(self, state: MascotState, event: str | None = None) -> None:
+        """Move the companion to `state` (M17.3b).
+
+        Tied to the same semantic vocabulary everything else uses rather
+        than a private one: the change of state is the visible thing, and
+        `event` is the ordinary Level-1/3 acknowledgement that it changed.
+        """
+        mascot = self.query_one("#home-mascot", Mascot)
+        if mascot.state is state:
+            return
+        mascot.set_state(state)
+        if event is not None:
+            self.syzygy.animations.trigger(event, mascot)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "primary-action":
@@ -321,6 +346,8 @@ class HomeScreen(SyzygyScreen):
         self._transitioning = True
         button = self.query_one("#primary-action", Button)
         button.disabled = True
+
+        self._set_mascot(MascotState.DRAWING)
 
         def open_wheel() -> None:
             from syzygy.tui.screens.wheel import WheelScreen
