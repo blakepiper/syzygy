@@ -44,11 +44,20 @@ from syzygy.tui.widgets.waiting import WaitingIndicator
 #: A cast is conventionally *made* bottom upward and *displayed* top line
 #: first. Both orders matter here: the reveal animates the first, the
 #: layout renders the second.
+#:
+#: Each line is its own centred `Static`, so a changing line's trailing
+#: marker would drag its six-cell bar off the stack: centring a 9-cell
+#: string and a 6-cell one in the same width leaves the bars one or two
+#: columns apart. The marker is therefore balanced by three leading
+#: spaces, which puts every bar at exactly `(width - 6) // 2` — the
+#: marked line's `(width - 12) // 2 + 3` is the same integer for every
+#: width, odd or even. Keep the two sides equal if you change a glyph.
+_MARKER_PAD = "   "
 LINE_GLYPHS: dict[IChingLineValue, str] = {
-    IChingLineValue.OLD_YIN: "━━  ━━  ×",
+    IChingLineValue.OLD_YIN: f"{_MARKER_PAD}━━  ━━  ×",
     IChingLineValue.YOUNG_YANG: "━━━━━━",
     IChingLineValue.YOUNG_YIN: "━━  ━━",
-    IChingLineValue.OLD_YANG: "━━━━━━  ○",
+    IChingLineValue.OLD_YANG: f"{_MARKER_PAD}━━━━━━  ○",
 }
 
 AnyConsultation = Consultation | OracleConsultation | IChingConsultation
