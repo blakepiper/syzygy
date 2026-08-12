@@ -391,3 +391,58 @@ Not done here: nothing repairs a context that was already committed over
 budget. Those readings are unreadable for good, and re-retrieving into a
 committed reading is not a path this design has — the fix is in front of them,
 not behind.
+
+---
+
+## M25 — One machine, one server
+
+`ServerSupervisor.adopt_or_clean` was written for the case where Syzygy is
+closed the hard way and its model server outlives it. Nothing ever called it.
+So the next run found a five-gigabyte server it had no handle on, started a
+second one beside it, and — because `stop()` cleared the state record whether
+or not it owned the process — erased the only note of where the first one was.
+`model local status` stopped seeing it; `model local stop` could no longer stop
+it. The class docstring says there is deliberately no "leave it running"
+option; in practice every unclean exit left one.
+
+- [x] M25.1 `supervisor.AdoptedProcess`: a `ServerProcess` over a PID this run
+      did not spawn, so a recorded server can be polled, terminated, escalated
+      to SIGKILL and waited on under a bound, exactly like one we started.
+      Constructed only from an identity `verify_recorded_process` has just
+      confirmed — the same standard as the `OWNERSHIP.json` marker file
+      cleanup requires (ADR 0005), and the reason a reused PID is never
+      touched. Signalling and liveness are injected, so no test can reach the
+      real process table; the fixtures record the test runner's own PID
+      precisely because a case that escaped would end the run.
+- [x] M25.2 `reclaim(spec)` replaces `adopt_or_clean` and is actually wired
+      in — `ensure_ready` calls it before starting anything, `start` releases
+      through it. Three outcomes, none of which is "forget the process":
+      verified, answering and launched the way this run wants → adopt and
+      reuse; verified but wedged or serving something else → stop it, then
+      clear; unverifiable → clear and signal nothing.
+- [x] M25.2b `runtime_state.RecordedLaunch` records the shape a server was
+      launched with, not just its identity. Reusing an 8192-token server while
+      believing it has 16384 is how M24 happens again from the other
+      direction, so a server is adopted only when the context size, output
+      ceiling, thread and GPU-layer counts and served id all match. A record
+      from before this field can't be shown to match, so it is replaced.
+- [x] M25.2c `stop()` stops what this run owns and nothing else. It no longer
+      clears a record it did not write — that erasure is what made an orphan
+      untraceable — and it checks the start token before clearing, so of two
+      Syzygys open at once the second to quit cannot delete the first's
+      record.
+- [x] M25.3 `model local status` verifies the record before reporting it.
+      Printing a PID that died days ago as a running server is worse than
+      saying nothing, and the line now names the reason and the remedy.
+- [x] M25.4 `syzygy model local stop` calls `release_recorded()` instead of
+      carrying its own `os.kill`: one implementation of "stop the recorded
+      server", which also means the CLI now escalates to SIGKILL and confirms
+      the process is gone rather than reporting a SIGTERM it never followed up
+      on.
+
+Deliberately not done: adoption across *concurrent* instances is
+first-come-first-served. Two Syzygys open at once share one server, and the
+first to quit stops it; the other starts it again on its next reading, inside
+`ensure_ready`'s existing one-restart budget. A lock file would make that
+tidier and is not worth the failure modes a lock file brings to a program
+someone runs once a day.

@@ -8,6 +8,7 @@ or signals a real PID.
 from __future__ import annotations
 
 import os
+import signal
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 
@@ -395,36 +396,280 @@ def test_a_dead_pid_is_refused() -> None:
     assert "no longer running" in reason
 
 
-def test_adopt_or_clean_clears_state_it_cannot_verify(local_paths) -> None:
+# -- succession: what happens to a server a previous run left behind ---------
+
+
+class FakeMachine:
+    """A process table the test owns.
+
+    Every signal in these cases goes here. The verified fixtures record
+    the test runner's own PID (it is the one process guaranteed to exist),
+    so a case that reached the real `os.kill` would end the run.
+    """
+
+    def __init__(self, *alive: int, wedged: tuple[int, ...] = ()) -> None:
+        self.alive = set(alive)
+        self.wedged = set(wedged)
+        self.signals: list[tuple[int, int]] = []
+
+    def exists(self, pid: int) -> bool:
+        return pid in self.alive
+
+    def signal(self, pid: int, sig: int) -> None:
+        self.signals.append((pid, sig))
+        if pid not in self.wedged:
+            self.alive.discard(pid)
+
+    @property
+    def signalled(self) -> list[int]:
+        return [pid for pid, _sig in self.signals]
+
+
+def recorded_launch(**overrides):
+    from syzygy.local_models.runtime_state import RecordedLaunch
+
+    defaults = dict(
+        context_tokens=8192,
+        max_output_tokens=1536,
+        served_model_id="local",
+        threads=4,
+        gpu_layers=0,
+        backend="cpu",
+    )
+    defaults.update(overrides)
+    return RecordedLaunch(**defaults)
+
+
+def _record(local_paths, identity_) -> None:
     from syzygy.local_models.runtime_state import LocalRuntimeState, save_runtime_state
 
-    save_runtime_state(local_paths.state_path, LocalRuntimeState(process=identity(pid=2**30)))
-    supervisor, _ = supervisor_with(local_paths, FakeProcess())
-
-    assert supervisor.adopt_or_clean() is None
-    assert load_runtime_state(local_paths.state_path).process is None
+    save_runtime_state(local_paths.state_path, LocalRuntimeState(process=identity_))
 
 
-def test_adopt_or_clean_returns_a_verified_and_answering_server(local_paths) -> None:
-    from syzygy.local_models.runtime_state import LocalRuntimeState, save_runtime_state
+def _left_running(tmp_path, **overrides):
+    """A record of a server an earlier run started and never stopped."""
+    model = tmp_path / "model.gguf"
+    executable = tmp_path / "llama-server"
+    defaults = dict(
+        pid=os.getpid(),
+        executable=str(executable),
+        model_path=str(model),
+        port=18081,
+        start_token="token-earlier-run",
+        launch=recorded_launch(),
+    )
+    defaults.update(overrides)
+    return identity(**defaults)
 
-    save_runtime_state(local_paths.state_path, LocalRuntimeState(process=identity()))
-    probe = make_probe(
+
+def _sees(tmp_path, pid: int = None):
+    """A probe whose `/proc` says that PID is the recorded server."""
+    pid = os.getpid() if pid is None else pid
+    return make_probe(
         files={
-            f"/proc/{os.getpid()}/cmdline": (
-                "/opt/syzygy/llama-server\0--model\0/models/model.gguf"
+            f"/proc/{pid}/cmdline": (
+                f"{tmp_path / 'llama-server'}\0--model\0{tmp_path / 'model.gguf'}"
             )
         }
     )
+
+
+def _supervisor(local_paths, tmp_path, machine, *, ready: bool = True, process=None):
+    spawned: list[tuple[str, ...]] = []
+
+    def spawn(argv, _env):
+        spawned.append(tuple(argv))
+        return process or FakeProcess()
+
     supervisor = ServerSupervisor(
         local_paths,
-        probe=probe,
-        spawn=lambda argv, env: FakeProcess(),
-        readiness=lambda _url: (True, 200, None),
+        probe=_sees(tmp_path),
+        spawn=spawn,
+        readiness=lambda _url: (ready, 200 if ready else 503, None),
         sleep=lambda _s: None,
+        monotonic=_ticking(),
+        exists=machine.exists,
+        signal_=machine.signal,
     )
+    return supervisor, spawned
 
-    assert supervisor.adopt_or_clean() is not None
+
+def test_reclaim_adopts_a_healthy_server_launched_the_way_this_run_wants(
+    local_paths, tmp_path
+) -> None:
+    """The whole point: the weights are already in memory, so use them."""
+    _record(local_paths, _left_running(tmp_path))
+    machine = FakeMachine(os.getpid())
+    supervisor, spawned = _supervisor(local_paths, tmp_path, machine)
+
+    server = supervisor.reclaim(spec_for(tmp_path, port=19999))
+
+    assert server is not None
+    assert spawned == []
+    assert machine.signals == []
+    # The adopted server is described by the record, not by what this run
+    # would have launched: it is listening where it is listening.
+    assert server.spec.port == 18081
+    assert server.base_url == "http://127.0.0.1:18081/v1"
+    assert supervisor.running is server
+
+
+def test_reclaim_stops_a_wedged_server_rather_than_leaving_it_behind(
+    local_paths, tmp_path
+) -> None:
+    _record(local_paths, _left_running(tmp_path))
+    machine = FakeMachine(os.getpid())
+    supervisor, _ = _supervisor(local_paths, tmp_path, machine, ready=False)
+
+    assert supervisor.reclaim(spec_for(tmp_path)) is None
+    assert machine.signalled == [os.getpid()]
+    assert not machine.exists(os.getpid())
+    assert load_runtime_state(local_paths.state_path).process is None
+
+
+def test_reclaim_replaces_a_server_launched_with_a_different_context(
+    local_paths, tmp_path
+) -> None:
+    """M24's failure mode, from the other side: reusing an 8192-token
+    server while believing it has 16384 puts prompts back over the line."""
+    _record(local_paths, _left_running(tmp_path, launch=recorded_launch(context_tokens=4096)))
+    machine = FakeMachine(os.getpid())
+    supervisor, _ = _supervisor(local_paths, tmp_path, machine)
+
+    assert supervisor.reclaim(spec_for(tmp_path, context_tokens=8192)) is None
+    assert machine.signalled == [os.getpid()]
+    assert load_runtime_state(local_paths.state_path).process is None
+
+
+def test_a_record_with_no_launch_shape_is_replaced_not_reused(local_paths, tmp_path) -> None:
+    """Written before the shape was recorded: it cannot be shown to match,
+    so it takes the same route as a mismatch."""
+    _record(local_paths, _left_running(tmp_path, launch=None))
+    machine = FakeMachine(os.getpid())
+    supervisor, _ = _supervisor(local_paths, tmp_path, machine)
+
+    assert supervisor.reclaim(spec_for(tmp_path)) is None
+    assert machine.signalled == [os.getpid()]
+
+
+def test_reclaim_never_signals_a_process_it_cannot_verify(local_paths, tmp_path) -> None:
+    """A PID that has been reused belongs to someone else now."""
+    _record(local_paths, _left_running(tmp_path, pid=2**30))
+    machine = FakeMachine(2**30)
+    supervisor, _ = _supervisor(local_paths, tmp_path, machine)
+
+    assert supervisor.reclaim(spec_for(tmp_path)) is None
+    assert machine.signals == []
+    assert load_runtime_state(local_paths.state_path).process is None
+
+
+def test_ensure_ready_reuses_the_adopted_server_instead_of_starting_a_second(
+    local_paths, tmp_path
+) -> None:
+    """The defect this milestone exists for: one machine, one server."""
+    _record(local_paths, _left_running(tmp_path))
+    machine = FakeMachine(os.getpid())
+    supervisor, spawned = _supervisor(local_paths, tmp_path, machine)
+
+    server = supervisor.ensure_ready(spec_for(tmp_path, port=19999))
+
+    assert spawned == []
+    assert server.spec.port == 18081
+    assert machine.signals == []
+
+
+def test_starting_stops_the_server_a_previous_run_left_running(local_paths, tmp_path) -> None:
+    """An explicit start replaces it - and the old one goes down before
+    the new one comes up, so the machine never holds both."""
+    _record(local_paths, _left_running(tmp_path))
+    machine = FakeMachine(os.getpid())
+    fresh = FakeProcess()
+    supervisor, spawned = _supervisor(local_paths, tmp_path, machine, process=fresh)
+
+    supervisor.start(spec_for(tmp_path, port=19999))
+
+    assert machine.signalled == [os.getpid()]
+    assert len(spawned) == 1
+    record = load_runtime_state(local_paths.state_path).process
+    assert record is not None and record.pid == fresh.pid
+
+
+def test_a_wedged_process_is_escalated_to_kill_and_never_waited_on_forever(
+    local_paths, tmp_path
+) -> None:
+    _record(local_paths, _left_running(tmp_path))
+    machine = FakeMachine(os.getpid(), wedged=(os.getpid(),))
+    supervisor, _ = _supervisor(local_paths, tmp_path, machine, ready=False)
+
+    supervisor.reclaim(spec_for(tmp_path))
+
+    signals = [sig for _pid, sig in machine.signals]
+    assert signal.SIGTERM in signals
+    assert signal.SIGKILL in signals
+    # It ignored both, so the record is cleared rather than waited on.
+    assert load_runtime_state(local_paths.state_path).process is None
+
+
+def test_stopping_leaves_alone_a_record_this_run_did_not_create(local_paths, tmp_path) -> None:
+    """The erasure that made an orphan untraceable: with nothing of its
+    own running, `stop` used to clear the record anyway - after which
+    `model local status` could not see the process and `model local stop`
+    could not stop it."""
+    _record(local_paths, _left_running(tmp_path))
+    machine = FakeMachine(os.getpid())
+    supervisor, _ = _supervisor(local_paths, tmp_path, machine)
+
+    supervisor.stop()
+
+    assert machine.signals == []
+    record = load_runtime_state(local_paths.state_path).process
+    assert record is not None and record.pid == os.getpid()
+
+
+def test_stopping_an_adopted_server_stops_it_and_clears_the_record(
+    local_paths, tmp_path
+) -> None:
+    """Adoption is ownership: quitting Syzygy stops the server it took
+    over, exactly as it stops one it spawned."""
+    _record(local_paths, _left_running(tmp_path))
+    machine = FakeMachine(os.getpid())
+    supervisor, _ = _supervisor(local_paths, tmp_path, machine)
+    supervisor.reclaim(spec_for(tmp_path))
+
+    supervisor.stop()
+
+    assert machine.signalled == [os.getpid()]
+    assert load_runtime_state(local_paths.state_path).process is None
+
+
+def test_quitting_does_not_erase_another_instances_record(local_paths, tmp_path) -> None:
+    """Two Syzygys can be open at once. Whichever quits second must not
+    erase the record of the one still running."""
+    machine = FakeMachine(os.getpid())
+    ours = FakeProcess()
+    supervisor, _ = _supervisor(local_paths, tmp_path, machine, process=ours)
+    supervisor.start(spec_for(tmp_path, port=19999))
+    # Another instance starts its own server and records it.
+    _record(local_paths, _left_running(tmp_path, start_token="token-other-instance"))
+
+    supervisor.stop()
+
+    record = load_runtime_state(local_paths.state_path).process
+    assert record is not None and record.start_token == "token-other-instance"
+
+
+def test_release_recorded_clears_a_stale_record_without_signalling(
+    local_paths, tmp_path
+) -> None:
+    """What `syzygy model local stop` runs. Same rule, one implementation."""
+    _record(local_paths, _left_running(tmp_path, pid=2**30))
+    machine = FakeMachine(2**30)
+    supervisor, _ = _supervisor(local_paths, tmp_path, machine)
+
+    supervisor.release_recorded()
+
+    assert machine.signals == []
+    assert load_runtime_state(local_paths.state_path).process is None
 
 
 # -- logs and classification -------------------------------------------------

@@ -19,8 +19,10 @@ from syzygy.local_models.diagnostics import format_bytes, inventory_facts, redac
 from syzygy.local_models.download import verify_digest
 from syzygy.local_models.model_install import list_local_models
 from syzygy.local_models.paths import LocalModelPaths
+from syzygy.local_models.probe import Probe
 from syzygy.local_models.runtime_state import load_runtime_state
 from syzygy.local_models.settings import load_local_model_settings
+from syzygy.local_models.supervisor import verify_recorded_process
 from syzygy.local_models.verification import (
     needs_reverification,
     validate_managed_configuration,
@@ -31,7 +33,9 @@ def machine_lines(inventory: MachineInventory) -> list[str]:
     return [f"{label:24s} {value}" for label, value in inventory_facts(inventory)]
 
 
-def status_lines(settings_path: Path, paths: LocalModelPaths) -> list[str]:
+def status_lines(
+    settings_path: Path, paths: LocalModelPaths, *, probe: Probe | None = None
+) -> list[str]:
     """`syzygy model local status` - read-only, scriptable, never prompts."""
     settings = load_local_model_settings(settings_path)
     catalog = load_catalog()
@@ -95,10 +99,18 @@ def status_lines(settings_path: Path, paths: LocalModelPaths) -> list[str]:
     if runtime_state.process is None:
         lines.append("server process not running")
     else:
-        lines.append(
-            f"server process pid {runtime_state.process.pid} "
-            f"on 127.0.0.1:{runtime_state.process.port}"
-        )
+        # The record is not evidence on its own. It outlives an unclean
+        # exit, and reporting it as a running server sent the user looking
+        # for a process that died days ago (M25.3). Verified here by the
+        # same rule that decides whether Syzygy may signal it.
+        recorded = runtime_state.process
+        verified, reason = verify_recorded_process(recorded, probe or Probe.real())
+        where = f"pid {recorded.pid} on 127.0.0.1:{recorded.port}"
+        if verified:
+            lines.append(f"server process {where}")
+        else:
+            lines.append(f"server process recorded at {where}, but {reason}")
+            lines.append("               `syzygy model local stop` clears the record")
     if runtime_state.downloads:
         for progress in runtime_state.downloads:
             total = format_bytes(progress.total_bytes) if progress.total_bytes else "unknown"

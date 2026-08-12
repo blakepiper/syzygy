@@ -1177,7 +1177,7 @@ def _cmd_model_local_start(_args: argparse.Namespace) -> int:
 def _cmd_model_local_stop(_args: argparse.Namespace) -> int:
     from syzygy.local_models.probe import Probe
     from syzygy.local_models.runtime_state import load_runtime_state
-    from syzygy.local_models.supervisor import verify_recorded_process
+    from syzygy.local_models.supervisor import ServerSupervisor, verify_recorded_process
 
     paths = _local_paths()
     state = load_runtime_state(paths.state_path)
@@ -1185,24 +1185,19 @@ def _cmd_model_local_stop(_args: argparse.Namespace) -> int:
         print("No local model server is recorded as running.")
         return 0
 
+    pid = state.process.pid
     verified, reason = verify_recorded_process(state.process, Probe.real())
+    # `release_recorded` makes the same distinction and acts on it: it
+    # signals only what verified, escalates SIGTERM to SIGKILL if it has
+    # to, and clears the record either way. Reporting is this command's
+    # only job (M25.4) - stopping a server is the supervisor's, in one
+    # place, so the interface and the CLI cannot drift on what "stop"
+    # means.
+    ServerSupervisor(paths).release_recorded()
     if not verified:
-        # Never signal something we cannot identify: clear the stale
-        # record instead (M16.7d).
-        from syzygy.local_models.runtime_state import save_runtime_state
-
-        save_runtime_state(paths.state_path, state.model_copy(update={"process": None}))
         print(f"Stale record cleared: {reason}. Nothing was signalled.")
         return 0
-
-    import os
-    import signal
-
-    os.kill(state.process.pid, signal.SIGTERM)
-    from syzygy.local_models.runtime_state import save_runtime_state
-
-    save_runtime_state(paths.state_path, state.model_copy(update={"process": None}))
-    print(f"Asked pid {state.process.pid} to stop.")
+    print(f"Stopped pid {pid}.")
     return 0
 
 

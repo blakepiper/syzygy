@@ -19,6 +19,17 @@ the command line cannot be read on this platform, the answer is "cannot
 verify", the state is cleaned up, and a fresh server is started on a new
 port. Syzygy never signals a process it could not identify.
 
+**Succession.** That verification is what makes the *next* run safe, and
+`reclaim` is where it is spent (M25). A record whose process still
+verifies, still answers, and was launched to serve exactly what this run
+wants is adopted through `AdoptedProcess` and reused; one that verifies
+but is wedged or serving something else is stopped before a replacement
+binds; one that cannot be verified is forgotten and left alone. The
+failure this replaced was quieter than a crash: nothing called for
+recovery at all, so every run after an unclean exit started a second
+multi-gigabyte server and erased the first one's record on the way past,
+leaving a process nothing could find and nothing would ever stop.
+
 **Diagnosis.** "It didn't start" is useless. The server's output is read
 on a background thread, redacted line by line, kept to a bounded buffer,
 and matched against the failure modes that actually occur - out of memory,
@@ -32,6 +43,7 @@ from __future__ import annotations
 import contextlib
 import os
 import secrets
+import signal
 import socket
 import threading
 import time
@@ -54,6 +66,7 @@ from syzygy.local_models.probe import Probe
 from syzygy.local_models.runtime_state import (
     HealthRecord,
     ProcessIdentity,
+    RecordedLaunch,
     load_runtime_state,
     now_iso,
     save_runtime_state,
@@ -431,6 +444,90 @@ def verify_recorded_process(
     return True, "verified"
 
 
+def _default_signal(pid: int, sig: int) -> None:
+    os.kill(pid, sig)
+
+
+#: `(pid) -> is it alive` and `(pid, signal) -> None`. Injected together
+#: so a test can drive a fake process table: every `identity()` in the
+#: suite names a PID that really exists (the test runner's own), and
+#: signalling one for real would end the run.
+LivenessCheck = Callable[[int], bool]
+Signaller = Callable[[int, int], None]
+
+_SIGTERM = signal.SIGTERM
+#: Windows has no SIGKILL, and `os.kill` there is already `TerminateProcess`.
+_SIGKILL = getattr(signal, "SIGKILL", signal.SIGTERM)
+
+
+class AdoptedProcess:
+    """A `ServerProcess` for a server this run did not spawn (M25.1).
+
+    A previous run leaves a live server and a record of it. Without this,
+    the only handle on that process was a PID in a JSON file, which no
+    `Popen` can `poll` or `terminate` - so the next run started a *second*
+    multi-gigabyte server and cleared the first one's record, which is
+    precisely the orphan this module's own docstring says must not happen.
+
+    Constructed only from an identity `verify_recorded_process` has just
+    confirmed, so every signal it sends goes to a process proven to be
+    Syzygy's own runner serving Syzygy's own model file. That proof is the
+    analogue of the `OWNERSHIP.json` marker the file-level cleanup
+    requires (ADR 0005): Syzygy signals what it can show is its own, and
+    nothing else.
+    """
+
+    def __init__(
+        self,
+        pid: int,
+        *,
+        exists: LivenessCheck = process_exists,
+        signal_: Signaller = _default_signal,
+        sleep: Callable[[float], None] = time.sleep,
+        monotonic: Callable[[], float] = time.monotonic,
+    ) -> None:
+        self._pid = pid
+        self._exists = exists
+        self._signal = signal_
+        self._sleep = sleep
+        self._monotonic = monotonic
+
+    @property
+    def pid(self) -> int:
+        return self._pid
+
+    def poll(self) -> int | None:
+        """`None` while it runs, `0` once it is gone.
+
+        The exit *status* of a process this run did not spawn is not ours
+        to read - no one is its parent here. `0` therefore means only
+        "no longer running", which is all any caller checks.
+        """
+        return None if self._exists(self._pid) else 0
+
+    def terminate(self) -> None:
+        self._send(_SIGTERM)
+
+    def kill(self) -> None:
+        self._send(_SIGKILL)
+
+    def wait(self, timeout: float | None = None) -> int:
+        """Poll until it is gone. Raises `TimeoutError` if it outlives
+        `timeout`, matching what `Popen.wait` does to a wedged child."""
+        deadline = None if timeout is None else self._monotonic() + timeout
+        while self._exists(self._pid):
+            if deadline is not None and self._monotonic() >= deadline:
+                raise TimeoutError(f"pid {self._pid} is still running")
+            self._sleep(0.05)
+        return 0
+
+    def _send(self, sig: int) -> None:
+        # Gone already, or someone else's to signal now: either way there
+        # is nothing here to report and nothing to retry.
+        with contextlib.suppress(OSError):
+            self._signal(self._pid, sig)
+
+
 # -- the supervisor ----------------------------------------------------------
 
 
@@ -497,6 +594,8 @@ class ServerSupervisor:
         readiness: ReadinessProbe = _default_readiness,
         sleep: Callable[[float], None] = time.sleep,
         monotonic: Callable[[], float] = time.monotonic,
+        exists: LivenessCheck = process_exists,
+        signal_: Signaller = _default_signal,
     ) -> None:
         self._paths = paths
         self._probe = probe or Probe.real()
@@ -504,6 +603,8 @@ class ServerSupervisor:
         self._readiness = readiness
         self._sleep = sleep
         self._monotonic = monotonic
+        self._exists = exists
+        self._signal = signal_
         self._server: RunningServer | None = None
         self._restarts = 0
 
@@ -527,6 +628,11 @@ class ServerSupervisor:
         `ServerStartError` with a classified failure otherwise."""
         self._paths.ensure_exists()
         self.stop()
+        # An explicit start replaces whatever was there. A server left by
+        # an earlier run is stopped *before* this one binds, so the two
+        # never hold the machine's memory at the same time - and it is
+        # stopped only if it can still be proved to be ours (M25.2).
+        self.release_recorded()
 
         argv = build_argv(spec)
         env = dict(os.environ)
@@ -662,7 +768,10 @@ class ServerSupervisor:
         reading follows the established retryable path - card and transit
         snapshot untouched, never a redraw.
         """
-        server = self.running
+        # `reclaim` first, so a server an earlier run left behind is
+        # reused rather than duplicated: starting a second one would load
+        # the same weights into the same machine twice (M25.2).
+        server = self.running or self.reclaim(spec)
         if server is not None and server.spec.model_path == spec.model_path:
             if self.is_healthy():
                 return server
@@ -687,55 +796,153 @@ class ServerSupervisor:
     # -- stopping ------------------------------------------------------------
 
     def stop(self) -> None:
-        """Terminate the managed server, gracefully then not.
+        """Terminate the server *this run owns*, gracefully then not.
 
         Bounded at every step. Quitting Syzygy must not wait on a wedged
         child, so a process that ignores both signals is abandoned with the
         state cleared rather than waited on forever.
+
+        Owning it is the precondition, and it is what this used to get
+        wrong: with nothing running it cleared the record anyway, which
+        erased the only handle anyone had on a server a previous run left
+        behind - `syzygy model local status` stopped seeing it and
+        `syzygy model local stop` could no longer stop it. A record this
+        run did not put there is left alone here and dealt with where
+        there is a `LaunchSpec` to compare it against (`reclaim`), or on
+        request (`release_recorded`).
         """
         server = self._server
         self._server = None
         if server is None:
-            self._clear_record()
             return
-        if server.process.poll() is not None:
-            self._clear_record()
-            return
-        with contextlib.suppress(Exception):
-            server.process.terminate()
-        with contextlib.suppress(Exception):
-            server.process.wait(timeout=TERMINATE_GRACE_SECONDS)
         if server.process.poll() is None:
+            self._terminate(server.process)
+        self._clear_record_for(server)
+
+    def _terminate(self, process: ServerProcess) -> None:
+        """SIGTERM, then SIGKILL, then give up. Never waits unbounded."""
+        with contextlib.suppress(Exception):
+            process.terminate()
+        with contextlib.suppress(Exception):
+            process.wait(timeout=TERMINATE_GRACE_SECONDS)
+        if process.poll() is None:
             with contextlib.suppress(Exception):
-                server.process.kill()
+                process.kill()
             with contextlib.suppress(Exception):
-                server.process.wait(timeout=KILL_GRACE_SECONDS)
-        self._clear_record()
+                process.wait(timeout=KILL_GRACE_SECONDS)
 
     # -- crash recovery ------------------------------------------------------
 
-    def adopt_or_clean(self) -> ProcessIdentity | None:
-        """At startup: is the recorded process still ours?
+    def reclaim(self, spec: LaunchSpec) -> RunningServer | None:
+        """Take responsibility for a server an earlier run left behind.
 
-        Returns the identity if it verified (so the app can reuse the
-        server instead of starting another), or `None` after clearing a
-        record it could not verify. Never signals anything - reclaiming
-        and killing are different operations, and only the first is safe
-        to do without asking.
+        One of three things happens to a record, and the process it names
+        is never simply forgotten:
+
+        * **it verifies, answers, and was launched to serve exactly what
+          `spec` asks for** - adopt it as this run's server, so the model
+          is not loaded into memory a second time and quitting Syzygy
+          still stops it;
+        * **it verifies but is wedged, or is serving something else** -
+          stop it, then clear the record. It is provably Syzygy's own
+          process and this run is replacing it; leaving it is the orphan
+          the class docstring forbids;
+        * **it cannot be verified** - clear the record and signal nothing.
+          A PID that has been reused belongs to someone else now.
+
+        Returns the adopted server, or `None` in the other two cases (the
+        caller starts a fresh one). The adopted `LaunchSpec` is rebuilt
+        from the *record*, not from `spec`: the port and start token
+        belong to the process that is actually running, and describing it
+        with the arguments we would have used is how a supervisor comes to
+        believe a server has a context size it was never given.
         """
         state = load_runtime_state(self._paths.state_path)
         identity = state.process
         if identity is None:
             return None
+
         verified, _reason = verify_recorded_process(identity, self._probe)
         if not verified:
             self._clear_record()
             return None
-        ready, _, _ = self._readiness(health_url_for(identity.port))
-        if not ready:
-            self._clear_record()
+
+        adopted = self._adopted_spec(identity, spec)
+        if adopted is None or not self._readiness(health_url_for(identity.port))[0]:
+            self.release_recorded()
             return None
-        return identity
+
+        server = RunningServer(
+            spec=adopted,
+            process=self._adopt(identity.pid),
+            # The earlier run's log file, if it named one: an adopted
+            # server's history is on disk, not in this process's memory.
+            logs=LogBuffer(Path(identity.log_path) if identity.log_path else None),
+            started_at=self._monotonic(),
+        )
+        self._server = server
+        return server
+
+    def _adopted_spec(self, identity: ProcessIdentity, spec: LaunchSpec) -> LaunchSpec | None:
+        """The recorded server as a `LaunchSpec`, or `None` if it is not
+        serving what `spec` asks for.
+
+        An older record carries no launch shape at all. That is not a
+        failure to report, but it cannot be shown to match either, so it
+        takes the same route as a mismatch: stopped and replaced.
+        """
+        launch = identity.launch
+        if launch is None:
+            return None
+        if identity.executable != str(spec.executable) or identity.model_path != str(
+            spec.model_path
+        ):
+            return None
+        if (
+            launch.context_tokens != spec.context_tokens
+            or launch.max_output_tokens != spec.max_output_tokens
+            or launch.served_model_id != spec.served_model_id
+            or launch.threads != spec.threads
+            or launch.gpu_layers != spec.gpu_layers
+        ):
+            return None
+        return LaunchSpec(
+            executable=Path(identity.executable),
+            model_path=Path(identity.model_path),
+            port=identity.port,
+            context_tokens=launch.context_tokens,
+            max_output_tokens=launch.max_output_tokens,
+            served_model_id=launch.served_model_id,
+            threads=launch.threads,
+            gpu_layers=launch.gpu_layers,
+            backend=Backend(launch.backend) if launch.backend else spec.backend,
+            start_token=identity.start_token,
+        )
+
+    def release_recorded(self) -> None:
+        """Stop the process named in the state file if it is provably ours,
+        then clear the record. Signals nothing it could not identify.
+
+        Public because `syzygy model local stop` is exactly this operation
+        and must not grow a second implementation of it.
+        """
+        state = load_runtime_state(self._paths.state_path)
+        identity = state.process
+        if identity is None:
+            return
+        verified, _reason = verify_recorded_process(identity, self._probe)
+        if verified:
+            self._terminate(self._adopt(identity.pid))
+        self._clear_record()
+
+    def _adopt(self, pid: int) -> AdoptedProcess:
+        return AdoptedProcess(
+            pid,
+            exists=self._exists,
+            signal_=self._signal,
+            sleep=self._sleep,
+            monotonic=self._monotonic,
+        )
 
     def _record(self, server: RunningServer, log_path: Path) -> None:
         state = load_runtime_state(self._paths.state_path)
@@ -751,10 +958,29 @@ class ServerSupervisor:
                         port=server.spec.port,
                         model_path=str(server.spec.model_path),
                         log_path=str(log_path),
+                        launch=RecordedLaunch(
+                            context_tokens=server.spec.context_tokens,
+                            max_output_tokens=server.spec.max_output_tokens,
+                            served_model_id=server.spec.served_model_id,
+                            threads=server.spec.threads,
+                            gpu_layers=server.spec.gpu_layers,
+                            backend=server.spec.backend.value,
+                        ),
                     )
                 }
             ),
         )
+
+    def _clear_record_for(self, server: RunningServer) -> None:
+        """Clear the record only while it still names `server`.
+
+        Two Syzygys can be open at once. Whichever quits second must not
+        erase the record of the one still running.
+        """
+        state = load_runtime_state(self._paths.state_path)
+        if state.process is None or state.process.start_token != server.spec.start_token:
+            return
+        save_runtime_state(self._paths.state_path, state.model_copy(update={"process": None}))
 
     def _clear_record(self) -> None:
         state = load_runtime_state(self._paths.state_path)

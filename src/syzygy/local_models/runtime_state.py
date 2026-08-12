@@ -24,6 +24,28 @@ from pydantic import BaseModel, ConfigDict, Field
 from syzygy.local_models.paths import atomic_write_json, read_json
 
 
+class RecordedLaunch(BaseModel):
+    """The shape a recorded server was actually launched with.
+
+    Identity says the process is Syzygy's; this says what it is *serving*.
+    They answer different questions and a later run needs both: reusing a
+    server launched with an 8192-token context while believing it has
+    16384 is how a prompt comes to exceed a context nobody thought it
+    could (`storage.reading_service.MAX_SOURCE_PASSAGE_CHARS`). An older
+    record has no launch shape, which is not an error - it simply cannot
+    be proved to match, so it is replaced rather than reused.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    context_tokens: int
+    max_output_tokens: int
+    served_model_id: str
+    threads: int | None = None
+    gpu_layers: int | None = None
+    backend: str | None = None
+
+
 class ProcessIdentity(BaseModel):
     """Enough to be sure a live PID is the server Syzygy started."""
 
@@ -40,6 +62,8 @@ class ProcessIdentity(BaseModel):
     port: int
     model_path: str
     log_path: str | None = None
+    #: `None` on a record written before this field existed.
+    launch: RecordedLaunch | None = None
 
     def matches(self, *, executable: str, port: int, model_path: str) -> bool:
         return (

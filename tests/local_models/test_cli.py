@@ -250,6 +250,41 @@ def test_stop_clears_a_stale_record_without_signalling_anything(
     assert load_runtime_state(layout.state_path).process is None
 
 
+def test_status_does_not_report_a_dead_process_as_a_running_server(
+    isolated, capsys
+) -> None:
+    """The record outlives an unclean exit. Printing it as a live server
+    sent the user looking for a process that had been gone for days
+    (M25.3)."""
+    paths, layout = isolated
+    configure(paths, layout)
+    from syzygy.local_models.runtime_state import (
+        LocalRuntimeState,
+        ProcessIdentity,
+        save_runtime_state,
+    )
+
+    save_runtime_state(
+        layout.state_path,
+        LocalRuntimeState(
+            process=ProcessIdentity(
+                pid=2**30,
+                executable="/nowhere/llama-server",
+                start_token="t",
+                started_at_utc="2026-01-01T00:00:00+00:00",
+                port=41234,
+                model_path="/nowhere/model.gguf",
+            )
+        ),
+    )
+
+    assert main(["model", "local", "status"]) == 0
+
+    output = capsys.readouterr().out
+    assert "no longer running" in output
+    assert "model local stop" in output
+
+
 def test_start_without_a_configured_model_refuses(isolated, capsys) -> None:
     assert main(["model", "local", "start"]) == 1
     assert "No managed local model" in capsys.readouterr().err

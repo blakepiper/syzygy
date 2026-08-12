@@ -163,6 +163,19 @@ Syzygy starts the model when it needs it and stops it when you quit. There
 is nothing to run, nothing to keep open, and nothing left running in the
 background after you close the application.
 
+If Syzygy is ever closed the hard way — a crash, a killed terminal — the
+model server can survive it. The next time Syzygy needs the model it looks
+for that server first: if it is still answering and still serving the same
+model in the same way, Syzygy takes it over and uses it, rather than
+loading several gigabytes a second time. If it is wedged, or serving
+something else, Syzygy stops it and starts a fresh one. Either way you end
+up with one server, and quitting stops it. Syzygy only ever signals a
+process it can still prove is its own — matching its own runner, its own
+model file — so a process id that has since been reused by something else
+is left strictly alone. `syzygy model local status` shows what it found,
+and `syzygy model local stop` is always available if you would rather do
+it yourself.
+
 The first reading in a session takes longer than the rest, because the
 model has to be read from disk into memory. On a processor-only machine, a
 reading may take a minute or two; with graphics acceleration, seconds.
