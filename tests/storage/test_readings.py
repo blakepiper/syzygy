@@ -36,6 +36,7 @@ from syzygy.storage.migrations import apply_all
 from syzygy.storage.profiles import insert_profile
 from syzygy.storage.reading_service import (
     MAX_KNOWLEDGE_CHUNKS_PER_SOURCE,
+    MAX_SOURCE_PASSAGE_CHARS,
     get_or_create_todays_reading,
 )
 
@@ -275,6 +276,72 @@ def test_only_the_top_few_chunks_of_each_source_reach_the_context(conn):
     )
 
 
+def test_long_passages_are_capped_by_a_total_character_budget(conn):
+    """The count cap alone let a prompt reach ten thousand tokens against
+    an 8192-token local context, which `llama-server` refuses outright -
+    and since a retry reuses the committed context verbatim, that reading
+    then failed identically forever."""
+    profile = _profile()
+    insert_profile(conn, profile)
+    card_id = _todays_card_id()
+    # Three sections the size the Book of Thoth actually runs to. All
+    # three are within the per-source cap; two of them are not within the
+    # prompt.
+    _ingest_chunks(conn, card_id, "book_of_thoth", count=3, text_chars=5000)
+
+    reading = _run(conn, profile)
+
+    assert reading.interpretation_context is not None
+    chunks = reading.interpretation_context.knowledge_chunks
+    assert sum(len(chunk.text) for chunk in chunks) <= MAX_SOURCE_PASSAGE_CHARS
+    # The most relevant one is still sent, and nothing is truncated.
+    assert [chunk.id for chunk in chunks] == [f"book_of_thoth-{card_id}-0"]
+    assert all(len(chunk.text) == 5000 for chunk in chunks)
+    # What retrieval found is unchanged - the budget trims what the model
+    # sees, never what the `[I]` view tells the user (M18.1f).
+    assert len(reading.retrieved_citations) == 3
+
+
+def test_one_long_tier0_passage_does_not_crowd_out_a_short_companion(conn):
+    """Same reasoning as the per-source cap: the budget skips a passage
+    that does not fit and keeps considering the rest."""
+    profile = _profile()
+    insert_profile(conn, profile)
+    card_id = _todays_card_id()
+    # Two Tier 0 sections that cannot both fit, and one short companion
+    # passage that fits beside either of them.
+    _ingest_chunks(
+        conn, card_id, "book_of_thoth", count=2, text_chars=MAX_SOURCE_PASSAGE_CHARS - 500
+    )
+    _ingest_chunks(conn, card_id, "duquette_companion", count=1, text_chars=200)
+
+    reading = _run(conn, profile)
+
+    assert reading.interpretation_context is not None
+    chunks = reading.interpretation_context.knowledge_chunks
+    assert [chunk.id for chunk in chunks] == [
+        f"book_of_thoth-{card_id}-0",
+        f"duquette_companion-{card_id}-0",
+    ]
+
+
+def test_a_passage_larger_than_the_whole_budget_is_left_out(conn):
+    profile = _profile()
+    insert_profile(conn, profile)
+    card_id = _todays_card_id()
+    _ingest_chunks(
+        conn, card_id, "book_of_thoth", count=1, text_chars=MAX_SOURCE_PASSAGE_CHARS + 1
+    )
+
+    reading = _run(conn, profile)
+
+    assert reading.interpretation_context is not None
+    assert reading.interpretation_context.knowledge_chunks == []
+    # The prompt then says plainly that no passages were supplied, and the
+    # citation still records where the card is discussed.
+    assert len(reading.retrieved_citations) == 1
+
+
 def test_citation_only_chunks_are_recorded_on_the_reading_but_never_sent(conn):
     """M18.1a. The bare-install case: every chunk is a citation, so the
     provider gets nothing and the reading still knows where to look."""
@@ -411,13 +478,30 @@ def _todays_card_id() -> str:
 
 
 def _ingest_chunks(
-    conn, card_id: str, source_type: str, *, count: int, with_text: bool = True
+    conn,
+    card_id: str,
+    source_type: str,
+    *,
+    count: int,
+    with_text: bool = True,
+    text_chars: int | None = None,
 ) -> None:
     """Install `count` chunks for one card.
 
     `with_text=False` is the citation-only shape every install ships
-    (M13.3): real rows, real page ranges, empty passages.
+    (M13.3): real rows, real page ranges, empty passages. `text_chars`
+    pads each passage to that length, for the sizes a real book section
+    actually reaches.
     """
+
+    def _text(index: int) -> str:
+        if not with_text:
+            return ""
+        passage = f"{source_type} passage {index} for {card_id}."
+        if text_chars is None:
+            return passage
+        return passage.ljust(text_chars, " ")[:text_chars]
+
     replace_source(
         conn,
         KnowledgeSource(
@@ -439,7 +523,7 @@ def _ingest_chunks(
                 page_start=100 + index,
                 page_end=100 + index,
                 chunk_index=index,
-                text=f"{source_type} passage {index} for {card_id}." if with_text else "",
+                text=_text(index),
                 text_hash=f"text-hash-{source_type}-{index}",
             )
             for index in range(count)

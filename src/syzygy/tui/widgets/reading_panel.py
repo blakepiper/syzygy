@@ -188,15 +188,21 @@ def _pending_text(
     if in_flight:
         # A retry is running right now. Checked before the stored status,
         # which still reads INTERPRETATION_FAILED until the call returns.
-        # The activity itself is the waiting indicator's to report
-        # (`syzygy.tui.widgets.waiting`); this says what is already true.
-        text.append("THE ALIGNMENT IS FIXED.\n", style=_HEADING)
+        # The panel stays empty: the title above already carries
+        # "THE ALIGNMENT IS FIXED." and the waiting indicator
+        # (`syzygy.tui.widgets.waiting`) carries the activity, down to a
+        # still frame with its label at motion `off`.
         return text
     if reading.status == ReadingStatus.INTERPRETATION_FAILED:
-        # The exact copy docs/old/DESIGN.md section 23 specifies: the oracle stands
-        # even when the interpreter does not.
-        text.append("THE ALIGNMENT IS FIXED.\n", style=_WARNING)
-        text.append("INTERPRETATION IS UNAVAILABLE.\n\n", style=_WARNING)
+        # The copy docs/old/DESIGN.md section 23 specifies is "the alignment is
+        # fixed; interpretation is unavailable" - the oracle stands even
+        # when the interpreter does not. The first half of it is the
+        # title's (`ReadingScreen._show`), so this says the second half
+        # once rather than printing the headline underneath itself.
+        text.append("INTERPRETATION IS UNAVAILABLE.\n", style=_WARNING)
+        text.append(
+            "The card and the transits are committed and will not change.\n\n", style=_MUTED
+        )
         text.append("[R] Retry interpretation\n", style=_BODY)
         text.append("[I] Inspect inputs\n", style=_BODY)
         return text
@@ -204,12 +210,13 @@ def _pending_text(
         # A stored INTERPRETING that nothing is working on - the previous
         # attempt was cut short rather than failing (M11.4). Same card,
         # same context, still retryable.
-        text.append("THE ALIGNMENT IS FIXED.\n", style=_WARNING)
-        text.append("INTERPRETATION WAS INTERRUPTED.\n\n", style=_WARNING)
+        text.append("INTERPRETATION WAS INTERRUPTED.\n", style=_WARNING)
+        text.append(
+            "The card and the transits are committed and will not change.\n\n", style=_MUTED
+        )
         text.append("[R] Retry interpretation\n", style=_BODY)
         text.append("[I] Inspect inputs\n", style=_BODY)
         return text
-    text.append("THE ALIGNMENT IS FIXED.\n", style=_HEADING)
     text.append("INTERPRETATION IN PROGRESS…\n", style=_MUTED)
     return text
 

@@ -234,9 +234,13 @@ async def test_failed_interpretation_retries_the_same_card(services, profile, co
         assert isinstance(screen, ReadingScreen)
         assert screen.reading.status == ReadingStatus.INTERPRETATION_FAILED
         drawn_card = screen.reading.card_draw.card_id
+        # The headline is the title's and the state is the panel's, each
+        # said exactly once - they used to be printed one under the other.
+        title = text_of(q(pilot, "#reading-title", Static))
         body = text_of(q(pilot, "#reading-body", Static))
+        assert "THE ALIGNMENT IS FIXED." in title
         assert "INTERPRETATION IS UNAVAILABLE." in body
-        assert "THE ALIGNMENT IS FIXED." in body
+        assert "THE ALIGNMENT IS FIXED." not in body
 
         # Retrying reaches a working provider - with the same card.
         services.provider = FixtureProvider()

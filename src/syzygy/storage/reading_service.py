@@ -48,9 +48,42 @@ from syzygy.storage import readings
 #: so Tier 0 still comes first.
 MAX_KNOWLEDGE_CHUNKS_PER_SOURCE = 3
 
+#: How many characters of passage text may reach the model in one prompt,
+#: across every source together.
+#:
+#: The cap above bounds how *many* passages are sent but not how long they
+#: are, and a single Book of Thoth section runs past five thousand
+#: characters on its own. Nine of those is a prompt of roughly ten
+#: thousand tokens against the 8192-token context a local server is
+#: launched with (`local_models.fit.SYZYGY_CONTEXT_TOKENS`), and
+#: llama-server refuses such a request outright rather than truncating it.
+#: That failure is the worst shape a failure can take here: the card is
+#: committed and correct, and every retry reuses the stored context
+#: verbatim (`interpret_reading`), so it fails identically forever.
+#:
+#: The budget, in tokens, for the largest prompt Syzygy builds:
+#:
+#:     8192   context
+#:   - 1536   the reply itself (`SYZYGY_MAX_OUTPUT_TOKENS`)
+#:   - 1616   the repair turn, which appends a rejected reply of up to
+#:            that same size plus `prompts.REPAIR_INSTRUCTION` on top of
+#:            the whole first prompt (`providers.structured_output`)
+#:   - 2178   the Oracle's frame, measured: its system prompt, the
+#:            question, the card, the hexagram and its line texts, the
+#:            natal anchors, and the JSON schema
+#:   = 2862   tokens of passage text, at ~3.6 characters per token with
+#:            the block's own headings and indentation counted
+#:
+#: 8000 sits under that with room for a heavier frame (a cast where every
+#: line changes carries more Legge text than the one measured). It is a
+#: fixed budget rather than a per-provider one on purpose: the context is
+#: built and committed once, before any provider is chosen, and a retry
+#: may reach a different one than the first attempt did.
+MAX_SOURCE_PASSAGE_CHARS = 8000
+
 
 def _select_knowledge_chunks(hits: list[KnowledgeHit]) -> list[KnowledgeChunk]:
-    """The chunks that may reach the model, capped per source.
+    """The chunks that may reach the model, capped per source and in total.
 
     Citation-only chunks are dropped (M13.3). The artifact bundled with
     every install carries where each card is discussed but not what those
@@ -61,16 +94,29 @@ def _select_knowledge_chunks(hits: list[KnowledgeHit]) -> list[KnowledgeChunk]:
     grounding that was not actually retrieved"). An install with no
     ingested PDFs therefore supplies no passages and the prompt says so
     plainly, exactly as it did before the artifact existed.
+
+    A passage that would take the total past `MAX_SOURCE_PASSAGE_CHARS` is
+    skipped and the next one still considered, rather than ending the
+    selection there: that is the same reasoning as the per-source cap -
+    one long Tier 0 section must not crowd the Tier 1 companions out - and
+    a whole passage is always either sent or not. Nothing is truncated,
+    because a passage cut mid-sentence still arrives under the prompt's
+    "SOURCE PASSAGES" heading as though it were the whole of what the page
+    says.
     """
     selected: list[KnowledgeChunk] = []
     per_source: dict[str, int] = {}
+    budget = MAX_SOURCE_PASSAGE_CHARS
     for hit in hits:
         if not hit.chunk.has_text:
             continue
         taken = per_source.get(hit.chunk.source_id, 0)
         if taken >= MAX_KNOWLEDGE_CHUNKS_PER_SOURCE:
             continue
+        if len(hit.chunk.text) > budget:
+            continue
         per_source[hit.chunk.source_id] = taken + 1
+        budget -= len(hit.chunk.text)
         selected.append(hit.chunk)
     return selected
 

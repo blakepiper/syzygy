@@ -39,12 +39,18 @@ from syzygy.local_models.contracts import (
 #: The context Syzygy pins for a local server, and the ceiling on one
 #: reply. Derived from the real prompt, not from what a model advertises:
 #: the daily-reading prompt carries the system prompt, the fixed card, the
-#: ranked transits, the natal anchors and up to
-#: `reading_service.MAX_KNOWLEDGE_CHUNKS_PER_SOURCE` × 3 source passages,
-#: and the reply is two registers of a few hundred words each. 8192 leaves
-#: real headroom over that; raising it costs KV cache on every machine and
-#: buys nothing, so it is pinned here and passed to `llama-server`
-#: explicitly rather than left to the model's default.
+#: ranked transits, the natal anchors and the source passages, and the
+#: reply is two registers of a few hundred words each. Raising it costs KV
+#: cache on every machine, so it is pinned here and passed to
+#: `llama-server` explicitly rather than left to the model's default.
+#:
+#: The prompt is kept under it from the other side, by
+#: `reading_service.MAX_SOURCE_PASSAGE_CHARS` - the passage block is the
+#: only part of a prompt that varies by thousands of tokens, and the
+#: arithmetic tying the two constants together is written out there. The
+#: count cap alone was not enough: `llama-server` rejects an over-long
+#: request outright, and a reading whose committed context cannot fit
+#: fails identically on every retry.
 SYZYGY_CONTEXT_TOKENS = 8192
 SYZYGY_MAX_OUTPUT_TOKENS = 1536
 

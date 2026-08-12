@@ -169,7 +169,7 @@ async def test_a_reading_stranded_in_interpreting_is_retryable(services, profile
         card_before = screen.reading.card_draw.card_id
 
         # The screen must not claim to be working when nothing is.
-        assert "INTERRUPTED" in text_of(q(pilot, "#reading-title"))
+        assert "INTERRUPTED" in text_of(q(pilot, "#reading-body"))
         assert "[R] RETRY" in text_of(q(pilot, "#reading-keys"))
 
         await pilot.press("r")
@@ -244,7 +244,10 @@ async def test_a_retry_in_flight_shows_progress_and_hides_the_retry_hint(
         await pilot.press("r")
         await pilot.pause()
 
-        assert "INTERPRETING" in text_of(q(pilot, "#reading-title"))
+        # The waiting indicator carries the activity now (M23); the title
+        # carries only what is true of the reading itself.
+        assert "INTERPRETING" in text_of(q(pilot, "#reading-waiting"))
+        assert "THE ALIGNMENT IS FIXED." in text_of(q(pilot, "#reading-title"))
         assert "[R] RETRY" not in text_of(q(pilot, "#reading-keys"))
 
         # Retry is not offered while one is running, so a second press is

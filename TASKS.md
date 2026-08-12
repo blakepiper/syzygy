@@ -341,3 +341,53 @@ show anyway — one static line of text for a wait that can last a minute.
 Not done here, and deliberately: the `[G]` summaries on the chart and cosmos
 screens have the same unbounded wait behind a one-line static in a small
 panel. Same fix, different layout problem; it was not what was asked for.
+
+---
+
+## M24 — A prompt that fits the context it is sent to
+
+```
+INFO: srv send_error: task id = 0, error: request (10243 tokens) exceeds
+      the available context size (8192 tokens), try increasing it
+```
+
+Today's reading drew a Major Arcanum, retrieval found seven passages for it,
+and the prompt came to ten thousand tokens against the 8192-token context
+`local_models.fit.SYZYGY_CONTEXT_TOKENS` pins. `llama-server` refuses such a
+request outright rather than truncating it, so the reading landed in
+`INTERPRETATION_FAILED` — and because a retry reuses the committed context
+verbatim, every press of `[R]` failed in exactly the same way. The card was
+fixed and correct the whole time; nothing about it could be read.
+
+- [x] M24.1 `reading_service.MAX_SOURCE_PASSAGE_CHARS`: a total budget on the
+      passage text that may reach a provider. The existing cap bounds how
+      *many* passages are sent and says nothing about how long they are, and a
+      single Book of Thoth section runs past five thousand characters. The
+      arithmetic tying 8000 characters to the 8192-token context is written
+      out at the constant, including the repair turn — which re-sends the
+      whole prompt plus a rejected reply of up to `SYZYGY_MAX_OUTPUT_TOKENS`,
+      and so is the case the budget actually has to fit. Measured against the
+      pinned model's own tokenizer, not estimated: the Oracle's frame is 2178
+      tokens, the daily reading's 1277.
+- [x] M24.2 A passage that would take the total past the budget is skipped and
+      the next still considered — the same reasoning as the per-source cap, so
+      one long Tier 0 section cannot crowd the Tier 1 companions out. Nothing
+      is truncated: a passage cut mid-sentence still arrives under "SOURCE
+      PASSAGES" as though it were all the page said. Retrieved *citations* are
+      untouched, so the `[I]` view still reports everything retrieval found
+      (M18.1f).
+- [x] M24.3 The budget is fixed rather than per-provider, because the context
+      is built and committed once, before a provider is chosen, and a retry
+      may reach a different one than the first attempt did.
+- [x] M24.4 The reading screen said `THE ALIGNMENT IS FIXED.` twice, in two
+      colours, one line under the other: the title and the panel both carried
+      it. The title now carries what is true of the reading and the panel what
+      is true of the interpretation — in progress, in flight, interrupted,
+      unavailable — each said once. This is the rest of M23.4, which removed
+      the same duplication from the Oracle's panel but left the daily
+      reading's.
+
+Not done here: nothing repairs a context that was already committed over
+budget. Those readings are unreadable for good, and re-retrieving into a
+committed reading is not a path this design has — the fix is in front of them,
+not behind.

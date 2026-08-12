@@ -162,20 +162,15 @@ class ReadingScreen(SyzygyScreen):
         )
         result = self.reading.interpretation
         title = self.query_one("#reading-title", Static)
-        if self._interpreting:
-            # Checked first: a retry is in flight *before* the stored
-            # status has moved off INTERPRETATION_FAILED, and the screen
-            # must show the work rather than the state it is leaving.
-            title.update("THE ALIGNMENT IS FIXED. INTERPRETING…")
-        elif result is not None:
+        if result is not None:
             title.update(result.alignment_title)
-        elif self.reading.status == ReadingStatus.INTERPRETATION_FAILED:
-            title.update("THE ALIGNMENT IS FIXED.")
-        elif self._is_interrupted():
-            # Never claim to be working when nothing is.
-            title.update("THE ALIGNMENT IS FIXED. INTERPRETATION WAS INTERRUPTED.")
         else:
-            title.update("THE ALIGNMENT IS FIXED. INTERPRETING…")
+            # One line, in every state that has no interpretation yet: the
+            # title says what is true of the reading, and the panel below
+            # says what is true of the interpretation (in progress, in
+            # flight, interrupted, unavailable). They used to both say
+            # this, one under the other.
+            title.update("THE ALIGNMENT IS FIXED.")
         self._update_keys_hint()
 
     def _update_keys_hint(self) -> None:
