@@ -273,6 +273,15 @@ class SyzygyApp(App[None]):
         muted = self.theme_player.toggle_mute()
         self.notify("Theme muted." if muted else "Theme unmuted.", timeout=2)
 
+    def play_result_ready(self) -> None:
+        """Play the cue that tells the reader an interpretation is ready.
+
+        The audio boundary owns all failure handling. Screens only announce
+        the semantic event, so a missing device or a disabled audio session
+        cannot interfere with displaying the result.
+        """
+        self.theme_player.play_notification()
+
     def action_cycle_motion(self) -> None:
         """Cycle full/reduced/off and persist only the animation section."""
         current = self.animations.motion

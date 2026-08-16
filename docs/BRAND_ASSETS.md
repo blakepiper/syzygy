@@ -77,7 +77,7 @@ The luminance threshold is safe because the source is monochrome pixel
 art: 96% of its pixels are within a few units of pure black or pure
 white.
 
-## The theme (`resources/audio/theme.mp3`)
+## The theme and result-ready cue (`resources/audio/`)
 
 Not a derived asset: the MP3 in the package *is* the master, so there is
 nothing to regenerate and no source file at the repository root. It is the
@@ -86,7 +86,10 @@ for AGPL redistribution.
 
 It is 3.5 MB, which is most of the wheel. Playback through `syzygy.audio`
 ships in the main install and degrades to silence if no audio device is
-available.
+available. The same directory carries `notification.wav`, a short bundled
+one-shot cue played when a daily or Oracle interpretation becomes ready. It
+uses its own playback stream, so it does not restart the theme; mute and
+`--no-audio` silence both.
 
 ## Sizes
 

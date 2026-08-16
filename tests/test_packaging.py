@@ -44,6 +44,14 @@ def test_the_catalog_and_runtime_manifest_are_packaged() -> None:
     assert package.joinpath("runtimes.yaml").is_file()
 
 
+def test_audio_assets_are_packaged() -> None:
+    from importlib import resources
+
+    package = resources.files("syzygy.resources.audio")
+    assert package.joinpath("theme.mp3").is_file()
+    assert package.joinpath("notification.wav").is_file()
+
+
 # -- the built distribution ---------------------------------------------------
 
 #: Anything matching these must never appear in a wheel or sdist: they are

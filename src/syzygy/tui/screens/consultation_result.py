@@ -466,6 +466,8 @@ class ConsultationResultScreen(SyzygyScreen):
         self.record = _describe(self.consultation)
         self._interpreting = False
         self._show()
+        if self.consultation.status is ConsultationStatus.COMPLETE:
+            self.syzygy.play_result_ready()
 
     def action_retry(self) -> None:
         if self._may_retry():

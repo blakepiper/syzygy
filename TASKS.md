@@ -446,3 +446,23 @@ first to quit stops it; the other starts it again on its next reading, inside
 `ensure_ready`'s existing one-restart budget. A lock file would make that
 tidier and is not worth the failure modes a lock file brings to a program
 someone runs once a day.
+
+## M26 — Tell the reader when the result is ready
+
+- [x] M26.1 Extend the failure-safe application audio boundary with a short,
+      one-shot result-ready cue that respects `[S]` mute and `--no-audio`.
+      Keep it on an independent playback stream so it never restarts or
+      interrupts the looping theme; a missing or broken cue remains a silent
+      convenience, not a reason the TUI cannot start.
+- [x] M26.2 Play the cue exactly when a daily interpretation or combined
+      Oracle interpretation reaches `COMPLETE`, including recovery by retry,
+      and never for an unavailable interpretation or when reopening history.
+- [x] M26.3 Cover the audio contract, both TUI completion paths, the failure
+      path, and packaging of the bundled cue.
+
+### Definition of done (M26)
+
+- [x] A long local-model daily reading and Oracle consultation announce a
+      readable result without changing their committed facts.
+- [x] Audio failures, mute, and disabled audio remain non-fatal and silent.
+- [x] `pytest`, `ruff check .`, and `mypy src` pass.

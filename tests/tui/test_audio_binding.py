@@ -37,6 +37,9 @@ class FakeTheme:
     def stop(self) -> None:
         self.calls.append("stop")
 
+    def play_notification(self) -> None:
+        self.calls.append("notification")
+
 
 async def test_the_theme_starts_with_the_app(services):
     theme = FakeTheme()

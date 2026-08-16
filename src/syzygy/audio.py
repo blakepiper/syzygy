@@ -1,4 +1,4 @@
-"""The theme, looping under the whole application (M15).
+"""The theme and result-ready cue, looping under the whole application (M15).
 
 ## Why this library
 
@@ -30,7 +30,7 @@ seen - resolves to `SilentTheme`, which satisfies the same interface and
 does nothing. `start()` never raises, and neither does anything else here.
 
 Playback runs on the library's own thread, so it never blocks the event
-loop; `syzygy.tui` only ever calls `toggle_mute()`/`stop()`.
+loop; `syzygy.tui` only ever calls `toggle_mute()`/`play_notification()`/`stop()`.
 """
 
 from __future__ import annotations
@@ -44,6 +44,7 @@ __all__ = [
     "AUDIO_SECTION",
     "DEFAULT_VOLUME",
     "LoopingTheme",
+    "NOTIFICATION_RESOURCE",
     "SilentTheme",
     "ThemePlayer",
     "create_theme_player",
@@ -53,6 +54,7 @@ __all__ = [
 
 RESOURCE_PACKAGE: Final = "syzygy.resources"
 THEME_RESOURCE: Final = "audio/theme.mp3"
+NOTIFICATION_RESOURCE: Final = "audio/notification.wav"
 
 #: Background music under a text interface should sit well under speech
 #: level. Not user-configurable yet: the mute key is the control that was
@@ -82,6 +84,9 @@ class ThemePlayer(Protocol):
     def stop(self) -> None:
         """Stop and release the device. Idempotent."""
 
+    def play_notification(self) -> None:
+        """Play the short cue used when an interpretation is ready."""
+
 
 class SilentTheme:
     """The no-audio implementation, and the fallback for every failure.
@@ -109,6 +114,9 @@ class SilentTheme:
     def stop(self) -> None:
         return None
 
+    def play_notification(self) -> None:
+        return None
+
 
 class LoopingTheme:
     """`just_playback` behind the `ThemePlayer` interface.
@@ -120,13 +128,21 @@ class LoopingTheme:
 
     available = True
 
-    def __init__(self, playback: object, settings_path: Path | None, *, muted: bool) -> None:
+    def __init__(
+        self,
+        playback: object,
+        settings_path: Path | None,
+        *,
+        muted: bool,
+        notification_playback: object | None = None,
+    ) -> None:
         # Typed as `object` because `just_playback` has no stubs and must
         # not be imported at module load - see `create_theme_player`.
         self._playback = playback
         self._settings_path = settings_path
         self._muted = muted
         self._started = False
+        self._notification_playback = notification_playback
 
     @property
     def muted(self) -> bool:
@@ -146,6 +162,8 @@ class LoopingTheme:
         self._muted = not self._muted
         if self._muted:
             self._safely(lambda: self._playback.pause())  # type: ignore[attr-defined]
+            if self._notification_playback is not None:
+                self._safely(lambda: self._notification_playback.stop())  # type: ignore[attr-defined]
         elif self._started:
             self._resume_or_play()
         self._persist()
@@ -163,6 +181,14 @@ class LoopingTheme:
     def stop(self) -> None:
         self._started = False
         self._safely(lambda: self._playback.stop())  # type: ignore[attr-defined]
+        if self._notification_playback is not None:
+            self._safely(lambda: self._notification_playback.stop())  # type: ignore[attr-defined]
+
+    def play_notification(self) -> None:
+        """Play the one-shot result-ready cue without interrupting the theme."""
+        if self._muted or self._notification_playback is None:
+            return
+        self._safely(lambda: self._notification_playback.play())  # type: ignore[attr-defined]
 
     def _persist(self) -> None:
         if self._settings_path is None:
@@ -200,11 +226,11 @@ def save_muted(settings_path: Path, muted: bool) -> None:
     save_section(settings_path, AUDIO_SECTION, {"muted": muted})
 
 
-def _theme_path() -> Path | None:
-    """A real filesystem path to the bundled theme.
+def _resource_path(resource_name: str) -> Path | None:
+    """A real filesystem path to a bundled audio resource.
 
     `just_playback` opens a file by name, so unlike every other bundled
-    resource this one cannot be read straight out of a zipped wheel. The
+    resource these cannot be read straight out of a zipped wheel. The
     common case (a normal install, or an editable checkout) is a real
     file on disk and this returns it directly; for a zip import it returns
     `None` and the app runs silent rather than unpacking megabytes to a
@@ -213,11 +239,35 @@ def _theme_path() -> Path | None:
     from importlib import resources
 
     try:
-        resource = resources.files(RESOURCE_PACKAGE).joinpath(THEME_RESOURCE)
+        resource = resources.files(RESOURCE_PACKAGE).joinpath(resource_name)
         path = Path(str(resource))
     except (ModuleNotFoundError, TypeError, OSError):
         return None
     return path if path.is_file() else None
+
+
+def _theme_path() -> Path | None:
+    """A real filesystem path to the bundled looping theme."""
+    return _resource_path(THEME_RESOURCE)
+
+
+def _notification_playback(playback_type: type, path: Path | None) -> object | None:
+    """Best-effort construction of the independent result-ready player.
+
+    The cue is a convenience layered on top of the theme. A bad or missing
+    cue must leave the main theme usable, so this failure is intentionally
+    isolated from `create_theme_player`'s main playback construction.
+    """
+    if path is None:
+        return None
+    try:
+        playback = playback_type()
+        playback.load_file(str(path))
+        playback.loop_at_end(False)
+        playback.set_volume(DEFAULT_VOLUME)
+        return playback
+    except Exception:
+        return None
 
 
 def create_theme_player(
@@ -258,4 +308,10 @@ def create_theme_player(
     except Exception as exc:  # no device, unsupported format, driver error
         return SilentTheme(f"{type(exc).__name__}: {exc}")
 
-    return LoopingTheme(playback, settings_path, muted=load_muted(settings_path))
+    notification = _notification_playback(Playback, _resource_path(NOTIFICATION_RESOURCE))
+    return LoopingTheme(
+        playback,
+        settings_path,
+        muted=load_muted(settings_path),
+        notification_playback=notification,
+    )

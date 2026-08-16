@@ -222,6 +222,8 @@ class ReadingScreen(SyzygyScreen):
         self._show()
         event = "success" if reading.status is ReadingStatus.COMPLETE else "error"
         self.syzygy.animations.trigger(event, self.query_one("#reading-panel", ReadingPanel))
+        if reading.status is ReadingStatus.COMPLETE:
+            self.syzygy.play_result_ready()
         if reading.interpretation is not None:
             self.syzygy.animations.decode_heading(
                 self.query_one("#reading-title", Static), reading.interpretation.alignment_title

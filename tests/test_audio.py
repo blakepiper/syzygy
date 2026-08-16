@@ -108,6 +108,7 @@ def test_silence_satisfies_the_whole_interface(settings_path):
     player: ThemePlayer = SilentTheme("testing")
     player.start()
     assert player.toggle_mute() is True
+    player.play_notification()
     player.stop()
     assert player.muted is True
 
@@ -118,6 +119,20 @@ def test_silence_satisfies_the_whole_interface(settings_path):
 def _looping(settings_path, *, muted: bool = False) -> tuple[LoopingTheme, FakePlayback]:
     playback = FakePlayback()
     return LoopingTheme(playback, settings_path, muted=muted), playback
+
+
+def _looping_with_notification(
+    settings_path, *, muted: bool = False
+) -> tuple[LoopingTheme, FakePlayback, FakePlayback]:
+    playback = FakePlayback()
+    notification = FakePlayback()
+    theme = LoopingTheme(
+        playback,
+        settings_path,
+        muted=muted,
+        notification_playback=notification,
+    )
+    return theme, playback, notification
 
 
 def test_start_plays_and_is_idempotent(settings_path):
@@ -131,6 +146,23 @@ def test_start_while_muted_plays_nothing(settings_path):
     theme, playback = _looping(settings_path, muted=True)
     theme.start()
     assert playback.calls == []
+
+
+def test_notification_plays_without_interrupting_the_theme(settings_path):
+    theme, playback, notification = _looping_with_notification(settings_path)
+    theme.start()
+    theme.play_notification()
+
+    assert playback.calls == ["play"]
+    assert notification.calls == ["play"]
+
+
+def test_notification_respects_mute(settings_path):
+    theme, _, notification = _looping_with_notification(settings_path)
+    theme.toggle_mute()
+    theme.play_notification()
+
+    assert notification.calls == ["stop"]
 
 
 def test_mute_pauses_rather_than_stopping(settings_path):
@@ -169,6 +201,14 @@ def test_stop_is_idempotent(settings_path):
     theme.stop()
     assert playback.calls.count("stop") == 2  # cheap, and safe to repeat
     assert playback.active is False
+
+
+def test_stop_also_stops_a_notification(settings_path):
+    theme, _, notification = _looping_with_notification(settings_path)
+    theme.play_notification()
+    theme.stop()
+
+    assert notification.calls == ["play", "stop"]
 
 
 def test_a_backend_that_throws_mid_session_does_not_propagate(settings_path):
