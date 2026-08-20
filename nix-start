@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# nix-start — run Syzygy from this checkout with a nixpkgs Python 3.13.
+#
+# This is an optional NixOS/Nix convenience launcher.  It does not replace
+# the normal Python virtualenv instructions in README.md: it only supplies a
+# supported Python and an isolated virtualenv when nix-shell is available.
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+venv_dir="$repo_root/.nix-venv-py313"
+
+# Re-enter this script in a pure Nix shell.  %q retains argument boundaries,
+# so `./nix-start doctor` and any future CLI arguments behave normally.
+if [[ "${SYZYGY_NIX_SHELL:-}" != "1" ]]; then
+    if ! command -v nix-shell >/dev/null 2>&1; then
+        echo "error: nix-shell not found on PATH." >&2
+        echo "This launcher is for NixOS/Nix users; use the README virtualenv setup instead." >&2
+        exit 1
+    fi
+
+    printf -v quoted_script '%q' "$repo_root/nix-start"
+    printf -v quoted_args ' %q' "$@"
+    # pyswisseph (a Kerykeion dependency) may be compiled from source when
+    # PyPI has no wheel for this Python/platform combination.
+    exec nix-shell --pure -p python313 python313Packages.pip gcc \
+        --run "SYZYGY_NIX_SHELL=1 exec bash $quoted_script$quoted_args"
+fi
+
+cd "$repo_root"
+
+# PyPI's PyMuPDF wheel links to libstdc++.  In a `--pure` Nix shell that
+# runtime library is present with gcc but intentionally absent from the
+# dynamic loader search path.
+gcc_runtime_dir="$(dirname "$(gcc -print-file-name=libstdc++.so.6)")"
+export LD_LIBRARY_PATH="$gcc_runtime_dir${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+if [[ ! -x "$venv_dir/bin/python" ]]; then
+    echo "==> Creating Nix-managed virtualenv (.nix-venv-py313)" >&2
+    python3.13 -m venv "$venv_dir"
+fi
+
+echo "==> Ensuring Syzygy and its dependencies are installed" >&2
+"$venv_dir/bin/python" -m pip install --editable "$repo_root"
+
+exec "$venv_dir/bin/syzygy" "$@"

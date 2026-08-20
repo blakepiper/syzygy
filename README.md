@@ -72,6 +72,14 @@ syzygy           # launch the TUI (same as `syzygy tui`); first run walks
                  # you through creating a profile
 ```
 
+### NixOS / Nix shortcut
+
+On a machine with `nix-shell`, `./nix-start` creates a private Python 3.13
+virtualenv at `.nix-venv-py313`, installs this checkout into it, and launches
+Syzygy. It accepts the normal CLI arguments, so `./nix-start doctor` checks
+the environment and bare `./nix-start` opens the TUI. This is optional; the
+standard virtualenv setup above remains the supported path on non-Nix systems.
+
 First launch creates a profile from birth data (date, time, place,
 coordinates, timezone — or resolved automatically from a place name if
 the lookup service is reachable), calculates its natal chart, and drops
