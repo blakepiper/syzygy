@@ -2,12 +2,15 @@
 
 Two phases, because docs/old/DESIGN.md section 6.1 requires the user to review the
 resolved birthplace values *before* the chart is calculated: the form,
-then a confirmation panel. Latitude/longitude/timezone can be typed by
-hand, or - if left blank and a place label is given, and the `geocoding`
-extra is installed - resolved automatically from the place label before
-the confirm panel is shown. Either way the user reviews and can still
+then a confirmation panel. Section 6.1 asks the user for only display
+name, birth date, birth time, and birthplace - latitude, longitude, and
+timezone are *produced* by resolving that birthplace, not asked for. So
+the coordinate/timezone fields stay out of the default form entirely,
+behind a "manual coordinates" toggle that a user only needs when
+geocoding fails or is unavailable, or when they want to skip it
+outright. Either way the user reviews the resolved values and can still
 EDIT before CONFIRM; manual entry keeps working exactly the same with or
-without the extra installed.
+without a reachable geocoding service.
 
 The chart itself is calculated exactly once here and then saved
 (docs/old/DESIGN.md section 6.2); nothing later recalculates it silently.
@@ -35,11 +38,13 @@ from syzygy.geocoding import (
 from syzygy.storage.profiles import insert_profile
 from syzygy.tui.screens.base import FormScroll, SyzygyScreen, TitleBar
 
-_FIELDS: tuple[tuple[str, str, str], ...] = (
+_PRIMARY_FIELDS: tuple[tuple[str, str, str], ...] = (
     ("display-name", "NAME", "Blake"),
     ("birth-date", "BIRTH DATE", "1990-08-07"),
     ("birth-time", "BIRTH TIME (LOCAL, 24H)", "14:22"),
     ("place-label", "BIRTHPLACE", "Alexandria, Virginia, USA"),
+)
+_MANUAL_FIELDS: tuple[tuple[str, str, str], ...] = (
     ("latitude", "LATITUDE", "38.8048"),
     ("longitude", "LONGITUDE", "-77.0469"),
     ("timezone", "IANA TIMEZONE", "America/New_York"),
@@ -67,14 +72,19 @@ class ProfileCreateScreen(SyzygyScreen):
         # here; the container is a layout device.
         with FormScroll(id="profile-form", can_focus=False):
             yield Static(
-                "Exact birth time matters. Leave coordinates and timezone blank to\n"
-                "resolve them from the birthplace, or enter them directly - either way,\n"
-                "geocoding is never part of the calculation itself.",
+                "Exact birth time matters. Coordinates and timezone are resolved\n"
+                "automatically from the birthplace - geocoding is never part of the\n"
+                "calculation itself.",
                 classes="muted",
             )
-            for field_id, label, placeholder in _FIELDS:
+            for field_id, label, placeholder in _PRIMARY_FIELDS:
                 yield Static(label, classes="field-label")
                 yield Input(placeholder=placeholder, id=field_id)
+            yield Button("ENTER COORDINATES MANUALLY", id="manual-toggle")
+            with Vertical(id="manual-coords", classes="hidden"):
+                for field_id, label, placeholder in _MANUAL_FIELDS:
+                    yield Static(label, classes="field-label")
+                    yield Input(placeholder=placeholder, id=field_id)
             yield Static("", id="form-error", classes="error")
             yield Static(
                 "[TAB] next field   [ENTER] review   [ESC] cancel",
@@ -152,6 +162,9 @@ class ProfileCreateScreen(SyzygyScreen):
             self._show_form()
         elif event.button.id == "confirm":
             self._confirm()
+        elif event.button.id == "manual-toggle":
+            self._reveal_manual_coords()
+            self.query_one("#latitude", Input).focus()
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         """ENTER from any field reviews the form (M11.1b).
@@ -205,9 +218,14 @@ class ProfileCreateScreen(SyzygyScreen):
             return
         self.app.call_from_thread(self._geocoding_resolved, resolved)
 
+    def _reveal_manual_coords(self) -> None:
+        self.query_one("#manual-coords").remove_class("hidden")
+        self.query_one("#manual-toggle", Button).add_class("hidden")
+
     def _geocoding_failed(self, place_label: str, message: str) -> None:
         if not self.is_mounted:
             return
+        self._reveal_manual_coords()
         self.query_one("#review", Button).disabled = False
         self.query_one("#form-error", Static).update(
             f"Could not resolve a location for {place_label!r} ({message}); "

@@ -124,11 +124,13 @@ async def test_the_profile_form_steps_between_fields_with_up_and_down(app: Syzyg
 
 async def test_the_whole_profile_form_is_completable_without_tab_or_a_mouse(app: SyzygyApp):
     """Arrows to each field, typing, arrows to the confirm row, enter."""
-    values = {
+    primary_values = {
         "display-name": "Blake",
         "birth-date": "1990-08-07",
         "birth-time": "14:22",
         "place-label": "Alexandria, Virginia, USA",
+    }
+    manual_values = {
         "latitude": "38.8048",
         "longitude": "-77.0469",
         "timezone": "America/New_York",
@@ -138,7 +140,20 @@ async def test_the_whole_profile_form_is_completable_without_tab_or_a_mouse(app:
         await pilot.press("n")
         await settle(pilot)
 
-        for field_id, value in values.items():
+        for field_id, value in primary_values.items():
+            assert await press_until(pilot, "down", field_id), f"never reached {field_id}"
+            for character in value:
+                await pilot.press(character if character != " " else "space")
+            await pilot.pause()
+
+        # "down" from the birthplace field reaches the manual-coordinates
+        # toggle; "enter" reveals and focuses the coordinate fields, the
+        # same as `Button.press`.
+        assert await press_until(pilot, "down", "manual-toggle"), "never reached manual-toggle"
+        await pilot.press("enter")
+        await pilot.pause()
+
+        for field_id, value in manual_values.items():
             assert await press_until(pilot, "down", field_id), f"never reached {field_id}"
             for character in value:
                 await pilot.press(character if character != " " else "space")

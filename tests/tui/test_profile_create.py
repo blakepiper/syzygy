@@ -146,6 +146,10 @@ async def test_geocoding_failure_leaves_the_form_open_for_manual_entry(
         assert "Could not resolve a location for 'Nowhereville'" in error
         assert "enter coordinates manually" in error
 
+        # A geocoding failure must surface the manual fields, not just tell
+        # the user about them in prose.
+        assert not q(pilot, "#manual-coords").has_class("hidden")
+
 
 async def test_geocoding_transport_error_never_strands_the_form(app: SyzygyApp, monkeypatch):
     """M11.1c: `geopy` raises its own transport exceptions (DNS, TLS,
@@ -177,6 +181,24 @@ async def test_geocoding_transport_error_never_strands_the_form(app: SyzygyApp, 
         assert "Resolving" not in error
         assert "TimeoutError" in error
         assert "enter coordinates manually" in error
+
+
+async def test_manual_coordinates_are_hidden_until_requested(app: SyzygyApp):
+    """docs/old/DESIGN.md 6.1: profile creation asks for name, birth date,
+    birth time, and birthplace only - latitude/longitude/timezone are
+    produced by resolving that birthplace, not asked for up front. A user
+    who never needs the fallback should never see raw coordinate fields."""
+    async with app.run_test() as pilot:
+        await _open_profile_create(pilot)
+
+        assert q(pilot, "#manual-coords").has_class("hidden")
+
+        q(pilot, "#manual-toggle", Button).press()
+        await pilot.pause()
+
+        assert not q(pilot, "#manual-coords").has_class("hidden")
+        assert q(pilot, "#manual-toggle", Button).has_class("hidden")
+        assert pilot.app.focused is q(pilot, "#latitude", Input)
 
 
 async def test_focused_input_takes_a_literal_q_keystroke_over_quit(app: SyzygyApp):
@@ -249,7 +271,14 @@ async def test_enter_from_a_field_reviews_the_form(app: SyzygyApp, monkeypatch):
 
     async with app.run_test() as pilot:
         await _open_profile_create(pilot)
-        for text in ("Blake", "1990-08-07", "14:22", "Alexandria", "38.8048", "-77.0469"):
+        for text in ("Blake", "1990-08-07", "14:22", "Alexandria"):
+            await _type(pilot, text)
+            await pilot.press("tab")
+        # Tab from the birthplace field lands on the manual-coordinates
+        # toggle; ENTER activates it, revealing and focusing #latitude.
+        await pilot.press("enter")
+        await pilot.pause()
+        for text in ("38.8048", "-77.0469"):
             await _type(pilot, text)
             await pilot.press("tab")
         await _type(pilot, "America/New_York")
@@ -273,7 +302,14 @@ async def test_keyboard_only_walk_creates_a_profile(app: SyzygyApp, conn, monkey
 
     async with app.run_test() as pilot:
         await _open_profile_create(pilot)
-        for text in ("Blake", "1990-08-07", "14:22", "Alexandria", "38.8048", "-77.0469"):
+        for text in ("Blake", "1990-08-07", "14:22", "Alexandria"):
+            await _type(pilot, text)
+            await pilot.press("tab")
+        # Tab from the birthplace field lands on the manual-coordinates
+        # toggle; ENTER activates it, revealing and focusing #latitude.
+        await pilot.press("enter")
+        await pilot.pause()
+        for text in ("38.8048", "-77.0469"):
             await _type(pilot, text)
             await pilot.press("tab")
         await _type(pilot, "America/New_York")
