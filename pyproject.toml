@@ -43,6 +43,10 @@ dependencies = [
     # resulting localhost server. That makes httpx a runtime dependency of
     # the main install, not of an extra. BSD-3, so AGPL-compatible.
     "httpx>=0.27",
+    # Provider selection is loaded when the TUI starts, even when it falls
+    # back to the fixture provider. API-key storage must therefore be a
+    # default-install dependency.
+    "keyring>=25.0",
 ]
 
 [project.optional-dependencies]
@@ -51,12 +55,10 @@ dependencies = [
 # commands continue to work without maintaining duplicate constraints.
 geocoding = []
 audio = []
-# Remote LLM providers (docs/old/DESIGN.md 13.3) - not needed for the fixture
-# provider or local-inference path.
-providers = [
-    "httpx>=0.27",
-    "keyring>=25.0",
-]
+# Compatibility alias retained for existing `pip install .[providers]`
+# commands. Provider transport and key storage are default-install
+# dependencies because startup imports provider selection.
+providers = []
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.24",

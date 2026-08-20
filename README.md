@@ -47,14 +47,9 @@ pip install .                   # complete local app: TUI, CLI, astrology,
                                  # fixture interpretation provider
 ```
 
-One optional extra adds hosted-provider support:
-
-```bash
-pip install ".[providers]"      # OpenAI / Anthropic hosted providers
-                                 # (httpx, keyring - not needed for the
-                                 # local llama.cpp provider, which has no
-                                 # extra dependency)
-```
+Hosted OpenAI and Anthropic providers are included in the standard install.
+Their API keys are stored via the system keyring; configure one from the model
+setup screen or with `syzygy model configure`.
 
 Birthplace geocoding and looping theme playback are included in the main
 install. If a geocoding request fails, coordinates and timezone can still

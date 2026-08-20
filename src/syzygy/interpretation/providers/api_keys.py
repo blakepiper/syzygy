@@ -45,7 +45,13 @@ def resolve_api_key(provider_id: str, env_var: str) -> str:
     Raises `MissingAPIKeyError` if neither has one - callers should let
     this propagate rather than silently proceeding unauthenticated.
     """
-    stored = keyring.get_password(_service_name(provider_id), _KEYRING_USERNAME)
+    try:
+        stored = keyring.get_password(_service_name(provider_id), _KEYRING_USERNAME)
+    except keyring.errors.KeyringError:
+        # Minimal Nix and headless installations commonly have the keyring
+        # library but no configured backend. The documented environment
+        # fallback must remain usable in that case.
+        stored = None
     if stored:
         return stored
     from_env = os.environ.get(env_var)
@@ -67,4 +73,7 @@ def delete_api_key(provider_id: str) -> None:
 
 
 def has_stored_api_key(provider_id: str) -> bool:
-    return keyring.get_password(_service_name(provider_id), _KEYRING_USERNAME) is not None
+    try:
+        return keyring.get_password(_service_name(provider_id), _KEYRING_USERNAME) is not None
+    except keyring.errors.KeyringError:
+        return False

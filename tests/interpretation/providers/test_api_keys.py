@@ -48,6 +48,18 @@ def test_resolve_falls_back_to_environment(monkeypatch):
     assert api_keys.resolve_api_key("fake", "FAKE_API_KEY") == "from-env"
 
 
+def test_resolve_falls_back_when_no_keyring_backend_exists(monkeypatch):
+    monkeypatch.setenv("FAKE_API_KEY", "from-env")
+
+    def unavailable_keyring(*_args: object) -> None:
+        raise keyring.errors.NoKeyringError("no backend")
+
+    monkeypatch.setattr(api_keys.keyring, "get_password", unavailable_keyring)
+
+    assert api_keys.resolve_api_key("fake", "FAKE_API_KEY") == "from-env"
+    assert api_keys.has_stored_api_key("fake") is False
+
+
 def test_resolve_raises_when_neither_is_set(monkeypatch):
     monkeypatch.delenv("FAKE_API_KEY", raising=False)
 

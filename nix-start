@@ -25,7 +25,9 @@ if [[ "${SYZYGY_NIX_SHELL:-}" != "1" ]]; then
     fi
     # pyswisseph (a Kerykeion dependency) may be compiled from source when
     # PyPI has no wheel for this Python/platform combination.
-    exec nix-shell --pure -p python313 python313Packages.pip gcc \
+    # `cacert` supplies SSL_CERT_FILE inside the pure shell. httpx creates
+    # its SSL context even for the local llama.cpp health probe.
+    exec nix-shell --pure -p python313 python313Packages.pip gcc cacert \
         --run "SYZYGY_NIX_SHELL=1 exec bash $quoted_script$quoted_args"
 fi
 
