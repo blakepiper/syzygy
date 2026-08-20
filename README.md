@@ -79,6 +79,9 @@ virtualenv at `.nix-venv-py313`, installs this checkout into it, and launches
 Syzygy. It accepts the normal CLI arguments, so `./nix-start doctor` checks
 the environment and bare `./nix-start` opens the TUI. This is optional; the
 standard virtualenv setup above remains the supported path on non-Nix systems.
+It does not add `syzygy` to your outer shell's `PATH`; use `./nix-start` each
+time, or follow the standard virtualenv setup if you want the `syzygy` command
+available after activation.
 
 First launch creates a profile from birth data (date, time, place,
 coordinates, timezone — or resolved automatically from a place name if

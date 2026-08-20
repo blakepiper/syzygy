@@ -19,7 +19,10 @@ if [[ "${SYZYGY_NIX_SHELL:-}" != "1" ]]; then
     fi
 
     printf -v quoted_script '%q' "$repo_root/nix-start"
-    printf -v quoted_args ' %q' "$@"
+    quoted_args=""
+    if (( $# > 0 )); then
+        printf -v quoted_args ' %q' "$@"
+    fi
     # pyswisseph (a Kerykeion dependency) may be compiled from source when
     # PyPI has no wheel for this Python/platform combination.
     exec nix-shell --pure -p python313 python313Packages.pip gcc \
